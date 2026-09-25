@@ -37,9 +37,9 @@ Link the addon folder into AddOns so edits are live after `/reload`. From an **a
 mklink /J "D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns\Soapstone" "C:\Users\PC\Documents\Playground\Soapstone-WoW\Soapstone"
 ```
 
-**Interface version:** `Soapstone.toc` says `16001`, a guess from the client
-build. Confirm in game with `/dump (select(4, GetBuildInfo()))` and update
-`## Interface:` if it differs (or tick *Load out of date AddOns*).
+**Interface version:** `Soapstone.toc` says `16001`, confirmed on the WoW
+Forever client with `/dump (select(4, GetBuildInfo()))`. If a client update
+changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 
 ## Try it
 
@@ -57,6 +57,7 @@ build. Confirm in game with `/dump (select(4, GetBuildInfo()))` and update
 | `/soap sound test` | Preview both cues; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version |
+| `/soap net` | Network test tools: `selftest` and `pacetest` (one character), `status`, `ping [channel\|guild\|party\|yell\|whisper Name]`, `burst [n]`, `log` (see [Sharing — Architecture](docs/Sharing%20-%20Architecture.md)) |
 | `/soap help` | All commands |
 
 Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.lua`.
@@ -77,7 +78,9 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `Core.lua`: saved data defaults, shared window helper, `/soap` commands, startup
 - `Sketch.lua`: the 1-bit sketch grid, round brushes, gap-free lines, undo records, compact encoding
 - `Stones.lua`: stone data (text or sketch), positions and distance, 1-second proximity check with near/read zones
+- `Identity.lua`: game flavour (`forever` / `retail` / `classic`) and player identity (`Mad-Decent`, shown as "Mad Decent")
 - `Cues.lua`: sound cues; picks the first built-in sound your client has, or plays a custom `.ogg`
+- `Net.lua`: the hidden `SoapstoneNet` channel, addon-message wire format, and `/soap net` test tools
 - `SketchCanvas.lua`: draws a sketch as pooled row-run rectangles; mouse drawing and undo when editable
 - `DropWindow.lua`: "Leave a Soapstone" window with Write | Draw tabs and the Splatoon-style tool strip
 - `WritePanel.lua`: the message box shared by the drop and edit windows
@@ -109,9 +112,10 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
 
 ## Next steps
 
-1. **Sharing.** Stones are local-only right now. Addons can't use HTTP, so
-   sharing is peer-to-peer over `C_ChatInfo.SendAddonMessage` (GUILD, PARTY,
-   or a custom channel), plus a sync step when two players meet.
+1. **Sharing.** Stones are local-only right now. With nothing to install but
+   the addon, stones will sync player to player, zone by zone, over a hidden
+   channel. See [Sharing — Architecture](docs/Sharing%20-%20Architecture.md);
+   step 1, the network test build, is in.
 2. **In-world presence.** An on-screen arrow toward the nearest sealed stone, a
    rune glow at your feet when on the spot, and the built-in waypoint marker
    (`C_SuperTrack`) if this client has it.

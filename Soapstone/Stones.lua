@@ -4,7 +4,8 @@ local _, ns = ...
 -- are kept for display; distances use world coordinates, which are in yards and
 -- continuous across a continent. World X grows northward, world Y grows westward.
 --
--- stone = { id, author, t, mapID, x, y, instance, wx, wy, mine, heard,
+-- stone = { id, author ("Mad Decent"), authorKey ("Mad-Decent"), flavor,
+--           t, mapID, x, y, instance, wx, wy, mine, heard, edited,
 --           text = "..." or sketch = <Sketch.Pack result> }
 
 local Stones = {}
@@ -125,14 +126,37 @@ local function zoneName(mapID)
 	return info and info.name or "somewhere"
 end
 
-local function newID()
-	return format("%d-%04d", time(), math.random(0, 9999))
+-- Your stones get "Mad-Decent-<time>-<n>": unique across all players, since
+-- the author key is. Anything else (test stones) gets a local-only id.
+local dropCount = 0
+local function newID(stone)
+	dropCount = dropCount + 1
+	if stone.authorKey then
+		return format("%s-%d-%d", stone.authorKey, time(), dropCount)
+	end
+	return format("local-%d-%04d", time(), math.random(0, 9999))
+end
+
+-- Stones dropped before names were stored in full say just "Mad". Relabel
+-- the ones that are yours as "Mad Decent" / "Mad-Decent".
+function Stones:AdoptOwnStones()
+	local short, display, key = UnitName("player"), ns.Identity.PlayerDisplay(), ns.Identity.PlayerKey()
+	local count = 0
+	for _, stone in ipairs(ns.db.stones) do
+		if stone.mine and not stone.authorKey and stone.author == short then
+			stone.author, stone.authorKey = display, key
+			count = count + 1
+		end
+	end
+	if count > 0 then
+		ns.Print(format("Signed %d of your earlier stones as %s.", count, display))
+	end
 end
 
 -- Dropping ------------------------------------------------------------------
 
 function Stones:Add(stone)
-	stone.id = stone.id or newID()
+	stone.id = stone.id or newID(stone)
 	stone.t = stone.t or time()
 	table.insert(ns.db.stones, stone)
 	ns.MinimapPins:Update()
@@ -152,7 +176,9 @@ function Stones:Drop(content)
 	end
 	here.text = text
 	here.sketch = not text and content.sketch or nil
-	here.author = UnitName("player")
+	here.author = ns.Identity.PlayerDisplay()
+	here.authorKey = ns.Identity.PlayerKey()
+	here.flavor = ns.Identity.Flavor()
 	here.mine = true
 	here.heard = true
 	self:Add(here)
