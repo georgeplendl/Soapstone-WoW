@@ -47,7 +47,7 @@ function ReadWindow:Build()
 	edit:SetScript("OnEnter", function(btn)
 		GameTooltip:SetOwner(btn, "ANCHOR_TOP")
 		GameTooltip:AddLine("Edit Soapstone")
-		GameTooltip:AddLine(format("You can reword a written stone for %d minutes after dropping it.",
+		GameTooltip:AddLine(format("You can reword or delete a written stone for %d minutes after dropping it.",
 			ns.Stones.EDIT_SECONDS / 60), 0.8, 0.8, 0.8, true)
 		GameTooltip:Show()
 	end)

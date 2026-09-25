@@ -40,7 +40,7 @@ build. Confirm in game with `/dump (select(4, GetBuildInfo()))` and update
 | Draw tab | 160×60 black-and-white canvas at 3×; 3 pen and 3 eraser sizes; left-drag draws, right-drag erases; Undo, Clear (undoable) |
 | Right-click minimap button (or `/soap list`) | Nearest 10 stones with distance + compass direction |
 | Click a readable minimap pin (or `/soap read`) | Opens the stone: message, or sketch at 2×. It closes if you walk out of range |
-| Open one of your own written stones within 5 min of dropping it | **Edit (m:ss)** button counts down; opens "Edit Soapstone" (text only) and marks the stone "(edited)" |
+| Open one of your own written stones within 5 min of dropping it | **Edit (m:ss)** button counts down; opens "Edit Soapstone" (text only) to reword it (marked "(edited)") or delete it (with confirmation) |
 | `/soap test` | Plants a stranger's stone or sketch 200 yd north of you — walk to it |
 | Walk within 150 yd of an unread stone | Soft "somewhere close" ping + notice (re-arms when you walk away) |
 | Walk within 40 yd of a stone | Readable chime on every approach, button glows while in range; the first time also prints the message |
@@ -72,7 +72,7 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `DropWindow.lua`: "Leave a Soapstone" window with Write | Draw tabs and the Splatoon-style tool strip
 - `WritePanel.lua`: the message box shared by the drop and edit windows
 - `ReadWindow.lua`: shows one stone's message or sketch, with the Edit countdown on your own written stones
-- `EditWindow.lua`: "Edit Soapstone" dialog, for rewording a written stone in its first 5 minutes
+- `EditWindow.lua`: "Edit Soapstone" dialog, for rewording or deleting a written stone in its first 5 minutes
 - `MinimapButton.lua`: draggable minimap button that glows while a stone is in range
 - `MinimapPins.lua`: stones drawn on the minimap, with rotating-minimap support
 - `Media/`: icon textures with transparent backgrounds (`Soapstone.tga` 64×64 for the button and AddOns list, `SoapstonePin.tga` 32×32 for minimap pins)

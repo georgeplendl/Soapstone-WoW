@@ -96,6 +96,24 @@ function Stones:Edit(stone, text)
 	return true
 end
 
+-- Removes a written stone during its edit window. Returns true if deleted.
+function Stones:Delete(stone)
+	if self:EditTimeLeft(stone) <= 0 then
+		ns.Print("Too late — the stone has set and can't be deleted any more.")
+		return false
+	end
+	for i, s in ipairs(ns.db.stones) do
+		if s == stone then
+			table.remove(ns.db.stones, i)
+			if ns.ReadWindow:Current() == stone then ns.ReadWindow:Hide() end
+			ns.MinimapPins:Update()
+			ns.Print("Stone deleted.")
+			return true
+		end
+	end
+	return false
+end
+
 -- One-line description for chat and tooltips.
 function Stones:Summary(stone)
 	if stone.sketch then return "a sketch" end

@@ -1,18 +1,32 @@
 local _, ns = ...
 
--- "Edit Soapstone": lets the author reword a written stone during the first
--- Stones.EDIT_SECONDS after dropping it. Same message box as the drop window,
--- but no Write | Draw tabs: a written stone can't become a sketch.
+-- "Edit Soapstone": lets the author reword or delete a written stone during
+-- the first Stones.EDIT_SECONDS after dropping it. Same message box as the
+-- drop window, but no Write | Draw tabs: a written stone can't become a sketch.
 --
---  ┌ Edit Soapstone ──────────────────────────── x ┐
---  │ ┌──────────────────────────────────────────┐  │
---  │ │ message                          42 / 140│  │
---  │ └──────────────────────────────────────────┘  │
---  │ Editable for 4:32            [ Save ][Cancel] │
---  └───────────────────────────────────────────────┘
+--  ┌ Edit Soapstone ──────────────────────────────── x ┐
+--  │ ┌──────────────────────────────────────────────┐  │
+--  │ │ message                              42 / 140│  │
+--  │ └──────────────────────────────────────────────┘  │
+--  │ [Delete] Editable for 4:32       [ Save ][Cancel] │
+--  └───────────────────────────────────────────────────┘
 
 local EditWindow = {}
 ns.EditWindow = EditWindow
+
+StaticPopupDialogs["SOAPSTONE_DELETE"] = {
+	text = "Delete this soapstone?\nThis can't be undone.",
+	button1 = DELETE or "Delete",
+	button2 = CANCEL,
+	OnAccept = function(_, stone)
+		if stone and ns.Stones:Delete(stone) then EditWindow:Hide() end
+	end,
+	showAlert = true,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
 
 local FRAME_NAME = "SoapstoneEditFrame"
 local PAD = 14
@@ -47,8 +61,17 @@ function EditWindow:Build()
 	save:SetScript("OnClick", function() self:Save() end)
 	self.saveButton = save
 
+	local delete = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	delete:SetSize(80, 22)
+	delete:SetPoint("BOTTOMLEFT", PAD, 12)
+	delete:SetText(DELETE or "Delete")
+	delete:SetScript("OnClick", function()
+		if self.stone then StaticPopup_Show("SOAPSTONE_DELETE", nil, nil, self.stone) end
+	end)
+	self.deleteButton = delete
+
 	local countdown = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	countdown:SetPoint("BOTTOMLEFT", PAD + 2, 18)
+	countdown:SetPoint("LEFT", delete, "RIGHT", 10, 0)
 	self.countdown = countdown
 
 	local elapsed = 0
@@ -58,7 +81,10 @@ function EditWindow:Build()
 		elapsed = 0
 		self:Tick()
 	end)
-	f:SetScript("OnHide", function() self.stone = nil end)
+	f:SetScript("OnHide", function()
+		self.stone = nil
+		StaticPopup_Hide("SOAPSTONE_DELETE")
+	end)
 end
 
 function EditWindow:Open(stone)
@@ -87,13 +113,19 @@ function EditWindow:Tick()
 	self:UpdateButtons()
 end
 
--- Save is live only while there's time left and the text actually changed.
+-- Delete is live while there's time left; Save also needs the text changed.
 function EditWindow:UpdateButtons()
 	if not self.saveButton then return end
 	local stone = self.stone
 	local text = self.writer:GetText()
-	local ok = stone ~= nil and ns.Stones:EditTimeLeft(stone) > 0 and text ~= "" and text ~= stone.text
-	self.saveButton:SetEnabled(ok)
+	local open = stone ~= nil and ns.Stones:EditTimeLeft(stone) > 0
+	self.saveButton:SetEnabled(open and text ~= "" and text ~= stone.text)
+	self.deleteButton:SetEnabled(open)
+	if not open then StaticPopup_Hide("SOAPSTONE_DELETE") end
+end
+
+function EditWindow:Hide()
+	if self.frame then self.frame:Hide() end
 end
 
 function EditWindow:Save()
