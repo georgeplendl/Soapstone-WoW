@@ -11,11 +11,9 @@ local OUTDOOR = { [0] = 466 + 2 / 3, 400, 333 + 1 / 3, 266 + 2 / 3, 200, 133 + 1
 local INDOOR = { [0] = 300, 240, 180, 120, 80, 50 }
 
 local EDGE_RANGE = 1000 -- yards; farther stones are hidden
-local PIN_SIZE = 14
+local PIN_SIZE = 16
 local RIM_INSET = 7
 local UPDATE_INTERVAL = 0.05
-
-local ICON = "Interface\\Icons\\INV_Misc_Rune_01"
 
 local pool = {}
 
@@ -42,8 +40,7 @@ local function acquire(i)
 	pin:SetFrameLevel(Minimap:GetFrameLevel() + 5)
 	pin.tex = pin:CreateTexture(nil, "OVERLAY")
 	pin.tex:SetAllPoints()
-	pin.tex:SetTexture(ICON)
-	pin.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	pin.tex:SetTexture(ns.PIN_ICON)
 	pin:EnableMouse(true)
 	pin:SetScript("OnEnter", onPinEnter)
 	pin:SetScript("OnLeave", GameTooltip_Hide)

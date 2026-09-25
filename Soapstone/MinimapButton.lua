@@ -6,8 +6,6 @@ local _, ns = ...
 local Button = {}
 ns.MinimapButton = Button
 
-local ICON = "Interface\\Icons\\INV_Misc_Rune_01"
-
 local function updatePosition(btn)
 	local angle = math.rad(ns.db.minimap.angle)
 	local radius = Minimap:GetWidth() / 2 + 5
@@ -55,10 +53,9 @@ function Button:Init()
 	bg:SetPoint("TOPLEFT", 7, -5)
 
 	local icon = btn:CreateTexture(nil, "ARTWORK")
-	icon:SetTexture(ICON)
-	icon:SetSize(17, 17)
-	icon:SetPoint("TOPLEFT", 7, -6)
-	icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+	icon:SetTexture(ns.ICON)
+	icon:SetSize(20, 20)
+	icon:SetPoint("CENTER", bg, "CENTER")
 
 	local border = btn:CreateTexture(nil, "OVERLAY")
 	border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")

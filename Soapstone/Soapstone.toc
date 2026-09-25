@@ -4,7 +4,7 @@
 ## Author: George Plendl
 ## Version: 0.2.0
 ## SavedVariables: SoapstoneDB
-## IconTexture: Interface\Icons\INV_Misc_Rune_01
+## IconTexture: Interface\AddOns\Soapstone\Media\Soapstone
 
 Core.lua
 Sketch.lua

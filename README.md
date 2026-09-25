@@ -72,6 +72,9 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `ReadWindow.lua`: shows one stone's message or sketch
 - `MinimapButton.lua`: draggable minimap button that glows while a stone is in range
 - `MinimapPins.lua`: stones drawn on the minimap, with rotating-minimap support
+- `Media/`: icon textures with transparent backgrounds (`Soapstone.tga` 64×64 for the button and AddOns list, `SoapstonePin.tga` 32×32 for minimap pins)
+
+Icon source art is `art/soapstone.png`. After changing it, run `py tools/convert_icon.py` to rebuild `Media/`.
 
 ## Next steps
 

@@ -1,5 +1,10 @@
 local ADDON_NAME, ns = ...
 
+-- Icon textures with transparent backgrounds, made from art/soapstone.png by
+-- tools/convert_icon.py. The pin version is smaller because it's drawn tiny.
+ns.ICON = "Interface\\AddOns\\Soapstone\\Media\\Soapstone"
+ns.PIN_ICON = "Interface\\AddOns\\Soapstone\\Media\\SoapstonePin"
+
 ns.DEFAULTS = {
 	stones = {},
 	gateYards = 40, -- the app's 1-mile gate, scaled down to Azeroth

@@ -16,7 +16,7 @@ local TOP = 36
 local TEXT_WIDTH = 320
 
 function ReadWindow:Build()
-	local f = ns.CreateWindow(FRAME_NAME, "A Soapstone")
+	local f = ns.CreateWindow(FRAME_NAME, "Soapstone")
 	f:SetPoint("CENTER", 0, 120)
 	f:SetScript("OnHide", function() self.stone = nil end)
 	self.frame = f
