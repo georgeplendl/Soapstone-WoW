@@ -13,7 +13,7 @@ for players: what changed in game, not how.
 ### Added
 - Soapstone quietly joins a hidden network channel a few seconds after login,
   the groundwork for sharing stones between players. It doesn't sync stones yet.
-- `/soap net` test tools: `selftest` (works with a single character),
+- `/soap net` test tools: `selftest` and `pacetest` (work with a single character),
   `status`, `ping`, `burst` and `log`, to check that Soapstone players can
   reach each other.
 

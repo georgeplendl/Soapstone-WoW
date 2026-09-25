@@ -30,6 +30,17 @@ build) is in progress; nothing syncs stones yet.
 | `UnitName` / `UnitFullName("player")` | `"Mad", "Decent"`: the second name sits in the **realm** slot |
 | `GetUnitName("player", true)` | `"Mad Decent"`: the UI joins the two with a space |
 
+### Solo self-test results (2026-09-25, character "Osha Compliant")
+
+| # | Result | Consequence |
+|---|---|---|
+| T1 | Hidden channel joined (`/6`), invisible in chat; messages round-trip | The transport works on WoW Forever |
+| T3 | Sender arrives as **`"Osha Compliant"`**, with a space, on both channel and whisper | `KeyFromSender` already folds it to `Osha-Compliant` |
+| T5 | Whisper to `Osha-Compliant` ✅, `"Osha Compliant"` ✅, `Osha` ❌, and the failure shows a **visible** system message: "No player named 'Osha' is currently playing." | Always whisper the full key. Before step 3, filter that system message for players we contact by addon message, since peers go offline mid-sync |
+| T6 | `SAY` and `YELL` → `InvalidChatType` outside instances; guild untested | The channel plus whispers is the transport; party and guild are extras |
+| — | **~675 ms round trip** on channel and whisper alike | Timeouts and answer-suppression windows must allow > 1 s; prefer few, larger messages |
+| T4 | 30 at once: **9 ok**, 1 `ChannelThrottle`, 20 `AddonMessageThrottle`; **9 of 30 returned** | A burst allowance of about **9–10 messages per prefix**; everything accepted was delivered. The refill rate is next (`/soap net pacetest`) |
+
 ---
 
 ## Flavour: keeping the games apart
@@ -59,7 +70,8 @@ message (`Identity.Flavor()`), so nothing can cross by accident.
 - **Incoming messages:** `CHAT_MSG_ADDON` gives a `sender` string that
   **the server sets, so a sender can't fake it**. It may arrive as
   `Mad-Decent`, `Mad Decent` or `Mad`; `Identity.KeyFromSender` folds all
-  three into the key. *Which form WoW Forever uses is test question T3.*
+  three into the key. **WoW Forever sends `"Mad Decent"`** (with a space;
+  self-test T3).
 - **Stone IDs:** `Mad-Decent-<unix time>-<n>`, unique across all players with
   no coordination.
 - **First-hand vs relayed:** a stone received *from its author* has a
@@ -180,7 +192,9 @@ Edits (`version+1`) and deletes (tombstones, below) are announced the same way.
    `/soap net` status, ping, burst and log; the flavour and identity helpers;
    stones record "Mad Decent" / `Mad-Decent`. No stone syncing.
 2. **Data model:** zone key, `version`, tombstones, `flavor`, `via`, an
-   outbox, and the per-zone and total caps.
+   outbox, and the per-zone and total caps. Also: "mine" must mean
+   `authorKey == your key`, not the account-wide `mine` flag. Today any
+   character on the account can edit another's fresh stone.
 3. **Zone sync:** the protocol above, with chunking and pacing.
 4. **Live drops, edits and deletes** over the channel.
 5. **Abuse limits and tuning** from real traffic.
@@ -199,6 +213,10 @@ character can whisper itself, so one character covers most of the unknowns:
 | Whispers to yourself as `Mad-Decent`, `Mad Decent`, `Mad` | T5: which name form works as a whisper target |
 | Guild (if in one), say, yell | T6: which fallback routes work |
 | 30 messages at once, counting how many return | T4: client refusals (result codes) and server-side drops |
+
+`/soap net pacetest [per second] [seconds]` (default 4/s for 20 s) spends
+the burst first, then sends steadily; what the client still accepts is the
+**sustained refill rate**, which sets how fast a zone can sync.
 
 The only thing it can't answer is **T2, reach**: whether a player elsewhere
 in the realmless world hears you. That needs a second player.

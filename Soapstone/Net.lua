@@ -276,12 +276,53 @@ function Net:SelfTest(n)
 	end)
 end
 
+-- Measures how fast the send allowance refills: spend the burst first,
+-- then send steadily at `rate` per second for `seconds`. Whatever the client
+-- still accepts is the refill rate. Everything goes to the channel and is
+-- counted again when it comes back.
+function Net:PaceTest(rate, seconds)
+	local total = math.floor(rate * seconds)
+	for i = 1, 15 do self:Send("CHANNEL", nil, "ECHOB", "drain", i) end
+
+	local runId = tostring(math.random(1000, 9999))
+	local back = { got = 0, n = total, seen = {} }
+	selfBursts[runId] = back
+	local accepted, tally, order, i = 0, {}, {}, 0
+	local started = now()
+	ns.Print(format("Pace test: burst spent; now sending %d/s for %d s (%d messages)…", rate, seconds, total))
+
+	local ticker
+	ticker = C_Timer.NewTicker(1 / rate, function()
+		i = i + 1
+		local result = self:Send("CHANNEL", nil, "ECHOB", runId, i)
+		if result == "ok" then accepted = accepted + 1 end
+		if not tally[result] then tally[result] = 0; order[#order + 1] = result end
+		tally[result] = tally[result] + 1
+		if i < total then return end
+		ticker:Cancel()
+		local elapsed = now() - started
+		C_Timer.After(ECHO_WAIT, function()
+			selfBursts[runId] = nil
+			local parts = {}
+			for _, result in ipairs(order) do parts[#parts + 1] = format("%s x%d", result, tally[result]) end
+			ns.Print(format("  sent %d over %.1f s: %s", total, elapsed, table.concat(parts, ", ")))
+			ns.Print(format("  accepted %d, so the sustained rate is about |cffffffff%.2f messages/s|r; %d came back",
+				accepted, accepted / elapsed, back.got))
+			ns.Print("Pace test done. Copy these lines (or screenshot the chat) for Claude.")
+		end)
+	end, total)
+end
+
+-- "||" prints a single "|"; a lone "|" starts a WoW text escape (|r, |w, ...).
+local USAGE_PING = "/soap net ping [channel||guild||party||raid||yell||say||whisper Name] — who hears you, and how fast"
+local USAGE_BURST = "/soap net burst [count] [same targets] — send many at once to find the throttle"
+
 local HELP = {
 	"/soap net — status: your identity, game, channel",
 	"/soap net selftest [count] — solo test: channel, whispers to yourself, throttle",
-	-- "||" prints a single "|"; a lone "|" starts a WoW text escape (|r, |w, ...).
-	"/soap net ping [channel||guild||party||raid||yell||say||whisper Name] — who hears you, and how fast",
-	"/soap net burst [count] [same targets] — send many at once to find the throttle",
+	"/soap net pacetest [per second] [seconds] — solo test: how fast the send allowance refills",
+	USAGE_PING,
+	USAGE_BURST,
 	"/soap net log — toggle printing every incoming Soapstone message",
 	"/soap net join | leave — join or leave the network channel",
 }
@@ -295,14 +336,18 @@ function Net:Command(input)
 		self:Status()
 	elseif cmd == "selftest" then
 		self:SelfTest(math.min(tonumber(words[2]) or 30, 100))
+	elseif cmd == "pacetest" then
+		local rate = math.max(1, math.min(tonumber(words[2]) or 4, 10))
+		local seconds = math.max(5, math.min(tonumber(words[3]) or 20, 60))
+		self:PaceTest(rate, seconds)
 	elseif cmd == "ping" then
 		local dist, target = parseDist(words, 2)
-		if not dist or (dist == "WHISPER" and not target) then return ns.Print(HELP[3]) end
+		if not dist or (dist == "WHISPER" and not target) then return ns.Print(USAGE_PING) end
 		self:Ping(dist, target)
 	elseif cmd == "burst" then
 		local n = tonumber(words[2])
 		local dist, target = parseDist(words, n and 3 or 2)
-		if not dist or (dist == "WHISPER" and not target) then return ns.Print(HELP[4]) end
+		if not dist or (dist == "WHISPER" and not target) then return ns.Print(USAGE_BURST) end
 		self:Burst(math.min(n or 20, 100), dist, target)
 	elseif cmd == "log" then
 		logging = not logging
