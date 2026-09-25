@@ -1,0 +1,4 @@
+.claude/settings.local.json
+*.code-workspace
+.DS_Store
+Thumbs.db

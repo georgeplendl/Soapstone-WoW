@@ -1,0 +1,150 @@
+local ADDON_NAME, ns = ...
+
+ns.DEFAULTS = {
+	stones = {},
+	gateYards = 40, -- the app's 1-mile gate, scaled down to Azeroth
+	nearYards = 150, -- "somewhere close" sound cue for unread stones
+	sound = true,
+	minimap = { angle = 210, hide = false },
+}
+
+local function applyDefaults(db, defaults)
+	for k, v in pairs(defaults) do
+		if db[k] == nil then
+			db[k] = type(v) == "table" and CopyTable(v) or v
+		elseif type(v) == "table" and type(db[k]) == "table" then
+			applyDefaults(db[k], v)
+		end
+	end
+end
+
+function ns.Print(msg)
+	print("|cff9fd3c7Soapstone|r: " .. msg)
+end
+
+-- Drop dialog ---------------------------------------------------------------
+
+local function popupEditBox(popup)
+	return popup.editBox or popup.EditBox or (popup.GetEditBox and popup:GetEditBox())
+end
+
+StaticPopupDialogs["SOAPSTONE_DROP"] = {
+	text = "Leave a message here.\nOnly someone standing on this spot can read it.",
+	button1 = "Drop",
+	button2 = CANCEL,
+	hasEditBox = true,
+	maxLetters = 140,
+	editBoxWidth = 260,
+	OnShow = function(self)
+		local eb = popupEditBox(self)
+		eb:SetText("")
+		eb:SetFocus()
+	end,
+	OnAccept = function(self)
+		ns.Stones:Drop(popupEditBox(self):GetText())
+	end,
+	EditBoxOnEnterPressed = function(self)
+		ns.Stones:Drop(self:GetText())
+		self:GetParent():Hide()
+	end,
+	EditBoxOnEscapePressed = function(self)
+		self:GetParent():Hide()
+	end,
+	timeout = 0,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
+function ns.ShowDropDialog()
+	if not ns.Stones:GetPlayerLocation() then
+		ns.Print("The ground here won't take a stone (no map position — are you in an instance?).")
+		return
+	end
+	StaticPopup_Show("SOAPSTONE_DROP")
+end
+
+-- Slash commands ------------------------------------------------------------
+
+local HELP = {
+	"/soap — drop a stone where you stand",
+	"/soap drop <message> — drop without the dialog",
+	"/soap list — nearby stones, nearest first",
+	"/soap test [yards] — plant a stranger's stone north of you (default 200)",
+	"/soap radius <yards> — how close you must be to read (now %d)",
+	"/soap near <yards> — range of the \"somewhere close\" cue (now %d)",
+	"/soap sound [on|off|test] — toggle or preview the sound cues",
+	"/soap button — show/hide the minimap button",
+	"/soap clear — delete every stone",
+}
+
+SLASH_SOAPSTONE1 = "/soapstone"
+SLASH_SOAPSTONE2 = "/soap"
+SlashCmdList.SOAPSTONE = function(input)
+	local cmd, rest = (input or ""):match("^(%S*)%s*(.-)$")
+	cmd = cmd:lower()
+
+	if cmd == "" then
+		ns.ShowDropDialog()
+	elseif cmd == "drop" then
+		if rest ~= "" then ns.Stones:Drop(rest) else ns.ShowDropDialog() end
+	elseif cmd == "list" then
+		ns.Stones:PrintNearby()
+	elseif cmd == "test" then
+		ns.Stones:DropTestStone(tonumber(rest) or 200)
+	elseif cmd == "radius" then
+		local yards = tonumber(rest)
+		if yards and yards > 0 then
+			ns.db.gateYards = yards
+			ns.Print(format("Stones now open within %d yards.", yards))
+		else
+			ns.Print(format("Stones open within %d yards.", ns.db.gateYards))
+		end
+	elseif cmd == "near" then
+		local yards = tonumber(rest)
+		if yards and yards > 0 then
+			ns.db.nearYards = yards
+		end
+		ns.Print(format("You'll sense unread stones within %d yards.", ns.db.nearYards))
+	elseif cmd == "sound" then
+		rest = rest:lower()
+		if rest == "test" then
+			ns.Print("Playing: somewhere close… then: readable.")
+			ns.Cues:Play("near", true)
+			C_Timer.After(1.5, function() ns.Cues:Play("read", true) end)
+			return
+		elseif rest == "on" or rest == "off" then
+			ns.db.sound = rest == "on"
+		else
+			ns.db.sound = not ns.db.sound
+		end
+		ns.Print("Sound cues " .. (ns.db.sound and "on." or "off."))
+	elseif cmd == "button" then
+		ns.db.minimap.hide = not ns.db.minimap.hide
+		ns.MinimapButton:UpdateVisibility()
+	elseif cmd == "clear" then
+		wipe(ns.db.stones)
+		ns.Print("Every stone has crumbled.")
+	else
+		for _, line in ipairs(HELP) do
+			ns.Print(format(line, ns.db.gateYards, ns.db.nearYards))
+		end
+	end
+end
+
+-- Boot ----------------------------------------------------------------------
+
+local boot = CreateFrame("Frame")
+boot:RegisterEvent("ADDON_LOADED")
+boot:RegisterEvent("PLAYER_LOGIN")
+boot:SetScript("OnEvent", function(self, event, arg1)
+	if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
+		SoapstoneDB = SoapstoneDB or {}
+		applyDefaults(SoapstoneDB, ns.DEFAULTS)
+		ns.db = SoapstoneDB
+		self:UnregisterEvent("ADDON_LOADED")
+	elseif event == "PLAYER_LOGIN" then
+		ns.MinimapButton:Init()
+		ns.MinimapPins:Init()
+		ns.Stones:StartProximity()
+	end
+end)

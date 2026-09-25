@@ -1,0 +1,13 @@
+## Interface: 16001
+## Title: Soapstone
+## Notes: Leave messages in the world. They can only be read by someone standing where you stood.
+## Author: George Plendl
+## Version: 0.1.0
+## SavedVariables: SoapstoneDB
+## IconTexture: Interface\Icons\INV_Misc_Rune_01
+
+Core.lua
+Stones.lua
+Cues.lua
+MinimapButton.lua
+MinimapPins.lua
