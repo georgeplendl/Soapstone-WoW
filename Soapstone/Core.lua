@@ -93,9 +93,33 @@ local HELP = {
 	"/soap sound [on||off||test] — toggle or preview the sound cues", -- "||" shows as "|"
 	"/soap button — show/hide the minimap button",
 	"/soap version — show the installed version",
-	"/soap net — network test tools (status, ping, burst, log)",
+	"/soap net — network test tools (selftest, pacetest, status, ping, burst, log)",
+	"/soap stats — how many stones are stored, by zone",
 	"/soap clear — delete every stone",
 }
+
+local function mapName(mapID)
+	local info = mapID and C_Map.GetMapInfo(mapID)
+	return info and info.name or ("map " .. tostring(mapID))
+end
+
+local function printStats()
+	local here = ns.Stones:GetPlayerLocation()
+	local zone = here and ns.Store.ZoneKey(here.mapID)
+	local s = ns.Store:Stats(zone)
+	ns.Print(format("%d stones: %d yours, %d from others, %d test stones.", s.live, s.mine, s.others, s.localOnly))
+	ns.Print(format("%d deleted (kept as tombstones), %d of your changes waiting to announce, %d messages queued.",
+		s.tombstones, s.outbox, ns.Net:QueueLength()))
+	if zone then
+		ns.Print(format("Here: %s (zone %d), %d stones. Zones visited: %d.", mapName(zone), zone, s.inZone, s.zones))
+	end
+	local zones = {}
+	for id, count in pairs(s.perZone) do zones[#zones + 1] = { id = id, count = count } end
+	table.sort(zones, function(a, b) return a.count > b.count end)
+	for i = 1, math.min(#zones, 5) do
+		ns.Print(format("  %s (zone %d): %d", mapName(zones[i].id), zones[i].id, zones[i].count))
+	end
+end
 
 SLASH_SOAPSTONE1 = "/soapstone"
 SLASH_SOAPSTONE2 = "/soap"
@@ -147,8 +171,11 @@ SlashCmdList.SOAPSTONE = function(input)
 	elseif cmd == "button" then
 		ns.db.minimap.hide = not ns.db.minimap.hide
 		ns.MinimapButton:UpdateVisibility()
+	elseif cmd == "stats" then
+		printStats()
 	elseif cmd == "clear" then
-		wipe(ns.db.stones)
+		ns.Store:Clear()
+		ns.MinimapPins:Update()
 		ns.Print("Every stone has crumbled.")
 	else
 		for _, line in ipairs(HELP) do
@@ -169,6 +196,10 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		ns.db = SoapstoneDB
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_LOGIN" then
+		local upgraded = ns.Store:Init()
+		if upgraded > 0 then
+			ns.Print(format("Upgraded %d stones to the new storage format.", upgraded))
+		end
 		ns.MinimapButton:Init()
 		ns.MinimapPins:Init()
 		ns.Stones:AdoptOwnStones()

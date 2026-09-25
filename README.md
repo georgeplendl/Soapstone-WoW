@@ -57,10 +57,12 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | `/soap sound test` | Preview both cues; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version |
+| `/soap stats` | How many stones are stored (yours, others', test), tombstones, pending changes, and the busiest zones |
 | `/soap net` | Network test tools: `selftest` and `pacetest` (one character), `status`, `ping [channel\|guild\|party\|yell\|whisper Name]`, `burst [n]`, `log` (see [Sharing — Architecture](docs/Sharing%20-%20Architecture.md)) |
 | `/soap help` | All commands |
 
-Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.lua`.
+Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.lua`
+(shared by all characters on the account; each stone records which character wrote it).
 
 ## How the app maps to the addon
 
@@ -78,6 +80,7 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `Core.lua`: saved data defaults, shared window helper, `/soap` commands, startup
 - `Sketch.lua`: the 1-bit sketch grid, round brushes, gap-free lines, undo records, compact encoding
 - `Stones.lua`: stone data (text or sketch), positions and distance, 1-second proximity check with near/read zones
+- `Store.lua`: all stone data: stored by id with version, game and zone; tombstones, outbox, storage caps, and a spatial index for "what's near me"
 - `Identity.lua`: game flavour (`forever` / `retail` / `classic`) and player identity (`Mad-Decent`, shown as "Mad Decent")
 - `Cues.lua`: sound cues; picks the first built-in sound your client has, or plays a custom `.ogg`
 - `Net.lua`: the hidden `SoapstoneNet` channel, addon-message wire format, and `/soap net` test tools

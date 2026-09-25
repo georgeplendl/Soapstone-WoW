@@ -16,6 +16,7 @@ local RIM_INSET = 7
 local UPDATE_INTERVAL = 0.05
 
 local pool = {}
+local nearby = {} -- scratch list for Store:Near, reused every update
 
 local function onPinEnter(pin)
 	local stone = pin.stone
@@ -83,7 +84,7 @@ function Pins:Update()
 		local facing = GetCVar("rotateMinimap") == "1" and (GetPlayerFacing() or 0) or 0
 		local cosF, sinF = math.cos(facing), math.sin(facing)
 
-		for _, stone in ipairs(ns.db.stones) do
+		for _, stone in ipairs(ns.Store:Near(here, EDGE_RANGE, nearby)) do
 			local north, east = ns.Stones:Offset(here, stone)
 			if north then
 				local dist = math.sqrt(north * north + east * east)

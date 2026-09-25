@@ -17,9 +17,18 @@ for players: what changed in game, not how.
   `status`, `ping`, `burst` and `log`, to check that Soapstone players can
   reach each other.
 
+- `/soap stats` shows how many stones are stored, and where.
+
 ### Changed
 - Stones are signed with your full character name ("Mad Decent" on WoW
   Forever), and your earlier stones are relabelled automatically.
+- Only the character who wrote a stone can edit or delete it. Before, any
+  character on the same account could.
+- New storage format, ready for sharing. Your stones are upgraded
+  automatically the first time you log in; **older versions of Soapstone
+  can't read the new format.**
+- The minimap and proximity checks only look at stones near you, so they
+  stay fast however many stones are stored.
 
 ## [0.2.0] - 2026-09-25
 
