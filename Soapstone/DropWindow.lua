@@ -23,7 +23,6 @@ ns.DropWindow = DropWindow
 
 local FRAME_NAME = "SoapstoneDropFrame"
 local DRAW_SCALE = 3
-local MAX_LETTERS = 140
 
 local PAD = 14
 local TOP = 34 -- clears the title bar
@@ -38,15 +37,6 @@ local FOOTER = 62 -- hint line + action buttons
 
 local TAB_TEMPLATES = { "CharacterFrameTabButtonTemplate", "CharacterFrameTabTemplate", "PanelTabButtonTemplate" }
 local SIZE_NAMES = { "Small", "Medium", "Large" }
-
-local PANEL_BACKDROP = {
-	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-	edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-	tile = true,
-	tileSize = 16,
-	edgeSize = 14,
-	insets = { left = 4, right = 4, top = 4, bottom = 4 },
-}
 
 local function templateExists(name)
 	if C_XMLUtil and C_XMLUtil.GetTemplateInfo then
@@ -173,47 +163,11 @@ function DropWindow:BuildDrawPanel(f)
 end
 
 function DropWindow:BuildWritePanel(f)
-	local panel = CreateFrame("Frame", nil, f, "BackdropTemplate")
-	panel:SetBackdrop(PANEL_BACKDROP)
-	panel:SetBackdropColor(0, 0, 0, 0.6)
-	panel:SetBackdropBorderColor(0.7, 0.7, 0.7)
-	panel:SetPoint("TOPLEFT", PAD, -TOP)
-	panel:SetPoint("BOTTOMRIGHT", self.canvas.frame, "BOTTOMRIGHT", 6, -6)
-	panel:EnableMouse(true)
-
-	local edit = CreateFrame("EditBox", nil, panel)
-	edit:SetMultiLine(true)
-	edit:SetAutoFocus(false)
-	edit:SetMaxLetters(MAX_LETTERS)
-	edit:SetFontObject(ChatFontNormal)
-	edit:SetPoint("TOPLEFT", 12, -12)
-	edit:SetPoint("TOPRIGHT", -12, -12)
-	edit:SetHeight(80)
-	panel:SetScript("OnMouseDown", function() edit:SetFocus() end)
-
-	local placeholder = panel:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-	placeholder:SetPoint("TOPLEFT", edit, "TOPLEFT", 0, 0)
-	placeholder:SetText("What should the next traveller read here?")
-
-	local counter = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	counter:SetPoint("BOTTOMRIGHT", -12, 10)
-
-	edit:SetScript("OnEscapePressed", edit.ClearFocus)
-	edit:SetScript("OnEnterPressed", function() self:Submit() end)
-	edit:SetScript("OnTextChanged", function(box)
-		local text = box:GetText()
-		if text:find("\n") then
-			box:SetText((text:gsub("\n", " ")))
-			return
-		end
-		placeholder:SetShown(text == "")
-		counter:SetText(format("%d / %d", strlenutf8(text), MAX_LETTERS))
-		self:UpdateButtons()
-	end)
-	counter:SetText(format("0 / %d", MAX_LETTERS))
-
-	self.edit = edit
-	return panel
+	local writer = ns.WritePanel.Create(f, function() self:Submit() end, function() self:UpdateButtons() end)
+	writer.frame:SetPoint("TOPLEFT", PAD, -TOP)
+	writer.frame:SetPoint("BOTTOMRIGHT", self.canvas.frame, "BOTTOMRIGHT", 6, -6)
+	self.writer = writer
+	return writer.frame
 end
 
 function DropWindow:Build()
@@ -282,7 +236,7 @@ function DropWindow:SetMode(mode)
 		end
 	end
 
-	if sketch then self.edit:ClearFocus() else self.edit:SetFocus() end
+	if sketch then self.writer:ClearFocus() else self.writer:Focus() end
 	self:UpdateButtons()
 end
 
@@ -290,7 +244,7 @@ function DropWindow:HasContent()
 	if ns.db.dropMode == "sketch" then
 		return not Sketch.IsEmpty(self.canvas.grid)
 	end
-	return strtrim(self.edit:GetText()) ~= ""
+	return self.writer:GetText() ~= ""
 end
 
 function DropWindow:UpdateButtons()
@@ -316,8 +270,8 @@ function DropWindow:Submit()
 		stone = ns.Stones:Drop({ sketch = Sketch.Pack(self.canvas.grid) })
 		if stone then self.canvas:Reset() end
 	else
-		stone = ns.Stones:Drop({ text = self.edit:GetText() })
-		if stone then self.edit:SetText("") end
+		stone = ns.Stones:Drop({ text = self.writer:GetText() })
+		if stone then self.writer:SetText("") end
 	end
 	if stone then self.frame:Hide() end
 end

@@ -11,7 +11,9 @@ Sketch.lua
 Stones.lua
 Cues.lua
 SketchCanvas.lua
+WritePanel.lua
 DropWindow.lua
 ReadWindow.lua
+EditWindow.lua
 MinimapButton.lua
 MinimapPins.lua

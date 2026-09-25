@@ -28,6 +28,12 @@ function ns.Print(msg)
 	print("|cff9fd3c7Soapstone|r: " .. msg)
 end
 
+-- 272 -> "4:32"
+function ns.FormatCountdown(seconds)
+	seconds = math.max(0, math.floor(seconds))
+	return format("%d:%02d", math.floor(seconds / 60), seconds % 60)
+end
+
 -- Windows -------------------------------------------------------------------
 
 -- A standard Blizzard window: title bar, close button, inset, draggable by its

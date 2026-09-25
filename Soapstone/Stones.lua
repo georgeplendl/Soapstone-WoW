@@ -59,12 +59,41 @@ function Stones:IsReadable(stone, dist)
 	return stone.mine or (dist ~= nil and dist <= ns.db.gateYards)
 end
 
--- "— Author, 3 hr ago" (or "just now" for the first minute).
+-- "— Author, 3 hr ago" (or "just now" for the first minute), plus "(edited)".
 function Stones:Byline(stone)
 	local age = time() - (stone.t or time())
 	local who = stone.mine and "You" or (stone.author or "A stranger")
-	if age < 60 then return format("— %s, just now", who) end
-	return format("— %s, %s ago", who, SecondsToTime(age, true))
+	local when = age < 60 and "just now" or (SecondsToTime(age, true) .. " ago")
+	return format("— %s, %s%s", who, when, stone.edited and " (edited)" or "")
+end
+
+-- Editing -------------------------------------------------------------------
+
+-- How long after dropping a stone its author may still reword it.
+Stones.EDIT_SECONDS = 5 * 60
+
+-- Seconds left to edit `stone`: only your own written stones, counted from
+-- when they were dropped. 0 when it can't (or can no longer) be edited.
+function Stones:EditTimeLeft(stone)
+	if not stone or not stone.mine or not stone.text or stone.sketch then return 0 end
+	return math.max(0, (stone.t or 0) + self.EDIT_SECONDS - time())
+end
+
+-- Rewords a written stone. Returns true if it changed.
+function Stones:Edit(stone, text)
+	text = strtrim(text or "")
+	if text == "" then return false end
+	if self:EditTimeLeft(stone) <= 0 then
+		ns.Print("Too late — the stone has set and can't be edited any more.")
+		return false
+	end
+	if text ~= stone.text then
+		stone.text = text
+		stone.edited = time()
+		ns.Print("Stone updated.")
+		if ns.ReadWindow:Current() == stone then ns.ReadWindow:Show(stone) end
+	end
+	return true
 end
 
 -- One-line description for chat and tooltips.
