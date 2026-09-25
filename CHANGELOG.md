@@ -13,8 +13,9 @@ for players: what changed in game, not how.
 ### Added
 - Soapstone quietly joins a hidden network channel a few seconds after login,
   the groundwork for sharing stones between players. It doesn't sync stones yet.
-- `/soap net` test tools: `status`, `ping`, `burst` and `log`, to check that
-  Soapstone players can reach each other.
+- `/soap net` test tools: `selftest` (works with a single character),
+  `status`, `ping`, `burst` and `log`, to check that Soapstone players can
+  reach each other.
 
 ### Changed
 - Stones are signed with your full character name ("Mad Decent" on WoW

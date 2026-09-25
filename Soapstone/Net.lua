@@ -26,12 +26,20 @@ local BURST_SETTLE = 4 -- seconds after the first burst message before acknowled
 local DISTRIBUTIONS = { channel = "CHANNEL", guild = "GUILD", party = "PARTY", raid = "RAID",
 	yell = "YELL", say = "SAY", whisper = "WHISPER" }
 
-local pings = {}  -- nonce -> { sentAt, dist, count }
-local bursts = {} -- sender .. runId -> { got, n, seen }
+local ECHO_WAIT = 5 -- seconds the solo self-test waits for its own messages
+
+local pings = {}      -- nonce -> { sentAt, dist, count }
+local bursts = {}     -- sender .. runId -> { got, n, seen }
+local echoes = {}     -- nonce -> { label, sentAt, arrived } (solo self-test)
+local selfBursts = {} -- runId -> { got, n, seen } (solo self-test)
 local logging = false
 
 local function now()
 	return GetTimePreciseSec and GetTimePreciseSec() or GetTime()
+end
+
+local function msSince(t)
+	return math.floor((now() - t) * 1000 + 0.5)
 end
 
 local function channelIndex()
@@ -105,7 +113,7 @@ function handlers.PONG(self, sender, dist, nonce, version, via)
 	ping.count = ping.count + 1
 	ns.Print(format("  reply from |cffffffff%s|r  key %s  shows as \"%s\"  %d ms  v%s  (heard it via %s)",
 		sender, Identity.KeyFromSender(sender) or "?", Identity.Display(Identity.KeyFromSender(sender)) or "?",
-		(now() - ping.sentAt) * 1000, version or "?", via or "?"))
+		msSince(ping.sentAt), version or "?", via or "?"))
 end
 
 function handlers.BURST(self, sender, dist, runId, i, n)
@@ -134,6 +142,9 @@ function Net:OnMessage(text, dist, sender)
 	if logging then ns.Print(format("net < %s [%s] %s", sender, dist, text)) end
 	local fields = { strsplit(";", text) }
 	if fields[1] ~= PROTOCOL or fields[2] ~= Identity.Flavor() then return end
+	-- The solo self-test listens for its own messages coming back.
+	if fields[3] == "ECHO" then return self:OnEcho(sender, dist, fields[4]) end
+	if fields[3] == "ECHOB" then return self:OnEchoBurst(fields[4], fields[5]) end
 	if Identity.KeyFromSender(sender) == Identity.PlayerKey() then return end -- our own channel echo
 	local handler = handlers[fields[3]]
 	if handler then handler(self, sender, dist, unpack(fields, 4)) end
@@ -187,8 +198,87 @@ function Net:Burst(n, dist, target)
 		runId, n, dist, target and (" to " .. target) or "", table.concat(parts, ", "), BURST_SETTLE))
 end
 
+-- Solo self-test -------------------------------------------------------------
+-- With one character you can't hear anyone else, but channel messages come
+-- back to their sender through the server, and you can whisper yourself.
+-- That covers everything except reach: channel works at all, how your name
+-- arrives, which name forms work as a whisper target, and throttling.
+
+local OK, NO = "|cff40ff40OK|r", "|cffff4040NO|r"
+
+function Net:OnEcho(sender, dist, nonce)
+	local echo = echoes[nonce]
+	if not echo or echo.arrived then return end
+	echo.arrived = true
+	ns.Print(format("  %s %s: back in %d ms via %s; your name arrived as \"%s\"",
+		OK, echo.label, msSince(echo.sentAt), dist, sender))
+end
+
+function Net:OnEchoBurst(runId, i)
+	local burst = selfBursts[runId]
+	if burst and i and not burst.seen[i] then
+		burst.seen[i] = true
+		burst.got = burst.got + 1
+	end
+end
+
+function Net:SelfTest(n)
+	self:Status()
+	local name, second = UnitFullName("player")
+	local cases = {
+		{ "channel " .. CHANNEL, "CHANNEL" },
+		{ "whisper to " .. Identity.PlayerKey(), "WHISPER", Identity.PlayerKey() },
+	}
+	if second and second ~= "" then
+		cases[#cases + 1] = { format("whisper to \"%s %s\"", name, second), "WHISPER", name .. " " .. second }
+	end
+	cases[#cases + 1] = { "whisper to " .. name, "WHISPER", name }
+	if IsInGuild() then cases[#cases + 1] = { "guild", "GUILD" } end
+	cases[#cases + 1] = { "say", "SAY" }
+	cases[#cases + 1] = { "yell", "YELL" }
+
+	ns.Print(format("Self-test 1/2: sending one message each way, then waiting %d s for them to come back…", ECHO_WAIT))
+	local sent = {}
+	for _, case in ipairs(cases) do
+		local nonce = tostring(math.random(100000, 999999))
+		echoes[nonce] = { label = case[1], sentAt = now() }
+		sent[#sent + 1] = nonce
+		ns.Print(format("  sent %s: %s", case[1], self:Send(case[2], case[3], "ECHO", nonce)))
+	end
+
+	C_Timer.After(ECHO_WAIT, function()
+		for _, nonce in ipairs(sent) do
+			if not echoes[nonce].arrived then
+				ns.Print(format("  %s %s: never came back", NO, echoes[nonce].label))
+			end
+			echoes[nonce] = nil
+		end
+
+		local runId = tostring(math.random(1000, 9999))
+		local burst = { got = 0, n = n, seen = {} }
+		selfBursts[runId] = burst
+		local tally, order = {}, {}
+		for i = 1, n do
+			local result = self:Send("CHANNEL", nil, "ECHOB", runId, i)
+			if not tally[result] then tally[result] = 0; order[#order + 1] = result end
+			tally[result] = tally[result] + 1
+		end
+		local parts = {}
+		for _, result in ipairs(order) do parts[#parts + 1] = format("%s x%d", result, tally[result]) end
+		ns.Print(format("Self-test 2/2: sent %d at once on the channel: %s. Counting what comes back…",
+			n, table.concat(parts, ", ")))
+
+		C_Timer.After(ECHO_WAIT, function()
+			selfBursts[runId] = nil
+			ns.Print(format("  %d of %d came back through the server.", burst.got, n))
+			ns.Print("Self-test done. Copy these lines (or screenshot the chat) for Claude.")
+		end)
+	end)
+end
+
 local HELP = {
 	"/soap net — status: your identity, game, channel",
+	"/soap net selftest [count] — solo test: channel, whispers to yourself, throttle",
 	"/soap net ping [channel|guild|party|raid|yell|say|whisper Name] — who hears you, and how fast",
 	"/soap net burst [count] [same targets] — send many at once to find the throttle",
 	"/soap net log — toggle printing every incoming Soapstone message",
@@ -202,14 +292,16 @@ function Net:Command(input)
 
 	if cmd == "status" then
 		self:Status()
+	elseif cmd == "selftest" then
+		self:SelfTest(math.min(tonumber(words[2]) or 30, 100))
 	elseif cmd == "ping" then
 		local dist, target = parseDist(words, 2)
-		if not dist or (dist == "WHISPER" and not target) then return ns.Print(HELP[2]) end
+		if not dist or (dist == "WHISPER" and not target) then return ns.Print(HELP[3]) end
 		self:Ping(dist, target)
 	elseif cmd == "burst" then
 		local n = tonumber(words[2])
 		local dist, target = parseDist(words, n and 3 or 2)
-		if not dist or (dist == "WHISPER" and not target) then return ns.Print(HELP[3]) end
+		if not dist or (dist == "WHISPER" and not target) then return ns.Print(HELP[4]) end
 		self:Burst(math.min(n or 20, 100), dist, target)
 	elseif cmd == "log" then
 		logging = not logging

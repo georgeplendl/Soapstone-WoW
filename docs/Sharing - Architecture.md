@@ -187,8 +187,26 @@ Edits (`version+1`) and deletes (tombstones, below) are announced the same way.
 
 ## Test plan for step 1
 
-Needs **two characters online at once** (two accounts, or a friend), both
-running the test build.
+### Solo: `/soap net selftest` (one character)
+
+Channel addon messages come back to their sender through the server, and a
+character can whisper itself, so one character covers most of the unknowns:
+
+| Checks | Tells us |
+|---|---|
+| Channel message comes back | T1: the hidden channel works on WoW Forever |
+| How your name shows on the way back | T3: sender format (`Mad-Decent` / `Mad Decent` / `Mad`) |
+| Whispers to yourself as `Mad-Decent`, `Mad Decent`, `Mad` | T5: which name form works as a whisper target |
+| Guild (if in one), say, yell | T6: which fallback routes work |
+| 30 messages at once, counting how many return | T4: client refusals (result codes) and server-side drops |
+
+The only thing it can't answer is **T2, reach**: whether a player elsewhere
+in the realmless world hears you. That needs a second player.
+
+### With a second player
+
+Needs **two characters online at once** (a friend, or a second account),
+both running the test build.
 
 | # | Test | How | Tells us |
 |---|---|---|---|

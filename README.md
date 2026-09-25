@@ -57,7 +57,7 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | `/soap sound test` | Preview both cues; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version |
-| `/soap net` | Network test tools: `status`, `ping [channel\|guild\|party\|yell\|whisper Name]`, `burst [n]`, `log` (see [Sharing — Architecture](docs/Sharing%20-%20Architecture.md)) |
+| `/soap net` | Network test tools: `selftest` (one character), `status`, `ping [channel\|guild\|party\|yell\|whisper Name]`, `burst [n]`, `log` (see [Sharing — Architecture](docs/Sharing%20-%20Architecture.md)) |
 | `/soap help` | All commands |
 
 Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.lua`.
