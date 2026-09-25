@@ -24,6 +24,12 @@ local function applyDefaults(db, defaults)
 	end
 end
 
+-- The `## Version:` from Soapstone.toc (newer clients moved the lookup).
+function ns.Version()
+	local lookup = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+	return lookup and lookup(ADDON_NAME, "Version") or "unknown"
+end
+
 function ns.Print(msg)
 	print("|cff9fd3c7Soapstone|r: " .. msg)
 end
@@ -85,6 +91,7 @@ local HELP = {
 	"/soap near <yards> — range of the \"somewhere close\" cue (now %d)",
 	"/soap sound [on|off|test] — toggle or preview the sound cues",
 	"/soap button — show/hide the minimap button",
+	"/soap version — show the installed version",
 	"/soap clear — delete every stone",
 }
 
@@ -131,6 +138,8 @@ SlashCmdList.SOAPSTONE = function(input)
 			ns.db.sound = not ns.db.sound
 		end
 		ns.Print("Sound cues " .. (ns.db.sound and "on." or "off."))
+	elseif cmd == "version" then
+		ns.Print("version " .. ns.Version())
 	elseif cmd == "button" then
 		ns.db.minimap.hide = not ns.db.minimap.hide
 		ns.MinimapButton:UpdateVisibility()

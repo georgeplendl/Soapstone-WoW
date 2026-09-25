@@ -1,0 +1,30 @@
+# Publishes a GitHub Release whenever a version tag (v1.2.3) is pushed.
+# The tag must match `## Version:` in Soapstone/Soapstone.toc, and
+# CHANGELOG.md must have a section for it; tools/release.py checks both.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build zip and release notes
+        run: python3 tools/release.py build --tag "$GITHUB_REF_NAME"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            --title "Soapstone $GITHUB_REF_NAME" \
+            --notes-file dist/release-notes.md \
+            --verify-tag
