@@ -2,8 +2,9 @@
 
 > Leave a message somewhere in Azeroth. Only someone standing where you stood can read it.
 
-A World of Warcraft addon spun off from [Soapstone](https://github.com/georgeplendl/Soapstone), the
-location-based voice-message phone app. It starts from the same idea (the
+A World of Warcraft addon spun off from [Soapstone](https://github.com/georgeplendl/Soapstone)
+(local checkout: `C:\Users\PC\Documents\Soapstone`), the location-based
+voice-message phone app. The two are separate repos, developed independently. It starts from the same idea (the
 orange soapstone messages in *Dark Souls*, rooted in place) and is expected to
 drift away from the app as it finds what works inside WoW.
 
