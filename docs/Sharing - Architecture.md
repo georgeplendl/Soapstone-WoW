@@ -39,7 +39,32 @@ build) is in progress; nothing syncs stones yet.
 | T5 | Whisper to `Osha-Compliant` ✅, `"Osha Compliant"` ✅, `Osha` ❌, and the failure shows a **visible** system message: "No player named 'Osha' is currently playing." | Always whisper the full key. Before step 3, filter that system message for players we contact by addon message, since peers go offline mid-sync |
 | T6 | `SAY` and `YELL` → `InvalidChatType` outside instances; guild untested | The channel plus whispers is the transport; party and guild are extras |
 | — | **~675 ms round trip** on channel and whisper alike | Timeouts and answer-suppression windows must allow > 1 s; prefer few, larger messages |
-| T4 | 30 at once: **9 ok**, 1 `ChannelThrottle`, 20 `AddonMessageThrottle`; **9 of 30 returned** | A burst allowance of about **9–10 messages per prefix**; everything accepted was delivered. The refill rate is next (`/soap net pacetest`) |
+| T4 | 30 at once: **9 ok**, 1 `ChannelThrottle`, 20 `AddonMessageThrottle`; **9 of 30 returned** | A burst allowance of about **9–10 messages per prefix** |
+| T4b | Pace test, 4/s for 20.3 s after spending the burst: **21 `ChannelThrottle`, 59 `AddonMessageThrottle`, 20 returned** | **Sustained ≈ 1 message/s.** `ChannelThrottle` = queued and **delivered late** (20 of 21 came back; the last was likely still in flight). `AddonMessageThrottle` = **dropped** |
+
+### Message budget
+
+Per sender, per prefix: **~10 messages in a burst, then ~1 per second**, each
+≤ 255 bytes. So roughly **250 bytes/s per sender**, shared by everything
+Soapstone sends. Design rules that follow:
+
+- **Never send into `AddonMessageThrottle`.** Keep our own token bucket
+  (10, +1/s) and queue locally; treat `ChannelThrottle` as sent.
+- **Only send what's missing.** An up-to-date zone costs one digest
+  exchange. A first visit is where the cost lands: e.g. 30 text stones
+  (~1 message each) plus 10 sketches (~3 each) ≈ 60 messages ≈ 1 minute
+  from one peer.
+- **Nearest first.** Transfer stones closest to the player first, and text
+  before sketches.
+- **Sketch pixels on demand.** Sync a sketch's *pin* (id, position,
+  author, size) with the zone, but fetch its pixels only when the player
+  comes within the "somewhere close" range. Most sketches are never opened.
+- **Spread the load across peers.** The limit is per sender, so asking
+  several peers for different stones multiplies throughput.
+- **Keep broadcasts rare and tiny.** They spend the same budget and reach
+  everyone on the channel.
+- **Compression** (LibDeflate) before splitting into messages, for anything
+  over one message.
 
 ---
 
@@ -92,10 +117,11 @@ message (`Identity.Flavor()`), so nothing can cross by accident.
 - **Wire format:** `S1;<flavour>;<TYPE>;<fields…>`. `S1` is the protocol
   version; anything with another version or flavour is ignored.
 - **Size and rate:** a message is at most 255 bytes, and the client throttles
-  per prefix. Larger payloads (sketches: ~350–900 chars) are split into parts
-  and paced. We'll likely embed the standard libraries (ChatThrottleLib,
+  per prefix: about 10 at once, then about 1 per second (tests T4/T4b; see
+  *Message budget*). Larger payloads (sketches: ~350–900 chars) are split into
+  parts and paced. We'll likely embed the standard libraries (ChatThrottleLib,
   AceComm, LibSerialize, LibDeflate) inside the addon folder, so players still
-  install a single folder. The throttle numbers come from test T4.
+  install a single folder.
 
 ---
 

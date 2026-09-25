@@ -47,6 +47,11 @@ local function channelIndex()
 	return id and id > 0 and id or nil
 end
 
+-- Result codes that still get the message delivered. On WoW Forever,
+-- "ChannelThrottle" means queued and sent late, not dropped (pace test:
+-- 20 of 21 came back); "AddonMessageThrottle" means dropped.
+local DELIVERED = { ok = true, ChannelThrottle = true }
+
 -- SendAddonMessage returns a result code on newer clients, a boolean on older.
 local function describe(result)
 	if result == true or result == 0 then return "ok" end
@@ -295,7 +300,7 @@ function Net:PaceTest(rate, seconds)
 	ticker = C_Timer.NewTicker(1 / rate, function()
 		i = i + 1
 		local result = self:Send("CHANNEL", nil, "ECHOB", runId, i)
-		if result == "ok" then accepted = accepted + 1 end
+		if DELIVERED[result] then accepted = accepted + 1 end
 		if not tally[result] then tally[result] = 0; order[#order + 1] = result end
 		tally[result] = tally[result] + 1
 		if i < total then return end
@@ -306,7 +311,7 @@ function Net:PaceTest(rate, seconds)
 			local parts = {}
 			for _, result in ipairs(order) do parts[#parts + 1] = format("%s x%d", result, tally[result]) end
 			ns.Print(format("  sent %d over %.1f s: %s", total, elapsed, table.concat(parts, ", ")))
-			ns.Print(format("  accepted %d, so the sustained rate is about |cffffffff%.2f messages/s|r; %d came back",
+			ns.Print(format("  accepted %d (ok or delayed by ChannelThrottle), so the sustained rate is about |cffffffff%.2f messages/s|r; %d came back",
 				accepted, accepted / elapsed, back.got))
 			ns.Print("Pace test done. Copy these lines (or screenshot the chat) for Claude.")
 		end)
