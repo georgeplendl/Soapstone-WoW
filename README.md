@@ -2,7 +2,7 @@
 
 > Leave a message somewhere in Azeroth. Only someone standing where you stood can read it.
 
-A World of Warcraft addon spun off from [Soapstone](../Soapstone), the
+A World of Warcraft addon spun off from [Soapstone](https://github.com/georgeplendl/Soapstone), the
 location-based voice-message phone app. It starts from the same idea (the
 orange soapstone messages in *Dark Souls*, rooted in place) and is expected to
 drift away from the app as it finds what works inside WoW.
@@ -24,7 +24,7 @@ Target client: the Classic beta install at `D:\Games\World of Warcraft\_classic_
 Link the addon folder into AddOns so edits are live after `/reload`. From an **admin** Command Prompt:
 
 ```
-mklink /J "D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns\Soapstone" "C:\Users\PC\Documents\Soapstone-WoW\Soapstone"
+mklink /J "D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns\Soapstone" "C:\Users\PC\Documents\Playground\Soapstone-WoW\Soapstone"
 ```
 
 **Interface version:** `Soapstone.toc` says `16001`, a guess from the client
