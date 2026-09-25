@@ -279,7 +279,8 @@ end
 local HELP = {
 	"/soap net — status: your identity, game, channel",
 	"/soap net selftest [count] — solo test: channel, whispers to yourself, throttle",
-	"/soap net ping [channel|guild|party|raid|yell|say|whisper Name] — who hears you, and how fast",
+	-- "||" prints a single "|"; a lone "|" starts a WoW text escape (|r, |w, ...).
+	"/soap net ping [channel||guild||party||raid||yell||say||whisper Name] — who hears you, and how fast",
 	"/soap net burst [count] [same targets] — send many at once to find the throttle",
 	"/soap net log — toggle printing every incoming Soapstone message",
 	"/soap net join | leave — join or leave the network channel",

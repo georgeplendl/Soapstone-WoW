@@ -90,7 +90,7 @@ local HELP = {
 	"/soap test [yards] — plant a stranger's stone or sketch north of you (default 200)",
 	"/soap radius <yards> — how close you must be to read (now %d)",
 	"/soap near <yards> — range of the \"somewhere close\" cue (now %d)",
-	"/soap sound [on|off|test] — toggle or preview the sound cues",
+	"/soap sound [on||off||test] — toggle or preview the sound cues", -- "||" shows as "|"
 	"/soap button — show/hide the minimap button",
 	"/soap version — show the installed version",
 	"/soap net — network test tools (status, ping, burst, log)",
