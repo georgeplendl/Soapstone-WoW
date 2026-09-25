@@ -18,6 +18,15 @@ toward sealed ones, and sound cues as you close in.
 - `docs/Inspiration.md`, `docs/Project Soapstone Initial Ideas.md`: origin notes
 - `docs/App Reference/`: the phone app's spec, MVP, design and research. Reference only.
 
+## Download
+
+Each version is published on the
+[Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases) with
+its changelog and a `Soapstone-vX.Y.Z.zip`. Unzip it into your client's
+`Interface\AddOns` folder so you get `AddOns\Soapstone\Soapstone.toc`, then
+restart the game. `/soap version` shows what's installed. Full history is in
+[CHANGELOG.md](CHANGELOG.md).
+
 ## Install (dev loop)
 
 Target client: the Classic beta install at `D:\Games\World of Warcraft\_classic_beta_` (build `1.60.1.70009`).
@@ -47,6 +56,7 @@ build. Confirm in game with `/dump (select(4, GetBuildInfo()))` and update
 | Hover a minimap pin | Message if you're in range; "sealed" + distance if not |
 | `/soap sound test` | Preview both cues; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
+| `/soap version` | Shows the installed version |
 | `/soap help` | All commands |
 
 Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.lua`.
@@ -78,6 +88,24 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `Media/`: icon textures with transparent backgrounds (`Soapstone.tga` 64×64 for the button and AddOns list, `SoapstonePin.tga` 32×32 for minimap pins)
 
 Icon source art is `art/soapstone.png`. After changing it, run `py tools/convert_icon.py` to rebuild `Media/`.
+
+## Releasing
+
+Versions follow [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
+The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of truth.
+
+1. While working, add player-facing notes under `## [Unreleased]` in `CHANGELOG.md`.
+2. To release, rename that heading to `## [X.Y.Z] - YYYY-MM-DD`, add a fresh
+   empty `## [Unreleased]` above it, update the compare links at the bottom,
+   and set `## Version: X.Y.Z` in the `.toc`.
+3. Check it: `py tools/release.py build` (writes the zip and notes to `dist/`).
+4. Merge to `main`, then tag and push:
+   ```
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+   The **Release** GitHub Action checks the tag matches the `.toc` and the
+   changelog, then publishes the GitHub Release with the zip attached.
 
 ## Next steps
 
