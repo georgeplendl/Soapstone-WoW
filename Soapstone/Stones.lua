@@ -4,7 +4,8 @@ local _, ns = ...
 -- are kept for display; distances use world coordinates, which are in yards and
 -- continuous across a continent. World X grows northward, world Y grows westward.
 --
--- stone = { id, text, author, t, mapID, x, y, instance, wx, wy, mine, heard }
+-- stone = { id, author, t, mapID, x, y, instance, wx, wy, mine, heard,
+--           text = "..." or sketch = <Sketch.Pack result> }
 
 local Stones = {}
 ns.Stones = Stones
@@ -58,6 +59,67 @@ function Stones:IsReadable(stone, dist)
 	return stone.mine or (dist ~= nil and dist <= ns.db.gateYards)
 end
 
+-- "— Author, 3 hr ago" (or "just now" for the first minute), plus "(edited)".
+function Stones:Byline(stone)
+	local age = time() - (stone.t or time())
+	local who = stone.mine and "You" or (stone.author or "A stranger")
+	local when = age < 60 and "just now" or (SecondsToTime(age, true) .. " ago")
+	return format("— %s, %s%s", who, when, stone.edited and " (edited)" or "")
+end
+
+-- Editing -------------------------------------------------------------------
+
+-- How long after dropping a stone its author may still reword it.
+Stones.EDIT_SECONDS = 5 * 60
+
+-- Seconds left to edit `stone`: only your own written stones, counted from
+-- when they were dropped. 0 when it can't (or can no longer) be edited.
+function Stones:EditTimeLeft(stone)
+	if not stone or not stone.mine or not stone.text or stone.sketch then return 0 end
+	return math.max(0, (stone.t or 0) + self.EDIT_SECONDS - time())
+end
+
+-- Rewords a written stone. Returns true if it changed.
+function Stones:Edit(stone, text)
+	text = strtrim(text or "")
+	if text == "" then return false end
+	if self:EditTimeLeft(stone) <= 0 then
+		ns.Print("Too late — the stone has set and can't be edited any more.")
+		return false
+	end
+	if text ~= stone.text then
+		stone.text = text
+		stone.edited = time()
+		ns.Print("Stone updated.")
+		if ns.ReadWindow:Current() == stone then ns.ReadWindow:Show(stone) end
+	end
+	return true
+end
+
+-- Removes a written stone during its edit window. Returns true if deleted.
+function Stones:Delete(stone)
+	if self:EditTimeLeft(stone) <= 0 then
+		ns.Print("Too late — the stone has set and can't be deleted any more.")
+		return false
+	end
+	for i, s in ipairs(ns.db.stones) do
+		if s == stone then
+			table.remove(ns.db.stones, i)
+			if ns.ReadWindow:Current() == stone then ns.ReadWindow:Hide() end
+			ns.MinimapPins:Update()
+			ns.Print("Stone deleted.")
+			return true
+		end
+	end
+	return false
+end
+
+-- One-line description for chat and tooltips.
+function Stones:Summary(stone)
+	if stone.sketch then return "a sketch" end
+	return format("\"%s\"", stone.text or "")
+end
+
 local function zoneName(mapID)
 	local info = mapID and C_Map.GetMapInfo(mapID)
 	return info and info.name or "somewhere"
@@ -77,20 +139,26 @@ function Stones:Add(stone)
 	return stone
 end
 
-function Stones:Drop(text)
-	text = strtrim(text or "")
-	if text == "" then return end
+-- Drops a stone at the player's feet. `content` is { text = "..." } or
+-- { sketch = <packed sketch> }. Returns the stone, or nil if nothing dropped.
+function Stones:Drop(content)
+	local text = content.text and strtrim(content.text)
+	if text == "" then text = nil end
+	if not text and not content.sketch then return nil end
 	local here = self:GetPlayerLocation()
 	if not here then
 		ns.Print("The ground here won't take a stone.")
-		return
+		return nil
 	end
 	here.text = text
+	here.sketch = not text and content.sketch or nil
 	here.author = UnitName("player")
 	here.mine = true
 	here.heard = true
 	self:Add(here)
-	ns.Print(format("Stone left in %s (%.1f, %.1f).", zoneName(here.mapID), here.x * 100, here.y * 100))
+	ns.Print(format("%s left in %s (%.1f, %.1f).", here.sketch and "Sketch" or "Stone",
+		zoneName(here.mapID), here.x * 100, here.y * 100))
+	return here
 end
 
 -- Plants someone else's stone `yards` north of the player so the unlock loop
@@ -101,8 +169,11 @@ function Stones:DropTestStone(yards)
 		ns.Print("No map position here — try outdoors.")
 		return
 	end
+	-- Half the strangers draw instead of write.
+	local sketch = math.random(2) == 1
 	local stone = {
-		text = TEST_MESSAGES[math.random(#TEST_MESSAGES)],
+		text = not sketch and TEST_MESSAGES[math.random(#TEST_MESSAGES)] or nil,
+		sketch = sketch and ns.Sketch.Pack(ns.Sketch.Sun()) or nil,
 		author = "A stranger",
 		instance = here.instance,
 		wx = here.wx + yards,
@@ -117,7 +188,7 @@ function Stones:DropTestStone(yards)
 		stone.x, stone.y = pos:GetXY()
 	end
 	self:Add(stone)
-	ns.Print(format("A stranger's stone sits %d yards north of you. Go read it.", yards))
+	ns.Print(format("A stranger's %s sits %d yards north of you. Go find it.", sketch and "sketch" or "stone", yards))
 end
 
 -- Proximity trigger ---------------------------------------------------------
@@ -174,11 +245,22 @@ function Stones:CheckProximity()
 		UIErrorsFrame:AddMessage("You sense a soapstone somewhere close.", 0.62, 0.83, 0.78)
 	end
 	ns.MinimapButton:SetGlow(anyInRange)
+
+	-- An open stone goes silent once you walk out of range.
+	local open = ns.ReadWindow:Current()
+	if open and not self:IsReadable(open, self:Distance(here, open)) then
+		ns.ReadWindow:Hide()
+		UIErrorsFrame:AddMessage("The soapstone fades as you walk away.", 0.62, 0.83, 0.78)
+	end
 end
 
 function Stones:OnUnlock(stone)
 	UIErrorsFrame:AddMessage("A soapstone glows nearby.", 0.62, 0.83, 0.78)
-	ns.Print(format("|cffffffff\"%s\"|r — %s", stone.text, stone.author or "?"))
+	if stone.sketch then
+		ns.Print(format("%s left a sketch here. Click its minimap pin or type /soap read to see it.", stone.author or "Someone"))
+	else
+		ns.Print(format("|cffffffff\"%s\"|r — %s", stone.text or "", stone.author or "?"))
+	end
 end
 
 -- Queries -------------------------------------------------------------------
@@ -206,9 +288,20 @@ function Stones:PrintNearby()
 		local stone, dist = list[i].stone, list[i].dist
 		local where = dist < 3 and "here" or format("%d yd %s", dist, self:Bearing(here, stone))
 		if self:IsReadable(stone, dist) then
-			ns.Print(format("%s — |cffffffff\"%s\"|r", where, stone.text))
+			ns.Print(format("%s — |cffffffff%s|r", where, self:Summary(stone)))
 		else
 			ns.Print(format("%s — |cff888888sealed|r", where))
 		end
 	end
+end
+
+-- Opens the nearest stone you can read from here (your own always count).
+function Stones:ReadNearest()
+	for _, entry in ipairs(self:Nearby()) do
+		if self:IsReadable(entry.stone, entry.dist) then
+			ns.ReadWindow:Show(entry.stone)
+			return
+		end
+	end
+	ns.Print("No stone close enough to read.")
 end

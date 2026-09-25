@@ -1,10 +1,16 @@
 local ADDON_NAME, ns = ...
 
+-- Icon textures with transparent backgrounds, made from art/soapstone.png by
+-- tools/convert_icon.py. The pin version is smaller because it's drawn tiny.
+ns.ICON = "Interface\\AddOns\\Soapstone\\Media\\Soapstone"
+ns.PIN_ICON = "Interface\\AddOns\\Soapstone\\Media\\SoapstonePin"
+
 ns.DEFAULTS = {
 	stones = {},
 	gateYards = 40, -- the app's 1-mile gate, scaled down to Azeroth
 	nearYards = 150, -- "somewhere close" sound cue for unread stones
 	sound = true,
+	dropMode = "text", -- last tab used in the drop window: "text" or "sketch"
 	minimap = { angle = 210, hide = false },
 }
 
@@ -22,54 +28,59 @@ function ns.Print(msg)
 	print("|cff9fd3c7Soapstone|r: " .. msg)
 end
 
--- Drop dialog ---------------------------------------------------------------
-
-local function popupEditBox(popup)
-	return popup.editBox or popup.EditBox or (popup.GetEditBox and popup:GetEditBox())
+-- 272 -> "4:32"
+function ns.FormatCountdown(seconds)
+	seconds = math.max(0, math.floor(seconds))
+	return format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
-StaticPopupDialogs["SOAPSTONE_DROP"] = {
-	text = "Leave a message here.\nOnly someone standing on this spot can read it.",
-	button1 = "Drop",
-	button2 = CANCEL,
-	hasEditBox = true,
-	maxLetters = 140,
-	editBoxWidth = 260,
-	OnShow = function(self)
-		local eb = popupEditBox(self)
-		eb:SetText("")
-		eb:SetFocus()
-	end,
-	OnAccept = function(self)
-		ns.Stones:Drop(popupEditBox(self):GetText())
-	end,
-	EditBoxOnEnterPressed = function(self)
-		ns.Stones:Drop(self:GetText())
-		self:GetParent():Hide()
-	end,
-	EditBoxOnEscapePressed = function(self)
-		self:GetParent():Hide()
-	end,
-	timeout = 0,
-	hideOnEscape = true,
-	preferredIndex = 3,
-}
+-- Windows -------------------------------------------------------------------
+
+-- A standard Blizzard window: title bar, close button, inset, draggable by its
+-- background, closes on Escape. Starts hidden.
+function ns.CreateWindow(name, title)
+	local f = CreateFrame("Frame", name, UIParent, "BasicFrameTemplateWithInset")
+	f:Hide()
+	f:SetFrameStrata("DIALOG")
+	f:SetToplevel(true)
+	f:SetClampedToScreen(true)
+	f:SetMovable(true)
+	f:EnableMouse(true)
+	f:RegisterForDrag("LeftButton")
+	f:SetScript("OnDragStart", f.StartMoving)
+	f:SetScript("OnDragStop", f.StopMovingOrSizing)
+	tinsert(UISpecialFrames, name)
+
+	local text = f.TitleText
+	if not text then
+		text = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		if f.TitleBg then
+			text:SetPoint("CENTER", f.TitleBg, "CENTER", 0, 0)
+		else
+			text:SetPoint("TOP", 0, -5)
+		end
+	end
+	text:SetText(title)
+	f.title = text
+	return f
+end
 
 function ns.ShowDropDialog()
 	if not ns.Stones:GetPlayerLocation() then
 		ns.Print("The ground here won't take a stone (no map position — are you in an instance?).")
 		return
 	end
-	StaticPopup_Show("SOAPSTONE_DROP")
+	ns.DropWindow:Open()
 end
 
 -- Slash commands ------------------------------------------------------------
 
 local HELP = {
-	"/soap — drop a stone where you stand",
-	"/soap drop <message> — drop without the dialog",
+	"/soap — leave a stone (write or draw) where you stand",
+	"/soap drop <message> — drop a written stone without the window",
+	"/soap read — open the nearest stone you're close enough to read",
 	"/soap list — nearby stones, nearest first",
-	"/soap test [yards] — plant a stranger's stone north of you (default 200)",
+	"/soap test [yards] — plant a stranger's stone or sketch north of you (default 200)",
 	"/soap radius <yards> — how close you must be to read (now %d)",
 	"/soap near <yards> — range of the \"somewhere close\" cue (now %d)",
 	"/soap sound [on|off|test] — toggle or preview the sound cues",
@@ -86,7 +97,9 @@ SlashCmdList.SOAPSTONE = function(input)
 	if cmd == "" then
 		ns.ShowDropDialog()
 	elseif cmd == "drop" then
-		if rest ~= "" then ns.Stones:Drop(rest) else ns.ShowDropDialog() end
+		if rest ~= "" then ns.Stones:Drop({ text = rest }) else ns.ShowDropDialog() end
+	elseif cmd == "read" then
+		ns.Stones:ReadNearest()
 	elseif cmd == "list" then
 		ns.Stones:PrintNearby()
 	elseif cmd == "test" then
