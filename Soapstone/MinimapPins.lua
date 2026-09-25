@@ -23,8 +23,10 @@ local function onPinEnter(pin)
 	local stone = pin.stone
 	GameTooltip:SetOwner(pin, "ANCHOR_RIGHT")
 	if ns.Stones:IsReadable(stone, pin.dist) then
-		GameTooltip:AddLine(format("\"%s\"", stone.text), 1, 1, 1, true)
-		GameTooltip:AddLine(format("— %s, %s ago", stone.author or "?", SecondsToTime(time() - stone.t, true)), 0.62, 0.83, 0.78)
+		-- Sketches are never drawn in tooltips; they open in the read window.
+		GameTooltip:AddLine(stone.sketch and "A sketch" or format("\"%s\"", stone.text or ""), 1, 1, 1, true)
+		GameTooltip:AddLine(ns.Stones:Byline(stone), 0.62, 0.83, 0.78)
+		GameTooltip:AddLine(stone.sketch and "Click to view" or "Click to open", 0.5, 0.5, 0.5)
 	else
 		GameTooltip:AddLine("A sealed soapstone", 0.6, 0.6, 0.6)
 		GameTooltip:AddLine(format("Walk within %d yards to read it (%d yd away).", ns.db.gateYards, pin.dist), 0.8, 0.8, 0.8, true)
@@ -45,6 +47,12 @@ local function acquire(i)
 	pin:EnableMouse(true)
 	pin:SetScript("OnEnter", onPinEnter)
 	pin:SetScript("OnLeave", GameTooltip_Hide)
+	pin:SetScript("OnMouseUp", function(self, button)
+		if button == "LeftButton" and self.stone and ns.Stones:IsReadable(self.stone, self.dist) then
+			GameTooltip:Hide()
+			ns.ReadWindow:Show(self.stone)
+		end
+	end)
 	pool[i] = pin
 	return pin
 end

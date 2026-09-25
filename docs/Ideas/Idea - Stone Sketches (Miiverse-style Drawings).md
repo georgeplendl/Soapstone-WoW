@@ -6,7 +6,7 @@ When dropping a stone, you can draw on it instead of writing. Sketches are tiny,
 
 Inspired by **Miiverse** (Nintendo's Wii U/3DS social network, 2012–2017), where you could post stylus drawings on a 320×120, 1-bit black-and-white canvas, and by **Splatoon / Splatoon 2**, which showed those posts as graffiti around Inkopolis and kept the same canvas at the Inkopolis Square mailbox after Miiverse closed. The limits are the charm: people made remarkable things inside them.
 
-**Status:** direction agreed with George on 2026-09-25. Not built yet.
+**Status:** first version built on 2026-09-25 (addon v0.2.0, branch `stone-sketches`). Not yet tried in game.
 
 ---
 
@@ -16,7 +16,7 @@ Inspired by **Miiverse** (Nintendo's Wii U/3DS social network, 2012–2017), whe
 |---|---|
 | How drawings are stored and shown | **Pixel grid (Approach A):** a fixed 1-bit grid, drawn as solid rectangles row by row |
 | Canvas size | **160 × 60** (half of Miiverse, same 8:3 shape) |
-| Display size | **Enlarged 2× or 3×** so nobody squints; exact scale still open, see below |
+| Display size | **Draw at 3×, read at 2×**, snapped to whole screen pixels, so nobody squints |
 | Tools | **Full Splatoon kit:** 3 pen sizes and 3 eraser sizes |
 | Moderation | **None for now.** Revisit once stones are shared between players |
 
@@ -56,9 +56,11 @@ A stone is text *or* a sketch (see Open Questions). The current drop dialog is a
 | Pen | 1, 3, 5 | Round brush; paints black |
 | Eraser | 1, 3, 5 | Round brush; paints white |
 | Undo | — | Steps back one stroke (a stroke = one press-to-release) |
-| Clear | — | Wipes the canvas, with confirmation |
+| Clear | — | Wipes the canvas. It counts as one undo step, so no confirmation is needed |
 
-Sizes are a starting guess and should be tuned by feel in game. At 3×, a 5-cell brush is 15 screen pixels wide.
+Right-drag always erases, using the selected eraser size. Sizes are a starting guess and should be tuned by feel in game. At 3×, a 5-cell brush is 15 screen pixels wide.
+
+**Layout (as built):** Splatoon-style. Pen and eraser sizes in a two-column strip on the left, with Undo and Clear beneath, the canvas to the right, and a hint line and Drop Stone / Cancel along the bottom. Write | Draw are Blizzard-style tabs under the window, like the Character window's tabs.
 
 ---
 
@@ -76,14 +78,15 @@ Sizes are a starting guess and should be tuned by feel in game. At 3×, a 5-cell
 - **Editing:** only the rows touched by the latest brush dab are redrawn.
 - **Nothing runs in the background.** Art exists only while the editor or read window is open; the 1-second proximity check and minimap pins are unchanged.
 - **Sharing later:** addon messages carry at most 255 bytes each and are rate-limited. A compressed 160×60 sketch fits in roughly 1–5 messages; the full Miiverse 320×120 would need about 20. This is the main reason for the smaller grid.
+- **Measured (v1 encoding):** an empty sketch is 3 characters; the test sun (579 ink cells) is 353. Very noisy drawings are the weak spot: random 50% noise encodes to about 4,800 characters, three times a plain bit dump (1,600). Before sharing, add a fallback that stores the plain bit dump when it's smaller.
 
 ---
 
 ### Open Questions
 
-1. **Scale:** 3× editor / 2× reader as recommended, or one fixed scale for both? Should players be able to change it?
-2. **Text or sketch, or both?** Either-or is simpler to build first; a short caption under a sketch could come later.
-3. **Undo depth:** how many strokes back? (Each step costs up to 1,200 bytes of memory while drawing.)
+1. **Scale settings:** should players be able to change the 3× / 2× scales?
+2. **Text or sketch, or both?** v1 is either-or; a short caption under a sketch could come later.
+3. **Undo depth:** v1 keeps the last 50 strokes. Each step stores only the cells that stroke changed.
 4. **Extras beyond the Splatoon kit?** e.g. a straight-line tool (hold Shift), invert canvas, or a fill tool. None are needed for v1.
 5. **Moderation, once sharing exists:** at minimum a "hide sketches" setting and blocking an author; possibly "sketches only from guild and friends".
 
