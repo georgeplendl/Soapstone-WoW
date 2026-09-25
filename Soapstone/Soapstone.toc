@@ -7,9 +7,11 @@
 ## IconTexture: Interface\AddOns\Soapstone\Media\Soapstone
 
 Core.lua
+Identity.lua
 Sketch.lua
 Stones.lua
 Cues.lua
+Net.lua
 SketchCanvas.lua
 WritePanel.lua
 DropWindow.lua

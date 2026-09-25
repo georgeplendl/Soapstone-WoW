@@ -11,6 +11,7 @@ ns.DEFAULTS = {
 	nearYards = 150, -- "somewhere close" sound cue for unread stones
 	sound = true,
 	dropMode = "text", -- last tab used in the drop window: "text" or "sketch"
+	net = true, -- join the hidden Soapstone network channel at login
 	minimap = { angle = 210, hide = false },
 }
 
@@ -92,6 +93,7 @@ local HELP = {
 	"/soap sound [on|off|test] — toggle or preview the sound cues",
 	"/soap button — show/hide the minimap button",
 	"/soap version — show the installed version",
+	"/soap net — network test tools (status, ping, burst, log)",
 	"/soap clear — delete every stone",
 }
 
@@ -138,6 +140,8 @@ SlashCmdList.SOAPSTONE = function(input)
 			ns.db.sound = not ns.db.sound
 		end
 		ns.Print("Sound cues " .. (ns.db.sound and "on." or "off."))
+	elseif cmd == "net" then
+		ns.Net:Command(rest)
 	elseif cmd == "version" then
 		ns.Print("version " .. ns.Version())
 	elseif cmd == "button" then
@@ -167,6 +171,8 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "PLAYER_LOGIN" then
 		ns.MinimapButton:Init()
 		ns.MinimapPins:Init()
+		ns.Stones:AdoptOwnStones()
 		ns.Stones:StartProximity()
+		ns.Net:Init()
 	end
 end)
