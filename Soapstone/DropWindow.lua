@@ -25,7 +25,7 @@ local FRAME_NAME = "SoapstoneDropFrame"
 local PAD = 14
 local TOP = 34             -- clears the title bar
 local MODE_WIDTH = 110     -- Write / Draw buttons
-local MODE_HEIGHT = 26     -- a little taller than normal buttons, with larger text
+local MODE_HEIGHT = 24     -- a touch taller than the 22px action buttons
 local MODE_ROW = MODE_HEIGHT + 10
 local CONTENT_TOP = TOP + MODE_ROW
 local FOOTER = 62          -- hint line + action buttons
@@ -45,14 +45,11 @@ function DropWindow:Build()
 	f:SetPoint("CENTER", 0, 80)
 	self.frame = f
 
-	-- Write | Draw, centred under the title bar, in larger text.
+	-- Write | Draw, centred under the title bar, in standard button text.
 	self.modeButtons = {}
 	for i, mode in ipairs(MODES) do
 		local btn = createActionButton(f, mode.label, MODE_WIDTH)
 		btn:SetHeight(MODE_HEIGHT)
-		btn:SetNormalFontObject("GameFontNormalLarge")
-		btn:SetHighlightFontObject("GameFontHighlightLarge")
-		btn:SetDisabledFontObject("GameFontDisableLarge")
 		if i == 1 then
 			btn:SetPoint("TOPRIGHT", f, "TOP", -2, -TOP)
 		else
