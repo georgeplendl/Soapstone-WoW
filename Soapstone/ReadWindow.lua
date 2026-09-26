@@ -204,7 +204,10 @@ function ReadWindow:Show(stone)
 		width, height = cw + SKETCH_BORDER * 2, ch + SKETCH_BORDER * 2 -- gaps measured from the border
 	else
 		self.canvas.frame:Hide()
-		self.text:SetText(stone.text or (stone.sketch and "The carving is too worn to make out.") or "")
+		-- A written stone is quoted, as in tooltips and chat; the fallback for an
+		-- unreadable sketch is Soapstone talking, so it isn't.
+		self.text:SetText(stone.text and format("\"%s\"", stone.text)
+			or (stone.sketch and "The carving is too worn to make out.") or "")
 		self.text:Show()
 		width, height = TEXT_WIDTH, self.text:GetStringHeight() -- the text's real height, so both gaps match
 	end

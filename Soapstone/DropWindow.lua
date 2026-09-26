@@ -3,7 +3,7 @@ local _, ns = ...
 -- "Leave a Soapstone": the drop window. Two buttons at the top, Write and
 -- Draw, pick between a short message (WritePanel) and a sketch (DrawPanel:
 -- Splatoon-style tools beside the canvas). The chosen one stays lit, like
--- Appraise / Disparage in the stone window.
+-- Appraise / Disparage in the stone window. It always opens on Write.
 --
 --  ┌ Leave a Soapstone ─────────────────────────────── x ┐
 --  │                [  Write  ][  Draw  ]                 │
@@ -92,12 +92,12 @@ function DropWindow:Open()
 	if not self.frame then self:Build() end
 	self:Layout()
 	self.frame:Show()
-	self:SetMode(ns.db.dropMode)
+	self:SetMode("text") -- always opens on Write
 end
 
 function DropWindow:SetMode(mode)
 	if mode ~= "sketch" then mode = "text" end
-	ns.db.dropMode = mode
+	self.mode = mode
 	local sketch = mode == "sketch"
 	self.drawer.frame:SetShown(sketch)
 	self.writer.frame:SetShown(not sketch)
@@ -111,7 +111,7 @@ function DropWindow:SetMode(mode)
 end
 
 function DropWindow:HasContent()
-	if ns.db.dropMode == "sketch" then
+	if self.mode == "sketch" then
 		return not self.drawer:IsEmpty()
 	end
 	return self.writer:GetText() ~= ""
@@ -128,7 +128,7 @@ end
 function DropWindow:Submit()
 	if not self:HasContent() then return end
 	local stone
-	if ns.db.dropMode == "sketch" then
+	if self.mode == "sketch" then
 		stone = ns.Stones:Drop({ sketch = Sketch.Pack(self.drawer:GetGrid()) })
 		if stone then self.drawer:Reset() end
 	else

@@ -13,7 +13,9 @@ for players: what changed in game, not how.
 ### Changed
 - "Leave a Soapstone" picks between a message and a drawing with **Write**
   and **Draw** buttons at the top instead of small tabs
-  under the window. The chosen one stays lit.
+  under the window. The chosen one stays lit, and it always opens on
+  **Write**.
+- Written stones are shown in quotes when you read them.
 
 ## [0.3.1] - 2026-09-25
 
