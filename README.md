@@ -14,7 +14,7 @@ toward sealed ones, and sound cues as you close in.
 ## Layout
 
 - `Soapstone/`: the addon (this folder goes in `Interface\AddOns`)
-- `docs/Ideas/`: game-mechanic ideas carried over from the app, free to be reworked for WoW
+- `docs/Ideas/`: WoW idea write-ups; `docs/Ideas/Archive/` holds the ones carried over from the app, free to be reworked for WoW
 - `docs/Inspiration.md`, `docs/Project Soapstone Initial Ideas.md`: origin notes
 - `docs/App Reference/`: the phone app's spec, MVP, design and research. Reference only.
 
