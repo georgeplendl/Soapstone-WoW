@@ -57,36 +57,75 @@ function Stones:Bearing(from, to)
 	return COMPASS[math.floor((deg + 22.5) / 45) % 8 + 1]
 end
 
--- Appraise / disparage ----------------------------------------------------------
--- Your rating of someone else's stone, as in Dark Souls. Clicking the same
--- rating again takes it back. For now ratings only change what you see:
--- appraised stones get a gold pin, disparaged ones fade and stop calling
--- you over with sound cues.
+-- Votes: appraise (up) / disparage (down), Reddit-style ----------------------------
+-- Every stone has a score. Its author has upvoted it automatically (+1), and
+-- may take that back (0) but can't vote below it. Anyone else can vote +1 or
+-- -1, and clicking the same arrow again takes the vote back. The score here
+-- is what this client knows: the author's vote plus votes cast by your
+-- characters on this account (a server would add everyone else's).
+-- For other players' stones your vote also changes what you see: upvoted
+-- pins turn gold, downvoted ones fade and stop calling you over.
 
 Stones.APPRAISE, Stones.DISPARAGE = 1, -1
 
+local function authorOf(stone)
+	return stone.authorKey or (ns.Store.IsMine(stone) and ns.Identity.PlayerKey()) or nil
+end
+
+-- Your vote on `stone`: 1, 0 or -1. Your own stones start at 1.
 function Stones:Rating(stone)
-	return stone and ns.Store:MyRating(stone.id) or nil
+	if not stone then return 0 end
+	local stored = ns.Store:MyRating(stone.id)
+	if ns.Store.IsMine(stone) then return stored == 0 and 0 or 1 end
+	return stored or 0
+end
+
+-- Your vote on someone else's stone (0 for your own), for pins and cues.
+function Stones:OthersRating(stone)
+	if not stone or ns.Store.IsMine(stone) then return 0 end
+	return self:Rating(stone)
 end
 
 function Stones:IsDisparaged(stone)
-	return self:Rating(stone) == self.DISPARAGE
+	return self:OthersRating(stone) == self.DISPARAGE
 end
 
--- Toggles `value` (APPRAISE or DISPARAGE) on `stone`. Returns the new rating.
-function Stones:Rate(stone, value)
-	if not stone or stone.deleted or ns.Store.IsMine(stone) then return nil end
-	local new = self:Rating(stone) ~= value and value or nil
-	ns.Store:Rate(stone.id, new)
-	local who = stone.author or "a stranger"
+function Stones:Score(stone)
+	if not stone then return 0 end
+	local author = authorOf(stone)
+	local votes = ns.Store:Votes(stone.id)
+	local score = (author and votes[author] == 0) and 0 or 1 -- the author's own upvote
+	for key, vote in pairs(votes) do
+		if key ~= author then score = score + vote end
+	end
+	return score
+end
+
+-- The ▲ (APPRAISE) or ▼ (DISPARAGE) arrow was clicked. Returns your new vote.
+function Stones:Vote(stone, arrow)
+	if not stone or stone.deleted then return nil end
+	local current, new = self:Rating(stone), nil
+	if ns.Store.IsMine(stone) then
+		-- ▲ toggles your automatic upvote; ▼ can only take it back.
+		new = (arrow == self.APPRAISE and current == 0) and 1 or 0
+		ns.Store:Rate(stone.id, new == 0 and 0 or nil) -- 1 is the default; store only a withdrawal
+	else
+		new = current == arrow and 0 or arrow
+		ns.Store:Rate(stone.id, new ~= 0 and new or nil)
+	end
+
+	local mine, who = ns.Store.IsMine(stone), stone.author or "a stranger"
 	if new == self.APPRAISE then
 		ns.Cues:Play("appraise")
-		UIErrorsFrame:AddMessage(format("You appraised %s's soapstone.", who), 1, 0.82, 0)
+		UIErrorsFrame:AddMessage(mine and "You upvoted your own soapstone again."
+			or format("You appraised %s's soapstone.", who), 1, 0.82, 0)
 	elseif new == self.DISPARAGE then
 		ns.Cues:Play("disparage")
 		UIErrorsFrame:AddMessage(format("You disparaged %s's soapstone.", who), 0.75, 0.6, 0.6)
+	elseif mine then
+		UIErrorsFrame:AddMessage("You took back your own upvote.", 0.8, 0.8, 0.8)
 	else
-		UIErrorsFrame:AddMessage("Rating withdrawn.", 0.8, 0.8, 0.8)
+		UIErrorsFrame:AddMessage("Vote withdrawn.", 0.8, 0.8, 0.8)
 	end
 	if ns.MinimapPins then ns.MinimapPins:Update() end
 	return new
@@ -403,10 +442,10 @@ function Stones:PrintNearby()
 		local stone, dist = list[i].stone, list[i].dist
 		local where = dist < 3 and "here" or format("%d yd %s", dist, self:Bearing(here, stone))
 		if self:IsReadable(stone, dist) then
-			local rating = self:Rating(stone)
+			local rating = self:OthersRating(stone)
 			local mark = rating == self.APPRAISE and " |cffffd100(appraised)|r"
 				or rating == self.DISPARAGE and " |cff888888(disparaged)|r" or ""
-			ns.Print(format("%s — |cffffffff%s|r%s", where, self:Summary(stone), mark))
+			ns.Print(format("%s — |cffffffff%s|r [%+d]%s", where, self:Summary(stone), self:Score(stone), mark))
 		else
 			ns.Print(format("%s — |cff888888sealed|r", where))
 		end

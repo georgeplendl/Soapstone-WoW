@@ -4,8 +4,9 @@ local _, ns = ...
 -- readable minimap pin or with /soap read. Stones.lua closes it when the
 -- player walks out of reading range.
 --
--- The button row: your own written stones get "Edit (m:ss)", counting down
--- the edit window; everyone else's get Appraise and Disparage.
+-- The bottom row: every stone gets a ▲ score ▼ vote control (appraise /
+-- disparage, Reddit-style; see Stones.lua); your own stones also get
+-- "Edit (m:ss)" while their edit window is open.
 
 local Sketch, SketchCanvas = ns.Sketch, ns.SketchCanvas
 
@@ -51,31 +52,42 @@ function ReadWindow:Build()
 	byline:SetPoint("BOTTOMRIGHT", -PAD, 40)
 	self.byline = byline
 
+	-- ▲ score ▼, built from Blizzard's scroll-arrow buttons.
+	local function arrow(direction)
+		local btn = CreateFrame("Button", nil, f)
+		btn:SetSize(24, 24)
+		local art = "Interface\\Buttons\\UI-ScrollBar-Scroll" .. direction .. "Button-"
+		btn:SetNormalTexture(art .. "Up")
+		btn:SetPushedTexture(art .. "Down")
+		btn:SetHighlightTexture(art .. "Highlight", "ADD")
+		return btn
+	end
+	local up = arrow("Up")
+	up:SetPoint("BOTTOMLEFT", PAD - 6, 9)
+	up:SetScript("OnClick", function() self:Vote(ns.Stones.APPRAISE) end)
+	tooltip(up, "Appraise",
+		"Upvote. On someone else's stone its pin turns gold. Your own stones start upvoted. Click again to take it back.")
+	local score = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	score:SetPoint("LEFT", up, "RIGHT", 0, 0)
+	score:SetWidth(30)
+	score:SetJustifyH("CENTER")
+	local down = arrow("Down")
+	down:SetPoint("LEFT", score, "RIGHT", 0, 0)
+	down:SetScript("OnClick", function() self:Vote(ns.Stones.DISPARAGE) end)
+	tooltip(down, "Disparage", "Downvote. On someone else's stone its pin fades and it stops calling you over. "
+		.. "On your own stone it takes your upvote back (down to 0). Click again to take it back.")
+	self.upButton, self.scoreText, self.downButton = up, score, down
+
 	local edit = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	edit:SetSize(96, 22)
-	edit:SetPoint("BOTTOMLEFT", PAD - 4, 10)
+	edit:SetPoint("LEFT", down, "RIGHT", 8, 0)
 	edit:SetScript("OnClick", function()
 		if self.stone then ns.EditWindow:Open(self.stone) end
 	end)
-	tooltip(edit, "Edit Soapstone", format("You can reword or delete a written stone for %d minutes after dropping it.",
-		ns.Stones.EDIT_SECONDS / 60))
+	tooltip(edit, "Edit Soapstone", format("You can change or delete your stone for %d minutes after posting it "
+		.. "(the clock pauses while you edit, and restarts when you save).", ns.Stones.EDIT_SECONDS / 60))
 	edit:Hide()
 	self.editButton = edit
-
-	local appraise = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	appraise:SetSize(100, 22)
-	appraise:SetPoint("BOTTOMLEFT", PAD - 4, 10)
-	appraise:SetScript("OnClick", function() self:Rate(ns.Stones.APPRAISE) end)
-	tooltip(appraise, "Appraise", "This stone helped. Its pin turns gold on your minimap. Click again to take it back.")
-	self.appraiseButton = appraise
-
-	local disparage = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	disparage:SetSize(100, 22)
-	disparage:SetPoint("LEFT", appraise, "RIGHT", 4, 0)
-	disparage:SetScript("OnClick", function() self:Rate(ns.Stones.DISPARAGE) end)
-	tooltip(disparage, "Disparage",
-		"This stone is unhelpful. Its pin fades and it stops calling you over. Click again to take it back.")
-	self.disparageButton = disparage
 
 	local elapsed = 0
 	f:SetScript("OnUpdate", function(_, dt)
@@ -86,28 +98,29 @@ function ReadWindow:Build()
 	end)
 end
 
-function ReadWindow:Rate(value)
+function ReadWindow:Vote(arrow)
 	if not self.stone then return end
-	ns.Stones:Rate(self.stone, value)
-	self:UpdateRatingButtons()
+	ns.Stones:Vote(self.stone, arrow)
+	self:UpdateVotes()
 end
 
--- Appraise / Disparage for other players' stones; the chosen one reads
--- "Appraised" / "Disparaged" and stays highlighted.
-function ReadWindow:UpdateRatingButtons()
+local UP_COLOR = { 1, 0.55, 0.1 }    -- Reddit orange
+local DOWN_COLOR = { 0.45, 0.6, 1 }  -- Reddit blue
+local IDLE_COLOR = { 0.75, 0.75, 0.75 }
+
+-- Colours the arrow you voted with and shows the score in the same colour.
+function ReadWindow:UpdateVotes()
 	local stone = self.stone
-	local canRate = stone ~= nil and not ns.Store.IsMine(stone)
-	local rating = canRate and ns.Stones:Rating(stone)
-	local buttons = {
-		{ self.appraiseButton, ns.Stones.APPRAISE, "Appraise", "Appraised" },
-		{ self.disparageButton, ns.Stones.DISPARAGE, "Disparage", "Disparaged" },
-	}
-	for _, b in ipairs(buttons) do
-		local button, value, label, chosen = b[1], b[2], b[3], b[4]
-		button:SetShown(canRate)
-		button:SetText(rating == value and chosen or label)
-		if rating == value then button:LockHighlight() else button:UnlockHighlight() end
-	end
+	if not stone then return end
+	local vote = ns.Stones:Rating(stone)
+	local upColor = vote == ns.Stones.APPRAISE and UP_COLOR or IDLE_COLOR
+	local downColor = vote == ns.Stones.DISPARAGE and DOWN_COLOR or IDLE_COLOR
+	self.upButton:GetNormalTexture():SetVertexColor(unpack(upColor))
+	self.downButton:GetNormalTexture():SetVertexColor(unpack(downColor))
+	local scoreColor = vote == ns.Stones.APPRAISE and UP_COLOR or vote == ns.Stones.DISPARAGE and DOWN_COLOR
+		or { 1, 1, 1 }
+	self.scoreText:SetText(ns.Stones:Score(stone))
+	self.scoreText:SetTextColor(unpack(scoreColor))
 end
 
 -- Shows "Edit (4:32)" while the open stone can still be edited.
@@ -144,7 +157,7 @@ function ReadWindow:Show(stone)
 
 	self.byline:SetText(ns.Stones:Byline(stone))
 	self:UpdateEditButton()
-	self:UpdateRatingButtons()
+	self:UpdateVotes()
 
 	self.frame:SetSize(width + PAD * 2, height + TOP + FOOTER)
 	self.frame:Show()

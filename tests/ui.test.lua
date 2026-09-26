@@ -137,6 +137,27 @@ local drawing
 for _, s in Store:Each() do if s.sketch then drawing = s end end
 check(drawing ~= nil and drop.drawer:IsEmpty(), "a sketch is dropped and the canvas cleared for next time")
 
+-- Read window: the ▲ score ▼ control on every stone, Edit beside it on yours.
+local read = ns.ReadWindow
+ok, err = pcall(function() read:Show(text) end)
+check(ok, "read window opens on your own stone (" .. tostring(err) .. ")")
+check(read.upButton.shown and read.downButton.shown, "the vote arrows show on your own stone")
+check(tostring(read.scoreText.text) == "1", "score 1: you've upvoted it already")
+check(read.editButton.shown, "with Edit beside them")
+click(read.downButton)
+check(tostring(read.scoreText.text) == "0", "▼ on your own stone takes it to 0")
+click(read.downButton)
+check(tostring(read.scoreText.text) == "0", "and no lower")
+click(read.upButton)
+check(tostring(read.scoreText.text) == "1", "▲ puts it back to 1")
+local stranger = Store:Put({ id = "Zug-Zug-9-9", authorKey = "Zug-Zug", author = "Zug Zug", instance = 1,
+	wx = 5, wy = 5, mapID = 1413, t = NOW, text = "from a stranger" })
+read:Show(stranger)
+check(tostring(read.scoreText.text) == "1" and not read.editButton.shown, "a stranger's stone: score 1, no Edit")
+click(read.upButton)
+check(tostring(read.scoreText.text) == "2", "▲ appraises it: 2")
+read:Hide()
+
 -- Edit window on the written stone: pause, cancel, resume.
 local edit = ns.EditWindow
 NOW = NOW + 60
