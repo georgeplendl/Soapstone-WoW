@@ -10,21 +10,24 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-25
+
 ### Added
-- A sound as you set a stone down (a crystal settling into place, or the
-  nearest sound your client has) and another as you delete one (an aura
-  fading away). `/soap sound drop` / `delete` previews them, and any cue can
-  be previewed the same way (`near`, `read`, `appraise`, `disparage`,
-  `drop`, `delete`).
+- **Sounds:** a crystal settling into place as you set a stone down, and an
+  aura fading away as you delete one. `/soap sound off` mutes them with the
+  other cues.
+- `/soap sound <cue>` previews any sound cue (`near`, `read`, `appraise`,
+  `disparage`, `drop`, `delete`) and names the sound it played.
 
 ### Changed
-- Writing a stone ("Leave a Soapstone" → Write) and editing one ("Edit
-  Soapstone") use the same message box, which shows your message exactly as
-  it will read: the same text size as the stone window, centred, and wrapping
-  at the same width. On Write the window is snug around the box; Draw grows
-  it for the drawing editor.
-- "Edit Soapstone" no longer shows an "Editable for …" countdown; the
-  clock is paused while you edit, and the Edit button shows the time left.
+- **What you type is what they'll read:** writing a stone ("Leave a
+  Soapstone" → Write) and editing one ("Edit Soapstone") use the same
+  message box, in the stone window's text size, centred, and wrapping at
+  the same width. On Write the window sits snugly around the box; Draw
+  grows it for the drawing editor.
+- "Edit Soapstone" no longer shows an "Editable for …" countdown: the clock
+  is paused while you edit, and the stone's Edit button shows the time
+  left.
 
 ## [0.3.2] - 2026-09-25
 
@@ -141,7 +144,8 @@ for players: what changed in game, not how.
   (`/soap near`) and a chime when you can read one (`/soap sound`).
 - `/soap list`, `/soap test`, `/soap button` and `/soap clear`.
 
-[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.2.0...v0.3.0
