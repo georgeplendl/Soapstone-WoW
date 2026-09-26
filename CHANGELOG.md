@@ -10,51 +10,54 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
-### Added
-- Soapstone quietly joins a hidden network channel a few seconds after login,
-  the groundwork for sharing stones between players. It doesn't sync stones yet.
-- `/soap net` test tools: `selftest` and `pacetest` (work with a single character),
-  `status`, `ping`, `burst` and `log`, to check that Soapstone players can
-  reach each other.
+## [0.3.0] - 2026-09-25
 
+### Added
+- **Appraise and Disparage**, as in Dark Souls. Every stone's window has
+  **Appraise** and **Disparage** under the message or drawing, and its
+  **appraisals** at the right of the title bar.
+  - Your own stones start appraised (1 appraisal). You can withdraw that or
+    disparage your own stone, but it never goes below 0.
+  - On other players' stones, appraise or disparage; press again to
+    withdraw. Appraised stones get a gold minimap pin; disparaged ones fade
+    and stop calling you over with sound cues.
+  - Appraisals are personal for now: they count the author's appraisal plus
+    your own characters' judgements.
+- **Edit and delete your sketches**, like written stones: "Edit Soapstone"
+  opens the drawing editor with your drawing loaded.
 - `/soap stats` shows how many stones are stored, and where.
-- **Edit and delete your sketches** too, within the same 5-minute window as
-  written stones: "Edit Soapstone" opens the drawing editor with your
-  drawing loaded.
-- **Appraise and Disparage**, as in Dark Souls: every stone's read window
-  has **Appraise** and **Disparage** centred under the message or sketch,
-  with Edit and the author's name below a rule, and the stone's
-  **appraisals** at the right of the title bar. Your own
-  stones start appraised (1 appraisal), and
-  disparaging your own only withdraws that, down to 0. On other players'
-  stones, appraise or disparage (press again to withdraw): appraised stones
-  get a gold minimap pin, disparaged ones fade and no longer trigger sound
-  cues. Scores count the author's appraisal plus your own characters'
-  judgements; they're personal for now.
-- `/soap version` also says which build is running: the git branch and
-  commit in a development checkout, or the release tag in a release zip.
-- **Zone sync:** settle in a zone for a few seconds and Soapstone asks other
-  Soapstone players online for that zone's stones, then fetches the ones you
-  don't have ("12 new stones arrived for The Barrens"). Stones you receive
-  show their author; edits and deletions only take effect when they come
-  from the author. `/soap sync` shows what's happening; `/soap sync now`
-  asks again.
+- `/soap version` also says which build is running (the release, or the
+  development branch).
 
 ### Changed
-- Stones are signed with your full character name ("Mad Decent" on WoW
-  Forever), and your earlier stones are relabelled automatically.
-- Only the character who wrote a stone can edit or delete it. Before, any
-  character on the same account could.
-- New storage format, ready for sharing. Your stones are upgraded
-  automatically the first time you log in; **older versions of Soapstone
-  can't read the new format.**
-- The minimap and proximity checks only look at stones near you, so they
-  stay fast however many stones are stored.
-- Sketches show **larger** in the read window (3× instead of 2×, the size they're drawn at),
-  and there's equal space above and below a stone's message or drawing.
+- The stone window is laid out afresh: Appraise and Disparage under the
+  stone, a divider, then Edit (on your own stones) and who left it.
+- Sketches show **larger** when read (3× instead of 2×, the size they're
+  drawn at), with equal space above and below a stone.
 - The 5-minute edit window now **pauses while the edit dialog is open** (a
   slow edit costs nothing; cancelling picks up where it paused) and
   **restarts from a full 5 minutes each time you save an edit**.
+- Stones are signed with your full character name ("Mad Decent" on WoW
+  Forever); your earlier stones are relabelled automatically.
+- Only the character who wrote a stone can edit or delete it. Before, any
+  character on the same account could.
+- New storage format. Your stones are upgraded automatically the first time
+  you log in; **older versions of Soapstone can't read the new format.**
+- The minimap and proximity checks only look at stones near you, so they
+  stay fast however many stones are stored.
+
+### Experimental: sharing stones between players
+- **Zone sync.** A few seconds after login Soapstone quietly joins a hidden
+  channel. When you settle in a zone it asks other Soapstone players online
+  for that zone's stones and fetches the ones you don't have ("12 new
+  stones arrived for The Barrens"). Edits and deletions only take effect
+  when they come from the stone's author. `/soap sync` shows what's
+  happening; `/soap sync now` asks again.
+- `/soap net` test tools (`selftest`, `pacetest`, `status`, `ping`,
+  `burst`, `log`) check that Soapstone players can reach each other.
+- This hasn't been tried between two real players yet, and sharing may move
+  to a companion app with a proper database for fast, live syncing, so
+  expect it to change.
 
 ## [0.2.0] - 2026-09-25
 
@@ -96,6 +99,7 @@ for players: what changed in game, not how.
   (`/soap near`) and a chime when you can read one (`/soap sound`).
 - `/soap list`, `/soap test`, `/soap button` and `/soap clear`.
 
-[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/georgeplendl/Soapstone-WoW/releases/tag/v0.1.0
