@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- Shows one stone: its message, or its sketch at 2×. Opened by clicking a
+-- Shows one stone: its message, or its sketch at 4×. Opened by clicking a
 -- readable minimap pin or with /soap read. Stones.lua closes it when the
 -- player walks out of reading range.
 --
@@ -23,9 +23,12 @@ local ReadWindow = {}
 ns.ReadWindow = ReadWindow
 
 local FRAME_NAME = "SoapstoneReadFrame"
-local READ_SCALE = 2
+local READ_SCALE = 4 -- sketches: 160×60 cells at 4× = 640×240
 local PAD = 16
-local TOP = 36
+local TITLE_BAR = 24   -- the window template's title bar
+local CONTENT_GAP = 18 -- the same space above the stone and below it (to the buttons)
+local TOP = TITLE_BAR + CONTENT_GAP
+local SKETCH_BORDER = 5 -- the sketch's border sits this far outside the canvas
 local TEXT_WIDTH = 320
 local TICK = 0.25
 local BUTTON_HEIGHT = 22
@@ -38,7 +41,7 @@ local BYLINE_GAP = 16      -- at least this much between Edit and the byline
 local ROW_Y = 10                            -- Edit + byline row
 local RULE_Y = ROW_Y + BUTTON_HEIGHT + 8    -- the horizontal rule
 local VOTE_Y = RULE_Y + 1 + 10              -- Appraise / Disparage
-local FOOTER = VOTE_Y + BUTTON_HEIGHT + 10  -- everything below the stone itself
+local FOOTER = VOTE_Y + BUTTON_HEIGHT + CONTENT_GAP -- everything below the stone itself
 
 local APPRAISED_COLOR = { 1, 0.82, 0 }     -- gold, like appraised pins
 local DISPARAGED_COLOR = { 0.6, 0.6, 0.6 } -- grey, like disparaged pins
@@ -88,7 +91,7 @@ function ReadWindow:Build()
 	self.text = text
 
 	local canvas = SketchCanvas.Create(f, READ_SCALE)
-	canvas.frame:SetPoint("TOP", 0, -TOP - 4)
+	canvas.frame:SetPoint("TOP", 0, -TOP - SKETCH_BORDER)
 	self.canvas = canvas
 
 	-- Appraise and Disparage, centred under the stone.
@@ -198,12 +201,12 @@ function ReadWindow:Show(stone)
 		self.canvas:Layout()
 		self.canvas.frame:Show()
 		local cw, ch = self.canvas:GetSize()
-		width, height = cw + 8, ch + 8
+		width, height = cw + SKETCH_BORDER * 2, ch + SKETCH_BORDER * 2 -- gaps measured from the border
 	else
 		self.canvas.frame:Hide()
 		self.text:SetText(stone.text or (stone.sketch and "The carving is too worn to make out.") or "")
 		self.text:Show()
-		width, height = TEXT_WIDTH, math.max(self.text:GetStringHeight(), 24)
+		width, height = TEXT_WIDTH, self.text:GetStringHeight() -- the text's real height, so both gaps match
 	end
 
 	self.byline:SetText(ns.Stones:Byline(stone))

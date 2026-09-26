@@ -16,7 +16,7 @@ Inspired by **Miiverse** (Nintendo's Wii U/3DS social network, 2012–2017), whe
 |---|---|
 | How drawings are stored and shown | **Pixel grid (Approach A):** a fixed 1-bit grid, drawn as solid rectangles row by row |
 | Canvas size | **160 × 60** (half of Miiverse, same 8:3 shape) |
-| Display size | **Draw at 3×, read at 2×**, snapped to whole screen pixels, so nobody squints |
+| Display size | **Draw at 3×, read at 4×** (read raised from 2× on 2026-09-25, George: "2x the current size"), snapped to whole screen pixels, so nobody squints |
 | Tools | **Full Splatoon kit:** 3 pen sizes and 3 eraser sizes |
 | Moderation | **None for now.** Revisit once stones are shared between players |
 
