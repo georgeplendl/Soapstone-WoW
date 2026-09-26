@@ -60,7 +60,7 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | Left-click minimap button (or `/soap`) | "Leave a Soapstone" window: **Write** tab for a message, **Draw** tab for a sketch |
 | Draw tab | 160×60 black-and-white canvas at 3×; 3 pen and 3 eraser sizes; left-drag draws, right-drag erases; Undo, Clear (undoable) |
 | Right-click minimap button (or `/soap list`) | Nearest 10 stones with distance + compass direction |
-| Click a readable minimap pin (or `/soap read`) | Opens the stone: message, or sketch at 4×. It closes if you walk out of range |
+| Click a readable minimap pin (or `/soap read`) | Opens the stone: message, or sketch at 3×. It closes if you walk out of range |
 | Open one of your own stones (written or drawn) within 5 min of posting it | **Edit (m:ss)** button counts down; opens "Edit Soapstone" (the message box, or the drawing editor for a sketch) to change it (marked "(edited)") or delete it (with confirmation). The clock pauses while the editor is open, and a saved edit restarts the full 5 minutes |
 | `/soap test` | Plants a stranger's stone or sketch 200 yd north of you — walk to it |
 | Walk within 150 yd of an unread stone | Soft "somewhere close" ping + notice (re-arms when you walk away) |

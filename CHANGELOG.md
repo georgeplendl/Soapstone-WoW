@@ -50,7 +50,7 @@ for players: what changed in game, not how.
   can't read the new format.**
 - The minimap and proximity checks only look at stones near you, so they
   stay fast however many stones are stored.
-- Sketches show **twice as large** in the read window (4× instead of 2×),
+- Sketches show **larger** in the read window (3× instead of 2×, the size they're drawn at),
   and there's equal space above and below a stone's message or drawing.
 - The 5-minute edit window now **pauses while the edit dialog is open** (a
   slow edit costs nothing; cancelling picks up where it paused) and

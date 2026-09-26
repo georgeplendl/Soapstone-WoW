@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- Shows one stone: its message, or its sketch at 4×. Opened by clicking a
+-- Shows one stone: its message, or its sketch at 3×. Opened by clicking a
 -- readable minimap pin or with /soap read. Stones.lua closes it when the
 -- player walks out of reading range.
 --
@@ -23,7 +23,7 @@ local ReadWindow = {}
 ns.ReadWindow = ReadWindow
 
 local FRAME_NAME = "SoapstoneReadFrame"
-local READ_SCALE = 4 -- sketches: 160×60 cells at 4× = 640×240
+local READ_SCALE = 3 -- sketches: 160×60 cells at 3× = 480×180, as drawn
 local PAD = 16
 local TITLE_BAR = 24   -- the window template's title bar
 local CONTENT_GAP = 18 -- the same space above the stone and below it (to the buttons)
