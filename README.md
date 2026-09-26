@@ -54,6 +54,7 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | Walk within 150 yd of an unread stone | Soft "somewhere close" ping + notice (re-arms when you walk away) |
 | Walk within 40 yd of a stone | Readable chime on every approach, button glows while in range; the first time also prints the message |
 | Hover a minimap pin | Message if you're in range; "sealed" + distance if not |
+| **Appraise** / **Disparage** in someone else's stone | Rate it (one rating per stone per character; click again to take it back). Appraised pins turn gold; disparaged pins fade and stop triggering sound cues |
 | `/soap sound test` | Preview both cues; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version |
@@ -143,5 +144,7 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
 2. **In-world presence.** An on-screen arrow toward the nearest sealed stone, a
    rune glow at your feet when on the spot, and the built-in waypoint marker
    (`C_SuperTrack`) if this client has it.
-3. **Appraise/disparage buttons** on the read window.
+3. **Shared ratings.** Appraisals and disparagements are personal for now;
+   with a server they could add up across players (and, as in Dark Souls,
+   tell authors when their stone was appraised).
 4. **Libraries.** LibDBIcon for the minimap button, HereBeDragons-Pins for world map pins.

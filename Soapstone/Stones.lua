@@ -56,6 +56,41 @@ function Stones:Bearing(from, to)
 	return COMPASS[math.floor((deg + 22.5) / 45) % 8 + 1]
 end
 
+-- Appraise / disparage ----------------------------------------------------------
+-- Your rating of someone else's stone, as in Dark Souls. Clicking the same
+-- rating again takes it back. For now ratings only change what you see:
+-- appraised stones get a gold pin, disparaged ones fade and stop calling
+-- you over with sound cues.
+
+Stones.APPRAISE, Stones.DISPARAGE = 1, -1
+
+function Stones:Rating(stone)
+	return stone and ns.Store:MyRating(stone.id) or nil
+end
+
+function Stones:IsDisparaged(stone)
+	return self:Rating(stone) == self.DISPARAGE
+end
+
+-- Toggles `value` (APPRAISE or DISPARAGE) on `stone`. Returns the new rating.
+function Stones:Rate(stone, value)
+	if not stone or stone.deleted or ns.Store.IsMine(stone) then return nil end
+	local new = self:Rating(stone) ~= value and value or nil
+	ns.Store:Rate(stone.id, new)
+	local who = stone.author or "a stranger"
+	if new == self.APPRAISE then
+		ns.Cues:Play("appraise")
+		UIErrorsFrame:AddMessage(format("You appraised %s's soapstone.", who), 1, 0.82, 0)
+	elseif new == self.DISPARAGE then
+		ns.Cues:Play("disparage")
+		UIErrorsFrame:AddMessage(format("You disparaged %s's soapstone.", who), 0.75, 0.6, 0.6)
+	else
+		UIErrorsFrame:AddMessage("Rating withdrawn.", 0.8, 0.8, 0.8)
+	end
+	if ns.MinimapPins then ns.MinimapPins:Update() end
+	return new
+end
+
 function Stones:IsReadable(stone, dist)
 	return ns.Store.IsMine(stone) or (dist ~= nil and dist <= ns.db.gateYards)
 end
@@ -252,7 +287,8 @@ function Stones:CheckProximity()
 			ns.Sync:OnZone(zone)
 		end
 		for _, stone in ipairs(ns.Store:Near(here, ns.db.nearYards + HYSTERESIS, nearby)) do
-			local dist = not ns.Store.IsMine(stone) and self:Distance(here, stone)
+			-- Your own stones and ones you've disparaged never call you over.
+			local dist = not ns.Store.IsMine(stone) and not self:IsDisparaged(stone) and self:Distance(here, stone)
 			if dist then
 				local prev = bands[stone.id]
 				local band = bandFor(dist, prev)
@@ -322,7 +358,10 @@ function Stones:PrintNearby()
 		local stone, dist = list[i].stone, list[i].dist
 		local where = dist < 3 and "here" or format("%d yd %s", dist, self:Bearing(here, stone))
 		if self:IsReadable(stone, dist) then
-			ns.Print(format("%s — |cffffffff%s|r", where, self:Summary(stone)))
+			local rating = self:Rating(stone)
+			local mark = rating == self.APPRAISE and " |cffffd100(appraised)|r"
+				or rating == self.DISPARAGE and " |cff888888(disparaged)|r" or ""
+			ns.Print(format("%s — |cffffffff%s|r%s", where, self:Summary(stone), mark))
 		else
 			ns.Print(format("%s — |cff888888sealed|r", where))
 		end

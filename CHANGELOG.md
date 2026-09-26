@@ -18,6 +18,11 @@ for players: what changed in game, not how.
   reach each other.
 
 - `/soap stats` shows how many stones are stored, and where.
+- **Appraise and Disparage**, as in Dark Souls: rate other players' stones
+  from the read window. Appraised stones get a gold minimap pin;
+  disparaged ones fade and no longer trigger sound cues. One rating per
+  stone per character; click the same button again to take it back.
+  Ratings are personal for now.
 - **Zone sync:** settle in a zone for a few seconds and Soapstone asks other
   Soapstone players online for that zone's stones, then fetches the ones you
   don't have ("12 new stones arrived for The Barrens"). Stones you receive
