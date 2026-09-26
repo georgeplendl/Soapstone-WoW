@@ -5,16 +5,16 @@ local _, ns = ...
 -- player walks out of reading range.
 --
 -- Layout, top to bottom: the title bar ("Soapstone" left, the stone's
--- appraisals right); the message or sketch; Appraise and Disparage centred
--- under it (see Stones.lua for the rules); a horizontal rule; then Edit
--- (left, while your own stone's edit window is open) and who left it
--- (right). The window is as wide as the widest of those.
+-- appraisals right); the message or sketch; who left it (right); a
+-- horizontal rule; then Edit (left, while your own stone's edit window is
+-- open) and Appraise / Disparage (centred; see Stones.lua for the rules).
+-- The window is as wide as the widest of those.
 --
 --  ┌ Soapstone                          Appraisals: 1   x ┐
 --  │                  "Try jumping"                       │
---  │             [Appraised]  [Disparage]                 │
+--  │                    — Mad Decent (You), just now      │
 --  │ ──────────────────────────────────────────────────── │
---  │ [Edit (4:32)]                 — Mad Decent, just now │
+--  │ [Edit (4:32)]    [Appraised] [Disparage]             │
 --  └──────────────────────────────────────────────────────┘
 
 local Sketch, SketchCanvas = ns.Sketch, ns.SketchCanvas
@@ -36,12 +36,13 @@ local VOTE_WIDTH = 88      -- fits "Appraised" / "Disparaged"
 local EDIT_WIDTH = 92
 local CLOSE_BUTTON = 28    -- room left for the title bar's close button
 local GAP = 4
-local BYLINE_GAP = 16      -- at least this much between Edit and the byline
+local EDIT_CLEARANCE = 8   -- at least this much between Edit and the centred buttons
+local BYLINE_HEIGHT = 14   -- one line of small text
 -- Measured up from the window's bottom edge:
-local ROW_Y = 10                            -- Edit + byline row
+local ROW_Y = 10                            -- Edit + Appraise / Disparage
 local RULE_Y = ROW_Y + BUTTON_HEIGHT + 8    -- the horizontal rule
-local VOTE_Y = RULE_Y + 1 + 10              -- Appraise / Disparage
-local FOOTER = VOTE_Y + BUTTON_HEIGHT + CONTENT_GAP -- everything below the stone itself
+local BYLINE_Y = RULE_Y + 1 + 8             -- who left it
+local FOOTER = BYLINE_Y + BYLINE_HEIGHT + CONTENT_GAP -- everything below the stone itself
 
 local APPRAISED_COLOR = { 1, 0.82, 0 }     -- gold, like appraised pins
 local DISPARAGED_COLOR = { 0.6, 0.6, 0.6 } -- grey, like disparaged pins
@@ -94,9 +95,22 @@ function ReadWindow:Build()
 	canvas.frame:SetPoint("TOP", 0, -TOP - SKETCH_BORDER)
 	self.canvas = canvas
 
-	-- Appraise and Disparage, centred under the stone.
+	-- Who left it, right-aligned under the stone.
+	local byline = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	byline:SetPoint("BOTTOMRIGHT", -PAD, BYLINE_Y)
+	byline:SetJustifyH("RIGHT")
+	self.byline = byline
+
+	-- A horizontal rule, then Edit (left) and Appraise / Disparage (centred).
+	local rule = f:CreateTexture(nil, "ARTWORK")
+	rule:SetColorTexture(1, 1, 1, 0.15)
+	rule:SetHeight(1)
+	rule:SetPoint("BOTTOMLEFT", PAD - 4, RULE_Y)
+	rule:SetPoint("BOTTOMRIGHT", -(PAD - 4), RULE_Y)
+	self.rule = rule
+
 	local appraise = button(f, "Appraise", VOTE_WIDTH)
-	appraise:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -GAP / 2, VOTE_Y)
+	appraise:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -GAP / 2, ROW_Y)
 	appraise:SetScript("OnClick", function() self:Vote(ns.Stones.APPRAISE) end)
 	tooltip(appraise, "Appraise", "Tell the author this stone helped. On someone else's stone its pin turns gold. "
 		.. "Your own stones start appraised. Click again to withdraw it.")
@@ -109,14 +123,6 @@ function ReadWindow:Build()
 		.. "calling you over. On your own stone it withdraws your appraisal (never below 0). Click again to withdraw it.")
 	self.disparageButton = disparage
 
-	-- A horizontal rule, then Edit (left) and the byline (right).
-	local rule = f:CreateTexture(nil, "ARTWORK")
-	rule:SetColorTexture(1, 1, 1, 0.15)
-	rule:SetHeight(1)
-	rule:SetPoint("BOTTOMLEFT", PAD - 4, RULE_Y)
-	rule:SetPoint("BOTTOMRIGHT", -(PAD - 4), RULE_Y)
-	self.rule = rule
-
 	local edit = button(f, "Edit", EDIT_WIDTH)
 	edit:SetPoint("BOTTOMLEFT", PAD - 4, ROW_Y)
 	edit:SetScript("OnClick", function()
@@ -126,11 +132,6 @@ function ReadWindow:Build()
 		.. "(the clock pauses while you edit, and restarts when you save).", ns.Stones.EDIT_SECONDS / 60))
 	edit:Hide()
 	self.editButton = edit
-
-	local byline = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	byline:SetPoint("RIGHT", f, "BOTTOMRIGHT", -PAD, ROW_Y + BUTTON_HEIGHT / 2)
-	byline:SetJustifyH("RIGHT")
-	self.byline = byline
 
 	local elapsed = 0
 	f:SetScript("OnUpdate", function(_, dt)
@@ -179,13 +180,16 @@ function ReadWindow:UpdateEditButton()
 	end
 end
 
--- The narrowest the window can be: wide enough for Appraise + Disparage, and
--- for Edit (when shown) beside the byline.
+-- The narrowest the window can be: wide enough for the byline, and for the
+-- centred Appraise + Disparage to clear Edit (when shown) on the left.
 function ReadWindow:MinWidth()
-	local votes = PAD * 2 + VOTE_WIDTH * 2 + GAP
-	local footer = (PAD - 4) + self.byline:GetStringWidth() + PAD
-	if self.editButton:IsShown() then footer = footer + EDIT_WIDTH + BYLINE_GAP end
-	return math.max(votes, footer)
+	local byline = PAD * 2 + self.byline:GetStringWidth()
+	local half = VOTE_WIDTH + GAP / 2 -- each button's reach from the centre
+	local votes = PAD * 2 + half * 2
+	if self.editButton:IsShown() then
+		votes = 2 * ((PAD - 4) + EDIT_WIDTH + EDIT_CLEARANCE + half)
+	end
+	return math.max(byline, votes)
 end
 
 function ReadWindow:Show(stone)

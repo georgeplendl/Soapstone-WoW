@@ -158,7 +158,11 @@ check(appraise.text == "Appraised" and appraise.locked, "it reads 'Appraised': y
 check(score.text == "Appraisals: 1" and disparage.text == "Disparage", "score 1")
 check(read.editButton.shown, "Edit sits in the same row")
 check(read.frame.w >= read:MinWidth(), ("the window (%.0f) fits the buttons and footer (%.0f)"):format(read.frame.w, read:MinWidth()))
-check(read.rule ~= nil and read.frame.h >= 36 + 14 + 70, "a rule between the buttons and the footer, and room for both")
+check(read.rule ~= nil and read.frame.h >= 36 + 14 + 70, "a rule between the byline and the buttons, and room for both")
+-- Appraise/Disparage are centred (each 88 wide, 4 apart) in the same row as
+-- Edit (92 wide, 12 from the left): they must clear it.
+check(read.frame.w / 2 - (88 + 2) >= 12 + 92 + 8,
+	("the centred buttons clear Edit (window %.0f wide)"):format(read.frame.w))
 click(disparage)
 check(disparage.text == "Disparaged" and disparage.locked, "Disparage on your own stone lights up and reads 'Disparaged'")
 check(appraise.text == "Appraise" and not appraise.locked, "and Appraise goes back to normal")
