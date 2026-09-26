@@ -10,6 +10,13 @@ ns.WritePanel = WritePanel
 
 WritePanel.MAX_LETTERS = 140
 WritePanel.INSET = 12 -- the text sits this far inside the panel's border
+WritePanel.STONE_HEIGHT = 130 -- the message box in both drop and edit windows
+
+-- The width that makes a stone-style panel wrap like the stone window's text.
+-- A function because ReadWindow loads after the drop window.
+function WritePanel.StoneWidth()
+	return ns.ReadWindow.TEXT_WIDTH + 2 * WritePanel.INSET
+end
 
 local BACKDROP = {
 	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -70,8 +77,8 @@ function WritePanel.Create(parent, onSubmit, onChange)
 end
 
 -- Types in the stone window's font and size, centred, so the text wraps and
--- reads just as it will when opened (the caller makes the panel as wide as
--- the stone window's text: ReadWindow.TEXT_WIDTH + 2 * INSET).
+-- reads just as it will when opened (the caller makes the panel
+-- WritePanel.StoneWidth() wide and STONE_HEIGHT tall).
 function Panel:UseStoneStyle()
 	ns.ReadWindow.ApplyStoneFont(self.edit)
 	self.edit:SetJustifyH("CENTER")

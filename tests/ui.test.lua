@@ -56,6 +56,9 @@ Frame.__index = function(f, key)
 		SetText = function(self, text) self.text = text or "" end,
 		GetText = function(self) return self.text end,
 		SetSize = function(self, w, h) self.w, self.h = w, h end,
+		SetHeight = function(self, h) self.h = h end,
+		GetCenter = function() return 700, 500 end,
+		SetPoint = function(self, ...) self.point = { ... } end,
 		GetSize = function(self) return self.w, self.h end,
 		GetWidth = function(self) return self.w end,
 		GetHeight = function(self) return self.h end,
@@ -121,7 +124,21 @@ check(ok, "drop window opens (" .. tostring(err) .. ")")
 local write, draw = drop.modeButtons[1], drop.modeButtons[2]
 check(write.text == "Write" and draw.text == "Draw", "Write and Draw buttons")
 check(write.locked and not draw.locked, "it opens on Write")
-check(drop.frame.w > 400 and drop.frame.h > 200, ("drop window sized %.0fx%.0f from the draw panel"):format(drop.frame.w, drop.frame.h))
+-- Write looks just like the Edit Soapstone box: stone font, centred, same size.
+local dropBox = drop.writer.edit
+check(dropBox.font and dropBox.font.size == ns.ReadWindow.TEXT_SIZE, "the Write box types at the stone window's size")
+check(dropBox.justify == "CENTER" and drop.writer.placeholder.justify == "CENTER", "and centred, placeholder too")
+check(drop.frame.w - 2 * 14 - 2 * ns.WritePanel.INSET == ns.ReadWindow.TEXT_WIDTH
+	and drop.writer.frame.h == ns.WritePanel.STONE_HEIGHT,
+	("on Write the window fits the message box (%.0fx%.0f)"):format(drop.frame.w, drop.frame.h))
+local writeW, writeH = drop.frame.w, drop.frame.h
+click(draw)
+check(drop.frame.w > writeW and drop.frame.h > writeH,
+	("Draw grows it to fit the drawing editor (%.0fx%.0f)"):format(drop.frame.w, drop.frame.h))
+local pt = drop.frame.point
+check(pt and pt[1] == "CENTER" and pt[4] == 700 and pt[5] == 500, "and keeps the window centred where it was")
+click(write)
+check(drop.frame.w == writeW and drop.frame.h == writeH, "Write shrinks it back")
 drop.writer.edit:SetText("Try jumping")
 drop.writer.edit.scripts.OnTextChanged(drop.writer.edit)
 check(drop.dropButton.enabled == true, "Drop Stone lights up once there's text")
@@ -193,6 +210,7 @@ NOW = NOW + 60
 ok, err = pcall(function() edit:Open(text) end)
 check(ok, "edit window opens on a written stone (" .. tostring(err) .. ")")
 check(edit.writer.frame.shown and not edit.drawer.frame.shown, "with the message box, not the drawing editor")
+check(edit.frame.w == writeW and edit.writer.frame.h == drop.writer.frame.h, "the same size box as Leave a Soapstone")
 -- 1-for-1 with the stone window: same font size, centred, same wrap width.
 local box = edit.writer.edit
 check(box.font and box.font.size == ns.ReadWindow.TEXT_SIZE and box.font.size == read.text.font.size,

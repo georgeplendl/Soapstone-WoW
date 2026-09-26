@@ -11,8 +11,11 @@ for players: what changed in game, not how.
 ## [Unreleased]
 
 ### Changed
-- "Edit Soapstone" shows your message exactly as it will read: the same
-  text size as the stone window, centred, and wrapping at the same width.
+- Writing a stone ("Leave a Soapstone" → Write) and editing one ("Edit
+  Soapstone") use the same message box, which shows your message exactly as
+  it will read: the same text size as the stone window, centred, and wrapping
+  at the same width. On Write the window is snug around the box; Draw grows
+  it for the drawing editor.
 
 ## [0.3.2] - 2026-09-25
 

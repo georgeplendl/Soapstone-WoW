@@ -4,6 +4,9 @@ local _, ns = ...
 -- Draw, pick between a short message (WritePanel) and a sketch (DrawPanel:
 -- Splatoon-style tools beside the canvas). The chosen one stays lit, like
 -- Appraise / Disparage in the stone window. It always opens on Write.
+-- Write uses the same message box as "Edit Soapstone" (stone font, centred,
+-- wrapping like the stone window), and the window shrinks to fit it; Draw
+-- grows it to fit the drawing editor. It keeps its centre as it resizes.
 --
 --  ┌ Leave a Soapstone ─────────────────────────────── x ┐
 --  │                [  Write  ][  Draw  ]                 │
@@ -28,7 +31,8 @@ local MODE_WIDTH = 110     -- Write / Draw buttons
 local MODE_HEIGHT = 24     -- a touch taller than the 22px action buttons
 local MODE_ROW = MODE_HEIGHT + 10
 local CONTENT_TOP = TOP + MODE_ROW
-local FOOTER = 62          -- hint line + action buttons
+local TEXT_FOOTER = 46     -- action buttons
+local SKETCH_FOOTER = 62   -- hint line + action buttons
 local MODES = { { key = "text", label = "Write" }, { key = "sketch", label = "Draw" } }
 
 local function createActionButton(parent, text, width)
@@ -69,7 +73,9 @@ function DropWindow:Build()
 
 	local writer = ns.WritePanel.Create(f, function() self:Submit() end, function() self:UpdateButtons() end)
 	writer.frame:SetPoint("TOPLEFT", PAD, -CONTENT_TOP)
-	writer.frame:SetPoint("BOTTOMRIGHT", drawer.canvas.frame, "BOTTOMRIGHT", 6, -6)
+	writer.frame:SetPoint("TOPRIGHT", -PAD, -CONTENT_TOP)
+	writer.frame:SetHeight(ns.WritePanel.STONE_HEIGHT)
+	writer:UseStoneStyle() -- looks just like the Edit Soapstone box
 	self.writer = writer
 
 	local cancel = createActionButton(f, CANCEL, 90)
@@ -83,9 +89,24 @@ end
 
 -- Behaviour -----------------------------------------------------------------
 
+-- Sizes the window for the current mode, keeping it centred where it was
+-- (a dragged window is anchored by its top-left, so re-anchor on the centre).
 function DropWindow:Layout()
-	local width, height = self.drawer:Layout()
-	self.frame:SetSize(width + PAD, CONTENT_TOP + height + FOOTER)
+	local width, height
+	if self.mode == "sketch" then
+		local w, h = self.drawer:Layout()
+		width, height = w + PAD, CONTENT_TOP + h + SKETCH_FOOTER
+	else
+		width = ns.WritePanel.StoneWidth() + 2 * PAD
+		height = CONTENT_TOP + ns.WritePanel.STONE_HEIGHT + TEXT_FOOTER
+	end
+	local f = self.frame
+	local x, y = f:GetCenter()
+	f:SetSize(width, height)
+	if x and y then
+		f:ClearAllPoints()
+		f:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+	end
 end
 
 function DropWindow:Open()
@@ -94,7 +115,6 @@ function DropWindow:Open()
 	if ns.EditWindow then ns.EditWindow:Hide() end
 	if ns.ReadWindow then ns.ReadWindow:Hide() end
 	if not self.frame then self:Build() end
-	self:Layout()
 	self.frame:Show()
 	self:SetMode("text") -- always opens on Write
 end
@@ -105,6 +125,7 @@ function DropWindow:SetMode(mode)
 	local sketch = mode == "sketch"
 	self.drawer.frame:SetShown(sketch)
 	self.writer.frame:SetShown(not sketch)
+	self:Layout()
 
 	for _, btn in ipairs(self.modeButtons) do
 		if btn.mode == mode then btn:LockHighlight() else btn:UnlockHighlight() end
