@@ -62,6 +62,7 @@ Frame.__index = function(f, key)
 		GetLeft = function() return 0 end,
 		GetTop = function() return 0 end,
 		GetStringHeight = function() return 14 end,
+		GetStringWidth = function(self) return #tostring(self.text) * 6 end,
 		GetName = function(self) return self.name end,
 		SetScript = function(self, name, fn) self.scripts[name] = fn end,
 		GetScript = function(self, name) return self.scripts[name] end,
@@ -137,25 +138,32 @@ local drawing
 for _, s in Store:Each() do if s.sketch then drawing = s end end
 check(drawing ~= nil and drop.drawer:IsEmpty(), "a sketch is dropped and the canvas cleared for next time")
 
--- Read window: the ▲ score ▼ control on every stone, Edit beside it on yours.
+-- Read window: one bottom row of Appraise · score · Disparage · Edit · byline.
 local read = ns.ReadWindow
 ok, err = pcall(function() read:Show(text) end)
 check(ok, "read window opens on your own stone (" .. tostring(err) .. ")")
-check(read.upButton.shown and read.downButton.shown, "the vote arrows show on your own stone")
-check(tostring(read.scoreText.text) == "1", "score 1: you've upvoted it already")
-check(read.editButton.shown, "with Edit beside them")
-click(read.downButton)
-check(tostring(read.scoreText.text) == "0", "▼ on your own stone takes it to 0")
-click(read.downButton)
-check(tostring(read.scoreText.text) == "0", "and no lower")
-click(read.upButton)
-check(tostring(read.scoreText.text) == "1", "▲ puts it back to 1")
+local appraise, disparage, score = read.appraiseButton, read.disparageButton, read.scoreText
+check(appraise.shown and disparage.shown, "Appraise and Disparage show on your own stone")
+check(appraise.text == "Appraised" and appraise.locked, "it reads 'Appraised': you've appraised it already")
+check(tostring(score.text) == "1" and disparage.text == "Disparage", "score 1")
+check(read.editButton.shown, "Edit sits in the same row")
+check(read.frame.w >= read:RowWidth(), ("the window (%.0f) fits the whole row (%.0f)"):format(read.frame.w, read:RowWidth()))
+click(disparage)
+check(tostring(score.text) == "0" and appraise.text == "Appraise", "Disparage on your own stone withdraws it: 0")
+click(disparage)
+check(tostring(score.text) == "0" and disparage.text == "Disparage", "and goes no lower")
+click(appraise)
+check(tostring(score.text) == "1" and appraise.text == "Appraised", "Appraise restores it: 1")
 local stranger = Store:Put({ id = "Zug-Zug-9-9", authorKey = "Zug-Zug", author = "Zug Zug", instance = 1,
 	wx = 5, wy = 5, mapID = 1413, t = NOW, text = "from a stranger" })
 read:Show(stranger)
-check(tostring(read.scoreText.text) == "1" and not read.editButton.shown, "a stranger's stone: score 1, no Edit")
-click(read.upButton)
-check(tostring(read.scoreText.text) == "2", "▲ appraises it: 2")
+check(tostring(score.text) == "1" and not read.editButton.shown, "a stranger's stone: score 1, no Edit")
+check(appraise.text == "Appraise" and not appraise.locked, "not yet appraised")
+click(appraise)
+check(tostring(score.text) == "2" and appraise.text == "Appraised", "Appraise: 2, 'Appraised'")
+click(disparage)
+check(tostring(score.text) == "0" and disparage.text == "Disparaged" and appraise.text == "Appraise",
+	"switching to Disparage: 0, 'Disparaged'")
 read:Hide()
 
 -- Edit window on the written stone: pause, cancel, resume.

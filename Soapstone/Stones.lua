@@ -57,14 +57,15 @@ function Stones:Bearing(from, to)
 	return COMPASS[math.floor((deg + 22.5) / 45) % 8 + 1]
 end
 
--- Votes: appraise (up) / disparage (down), Reddit-style ----------------------------
--- Every stone has a score. Its author has upvoted it automatically (+1), and
--- may take that back (0) but can't vote below it. Anyone else can vote +1 or
--- -1, and clicking the same arrow again takes the vote back. The score here
--- is what this client knows: the author's vote plus votes cast by your
--- characters on this account (a server would add everyone else's).
--- For other players' stones your vote also changes what you see: upvoted
--- pins turn gold, downvoted ones fade and stop calling you over.
+-- Appraise / disparage --------------------------------------------------------------
+-- Every stone has a score. Its author has appraised it automatically (+1),
+-- and may withdraw that (0) but can't disparage it below that. Anyone else
+-- can appraise (+1) or disparage (-1); pressing the same button again
+-- withdraws it. The score here is what this client knows: the author's
+-- appraisal plus judgements cast by your characters on this account (a
+-- server would add everyone else's). On other players' stones your
+-- judgement also changes what you see: appraised pins turn gold,
+-- disparaged ones fade and stop calling you over.
 
 Stones.APPRAISE, Stones.DISPARAGE = 1, -1
 
@@ -101,31 +102,32 @@ function Stones:Score(stone)
 	return score
 end
 
--- The ▲ (APPRAISE) or ▼ (DISPARAGE) arrow was clicked. Returns your new vote.
-function Stones:Vote(stone, arrow)
+-- Appraise (APPRAISE) or Disparage (DISPARAGE) was pressed. Returns your new
+-- judgement: 1, 0 or -1.
+function Stones:Vote(stone, which)
 	if not stone or stone.deleted then return nil end
 	local current, new = self:Rating(stone), nil
 	if ns.Store.IsMine(stone) then
-		-- ▲ toggles your automatic upvote; ▼ can only take it back.
-		new = (arrow == self.APPRAISE and current == 0) and 1 or 0
+		-- Appraise toggles your own appraisal; Disparage can only withdraw it.
+		new = (which == self.APPRAISE and current == 0) and 1 or 0
 		ns.Store:Rate(stone.id, new == 0 and 0 or nil) -- 1 is the default; store only a withdrawal
 	else
-		new = current == arrow and 0 or arrow
+		new = current == which and 0 or which
 		ns.Store:Rate(stone.id, new ~= 0 and new or nil)
 	end
 
 	local mine, who = ns.Store.IsMine(stone), stone.author or "a stranger"
 	if new == self.APPRAISE then
 		ns.Cues:Play("appraise")
-		UIErrorsFrame:AddMessage(mine and "You upvoted your own soapstone again."
+		UIErrorsFrame:AddMessage(mine and "You appraised your own soapstone again."
 			or format("You appraised %s's soapstone.", who), 1, 0.82, 0)
 	elseif new == self.DISPARAGE then
 		ns.Cues:Play("disparage")
 		UIErrorsFrame:AddMessage(format("You disparaged %s's soapstone.", who), 0.75, 0.6, 0.6)
-	elseif mine then
-		UIErrorsFrame:AddMessage("You took back your own upvote.", 0.8, 0.8, 0.8)
+	elseif current == self.DISPARAGE then
+		UIErrorsFrame:AddMessage("You withdrew your disparagement.", 0.8, 0.8, 0.8)
 	else
-		UIErrorsFrame:AddMessage("Vote withdrawn.", 0.8, 0.8, 0.8)
+		UIErrorsFrame:AddMessage("You withdrew your appraisal.", 0.8, 0.8, 0.8)
 	end
 	if ns.MinimapPins then ns.MinimapPins:Update() end
 	return new

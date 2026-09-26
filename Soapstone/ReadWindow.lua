@@ -4,9 +4,14 @@ local _, ns = ...
 -- readable minimap pin or with /soap read. Stones.lua closes it when the
 -- player walks out of reading range.
 --
--- The bottom row: every stone gets a ▲ score ▼ vote control (appraise /
--- disparage, Reddit-style; see Stones.lua); your own stones also get
--- "Edit (m:ss)" while their edit window is open.
+-- One row along the bottom: Appraise, the score, Disparage (see Stones.lua
+-- for the rules), Edit while your own stone's edit window is open, and who
+-- left it. The window widens to fit that row; the stone stays centred above.
+--
+--  ┌ Soapstone ─────────────────────────────────────────────── x ┐
+--  │                   "Try jumping"                             │
+--  │ [Appraise] 1 [Disparage] [Edit (4:32)]  — Mad Decent, just now │
+--  └─────────────────────────────────────────────────────────────┘
 
 local Sketch, SketchCanvas = ns.Sketch, ns.SketchCanvas
 
@@ -19,7 +24,17 @@ local PAD = 16
 local TOP = 36
 local TEXT_WIDTH = 320
 local TICK = 0.25
-local FOOTER = 68 -- byline, then the button row
+local FOOTER = 44          -- the bottom row, with margins
+local ROW_Y = 10           -- bottom row's distance from the window's bottom edge
+local BUTTON_HEIGHT = 22
+local VOTE_WIDTH = 88      -- fits "Appraised" / "Disparaged"
+local SCORE_WIDTH = 26
+local EDIT_WIDTH = 92
+local GAP = 4
+local BYLINE_GAP = 16      -- at least this much between the buttons and the byline
+
+local APPRAISED_COLOR = { 1, 0.82, 0 }     -- gold, like appraised pins
+local DISPARAGED_COLOR = { 0.6, 0.6, 0.6 } -- grey, like disparaged pins
 
 local function tooltip(owner, title, body)
 	owner:SetScript("OnEnter", function(btn)
@@ -31,6 +46,13 @@ local function tooltip(owner, title, body)
 	owner:SetScript("OnLeave", GameTooltip_Hide)
 end
 
+local function button(parent, text, width)
+	local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	btn:SetSize(width, BUTTON_HEIGHT)
+	btn:SetText(text)
+	return btn
+end
+
 function ReadWindow:Build()
 	local f = ns.CreateWindow(FRAME_NAME, "Soapstone")
 	f:SetPoint("CENTER", 0, 120)
@@ -38,49 +60,38 @@ function ReadWindow:Build()
 	self.frame = f
 
 	local text = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-	text:SetPoint("TOPLEFT", PAD, -TOP)
+	text:SetPoint("TOP", 0, -TOP)
 	text:SetWidth(TEXT_WIDTH)
 	text:SetJustifyH("CENTER")
 	text:SetSpacing(3)
 	self.text = text
 
 	local canvas = SketchCanvas.Create(f, READ_SCALE)
-	canvas.frame:SetPoint("TOPLEFT", PAD + 4, -TOP - 4)
+	canvas.frame:SetPoint("TOP", 0, -TOP - 4)
 	self.canvas = canvas
 
-	local byline = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	byline:SetPoint("BOTTOMRIGHT", -PAD, 40)
-	self.byline = byline
+	local appraise = button(f, "Appraise", VOTE_WIDTH)
+	appraise:SetPoint("BOTTOMLEFT", PAD - 4, ROW_Y)
+	appraise:SetScript("OnClick", function() self:Vote(ns.Stones.APPRAISE) end)
+	tooltip(appraise, "Appraise", "Tell the author this stone helped. On someone else's stone its pin turns gold. "
+		.. "Your own stones start appraised. Click again to withdraw it.")
+	self.appraiseButton = appraise
 
-	-- ▲ score ▼, built from Blizzard's scroll-arrow buttons.
-	local function arrow(direction)
-		local btn = CreateFrame("Button", nil, f)
-		btn:SetSize(24, 24)
-		local art = "Interface\\Buttons\\UI-ScrollBar-Scroll" .. direction .. "Button-"
-		btn:SetNormalTexture(art .. "Up")
-		btn:SetPushedTexture(art .. "Down")
-		btn:SetHighlightTexture(art .. "Highlight", "ADD")
-		return btn
-	end
-	local up = arrow("Up")
-	up:SetPoint("BOTTOMLEFT", PAD - 6, 9)
-	up:SetScript("OnClick", function() self:Vote(ns.Stones.APPRAISE) end)
-	tooltip(up, "Appraise",
-		"Upvote. On someone else's stone its pin turns gold. Your own stones start upvoted. Click again to take it back.")
 	local score = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-	score:SetPoint("LEFT", up, "RIGHT", 0, 0)
-	score:SetWidth(30)
+	score:SetPoint("LEFT", appraise, "RIGHT", GAP / 2, 0)
+	score:SetWidth(SCORE_WIDTH)
 	score:SetJustifyH("CENTER")
-	local down = arrow("Down")
-	down:SetPoint("LEFT", score, "RIGHT", 0, 0)
-	down:SetScript("OnClick", function() self:Vote(ns.Stones.DISPARAGE) end)
-	tooltip(down, "Disparage", "Downvote. On someone else's stone its pin fades and it stops calling you over. "
-		.. "On your own stone it takes your upvote back (down to 0). Click again to take it back.")
-	self.upButton, self.scoreText, self.downButton = up, score, down
+	self.scoreText = score
 
-	local edit = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	edit:SetSize(96, 22)
-	edit:SetPoint("LEFT", down, "RIGHT", 8, 0)
+	local disparage = button(f, "Disparage", VOTE_WIDTH)
+	disparage:SetPoint("LEFT", score, "RIGHT", GAP / 2, 0)
+	disparage:SetScript("OnClick", function() self:Vote(ns.Stones.DISPARAGE) end)
+	tooltip(disparage, "Disparage", "This stone didn't help. On someone else's stone its pin fades and it stops "
+		.. "calling you over. On your own stone it withdraws your appraisal (never below 0). Click again to withdraw it.")
+	self.disparageButton = disparage
+
+	local edit = button(f, "Edit", EDIT_WIDTH)
+	edit:SetPoint("LEFT", disparage, "RIGHT", GAP + 2, 0)
 	edit:SetScript("OnClick", function()
 		if self.stone then ns.EditWindow:Open(self.stone) end
 	end)
@@ -88,6 +99,11 @@ function ReadWindow:Build()
 		.. "(the clock pauses while you edit, and restarts when you save).", ns.Stones.EDIT_SECONDS / 60))
 	edit:Hide()
 	self.editButton = edit
+
+	local byline = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	byline:SetPoint("RIGHT", f, "BOTTOMRIGHT", -PAD, ROW_Y + BUTTON_HEIGHT / 2)
+	byline:SetJustifyH("RIGHT")
+	self.byline = byline
 
 	local elapsed = 0
 	f:SetScript("OnUpdate", function(_, dt)
@@ -98,29 +114,31 @@ function ReadWindow:Build()
 	end)
 end
 
-function ReadWindow:Vote(arrow)
+function ReadWindow:Vote(which)
 	if not self.stone then return end
-	ns.Stones:Vote(self.stone, arrow)
+	ns.Stones:Vote(self.stone, which)
 	self:UpdateVotes()
 end
 
-local UP_COLOR = { 1, 0.55, 0.1 }    -- Reddit orange
-local DOWN_COLOR = { 0.45, 0.6, 1 }  -- Reddit blue
-local IDLE_COLOR = { 0.75, 0.75, 0.75 }
-
--- Colours the arrow you voted with and shows the score in the same colour.
+-- The button matching your judgement reads "Appraised" / "Disparaged" and
+-- stays lit; the score takes its colour.
 function ReadWindow:UpdateVotes()
 	local stone = self.stone
 	if not stone then return end
 	local vote = ns.Stones:Rating(stone)
-	local upColor = vote == ns.Stones.APPRAISE and UP_COLOR or IDLE_COLOR
-	local downColor = vote == ns.Stones.DISPARAGE and DOWN_COLOR or IDLE_COLOR
-	self.upButton:GetNormalTexture():SetVertexColor(unpack(upColor))
-	self.downButton:GetNormalTexture():SetVertexColor(unpack(downColor))
-	local scoreColor = vote == ns.Stones.APPRAISE and UP_COLOR or vote == ns.Stones.DISPARAGE and DOWN_COLOR
-		or { 1, 1, 1 }
+	local buttons = {
+		{ self.appraiseButton, ns.Stones.APPRAISE, "Appraise", "Appraised" },
+		{ self.disparageButton, ns.Stones.DISPARAGE, "Disparage", "Disparaged" },
+	}
+	for _, b in ipairs(buttons) do
+		local btn, value, label, chosen = b[1], b[2], b[3], b[4]
+		btn:SetText(vote == value and chosen or label)
+		if vote == value then btn:LockHighlight() else btn:UnlockHighlight() end
+	end
+	local color = vote == ns.Stones.APPRAISE and APPRAISED_COLOR
+		or vote == ns.Stones.DISPARAGE and DISPARAGED_COLOR or { 1, 1, 1 }
 	self.scoreText:SetText(ns.Stones:Score(stone))
-	self.scoreText:SetTextColor(unpack(scoreColor))
+	self.scoreText:SetTextColor(unpack(color))
 end
 
 -- Shows "Edit (4:32)" while the open stone can still be edited.
@@ -132,6 +150,13 @@ function ReadWindow:UpdateEditButton()
 	else
 		self.editButton:Hide()
 	end
+end
+
+-- How wide the bottom row needs the window to be.
+function ReadWindow:RowWidth()
+	local buttons = (PAD - 4) + VOTE_WIDTH + GAP / 2 + SCORE_WIDTH + GAP / 2 + VOTE_WIDTH
+	if self.editButton:IsShown() then buttons = buttons + GAP + 2 + EDIT_WIDTH end
+	return buttons + BYLINE_GAP + self.byline:GetStringWidth() + PAD
 end
 
 function ReadWindow:Show(stone)
@@ -159,7 +184,7 @@ function ReadWindow:Show(stone)
 	self:UpdateEditButton()
 	self:UpdateVotes()
 
-	self.frame:SetSize(width + PAD * 2, height + TOP + FOOTER)
+	self.frame:SetSize(math.max(width + PAD * 2, self:RowWidth()), height + TOP + FOOTER)
 	self.frame:Show()
 	if not refreshing and SOUNDKIT and SOUNDKIT.IG_QUEST_LIST_OPEN then
 		PlaySound(SOUNDKIT.IG_QUEST_LIST_OPEN)

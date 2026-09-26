@@ -21,13 +21,14 @@ for players: what changed in game, not how.
 - **Edit and delete your sketches** too, within the same 5-minute window as
   written stones: "Edit Soapstone" opens the drawing editor with your
   drawing loaded.
-- **Appraise and Disparage**, Reddit-style: every stone's read window has
-  a **▲ score ▼** vote control. Your own stones start upvoted (score 1),
-  and downvoting your own only takes that back to 0. On other players'
-  stones, upvote or downvote (click again to take it back): appraised
-  stones get a gold minimap pin, disparaged ones fade and no longer trigger
-  sound cues. Scores count the author's vote plus your own characters'
-  votes; they're personal for now.
+- **Appraise and Disparage**, as in Dark Souls: every stone's read window
+  has **Appraise · score · Disparage** in one row with Edit and the
+  author's name. Your own stones start appraised (score 1), and
+  disparaging your own only withdraws that, down to 0. On other players'
+  stones, appraise or disparage (press again to withdraw): appraised stones
+  get a gold minimap pin, disparaged ones fade and no longer trigger sound
+  cues. Scores count the author's appraisal plus your own characters'
+  judgements; they're personal for now.
 - `/soap version` also says which build is running: the git branch and
   commit in a development checkout, or the release tag in a release zip.
 - **Zone sync:** settle in a zone for a few seconds and Soapstone asks other
