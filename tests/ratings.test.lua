@@ -57,16 +57,22 @@ check(Stones:Vote(zug, D) == D and Stones:Score(zug) == 0 and cues[#cues] == "di
 check(Stones:Vote(zug, A) == A and Stones:Score(zug) == 2, "switching straight from down to up")
 check(pins == 4, "pins are restyled after each of the 4 changes")
 
--- Your own stone: already upvoted; you can take that back but not go below 0.
-check(Stones:Rating(own) == A and Stones:Score(own) == 1, "your own stone starts upvoted (score 1)")
+-- Your own stone: starts appraised; disparaging it shows as disparaged but
+-- only takes your appraisal away (score 0, never below).
+check(Stones:Rating(own) == A and Stones:Score(own) == 1, "your own stone starts appraised (score 1)")
 check(Stones:OthersRating(own) == 0, "but that doesn't count as appraising it (no gold pin)")
-check(Stones:Vote(own, D) == 0 and Stones:Score(own) == 0, "downvoting your own takes your upvote back: score 0")
-check(messages[#messages] == "You withdrew your appraisal.", "and says so, in Dark Souls terms")
-check(Stones:Vote(own, D) == 0 and Stones:Score(own) == 0, "it can't go below 0")
-check(Stones:Vote(own, A) == A and Stones:Score(own) == 1, "upvoting restores it")
-check(ns.db.ratings[own.id] == nil, "the default upvote isn't stored")
-check(Stones:Vote(own, A) == 0 and Stones:Score(own) == 0, "clicking ▲ again takes it back too, like Reddit")
-Stones:Vote(own, A)
+check(Stones:Vote(own, D) == D and Stones:Rating(own) == D, "you can disparage your own stone (it shows as disparaged)")
+check(Stones:Score(own) == 0, "which takes the score to 0, not -1")
+check(messages[#messages]:find("You disparaged your own soapstone") ~= nil, "and says so")
+check(not Stones:IsDisparaged(own), "your own stone doesn't fade or go quiet for you")
+check(Stones:Vote(own, D) == 0 and Stones:Score(own) == 0, "Disparage again withdraws it: neutral, still 0")
+check(messages[#messages] == "You withdrew your disparagement.", "and says so, in Dark Souls terms")
+check(Stones:Vote(own, A) == A and Stones:Score(own) == 1, "appraising restores it: 1")
+check(ns.db.ratings[own.id] == nil, "the default appraisal isn't stored")
+check(Stones:Vote(own, A) == 0 and Stones:Score(own) == 0, "Appraise again withdraws it: 0")
+check(messages[#messages] == "You withdrew your appraisal.", "and says so")
+Stones:Vote(own, D)
+check(Stones:Vote(own, A) == A and Stones:Score(own) == 1, "straight from disparaged to appraised")
 
 -- Per character: votes from your characters add up.
 who = { "Osha", "Compliant" }

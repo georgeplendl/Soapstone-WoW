@@ -58,14 +58,15 @@ function Stones:Bearing(from, to)
 end
 
 -- Appraise / disparage --------------------------------------------------------------
--- Every stone has a score. Its author has appraised it automatically (+1),
--- and may withdraw that (0) but can't disparage it below that. Anyone else
--- can appraise (+1) or disparage (-1); pressing the same button again
--- withdraws it. The score here is what this client knows: the author's
--- appraisal plus judgements cast by your characters on this account (a
--- server would add everyone else's). On other players' stones your
--- judgement also changes what you see: appraised pins turn gold,
--- disparaged ones fade and stop calling you over.
+-- Every stone has a score. Anyone can appraise (+1) or disparage (-1) it;
+-- pressing the same button again withdraws the judgement (0). Its author
+-- starts out having appraised it, and may withdraw or even disparage their
+-- own stone, but their own judgement only ever counts as 1 or 0: they can
+-- take their appraisal away, not push the score below it. The score here is
+-- what this client knows: the author's part plus judgements cast by your
+-- characters on this account (a server would add everyone else's). On other
+-- players' stones your judgement also changes what you see: appraised pins
+-- turn gold, disparaged ones fade and stop calling you over.
 
 Stones.APPRAISE, Stones.DISPARAGE = 1, -1
 
@@ -73,11 +74,12 @@ local function authorOf(stone)
 	return stone.authorKey or (ns.Store.IsMine(stone) and ns.Identity.PlayerKey()) or nil
 end
 
--- Your vote on `stone`: 1, 0 or -1. Your own stones start at 1.
+-- Your judgement of `stone`: 1, 0 or -1. Your own stones start at 1 (the
+-- default isn't stored; 0 and -1 are).
 function Stones:Rating(stone)
 	if not stone then return 0 end
 	local stored = ns.Store:MyRating(stone.id)
-	if ns.Store.IsMine(stone) then return stored == 0 and 0 or 1 end
+	if ns.Store.IsMine(stone) then return stored or 1 end
 	return stored or 0
 end
 
@@ -95,7 +97,10 @@ function Stones:Score(stone)
 	if not stone then return 0 end
 	local author = authorOf(stone)
 	local votes = ns.Store:Votes(stone.id)
-	local score = (author and votes[author] == 0) and 0 or 1 -- the author's own upvote
+	-- The author's part: 1 unless they withdrew (0) or disparaged (-1) it,
+	-- which only takes their own appraisal away.
+	local own = author and votes[author]
+	local score = (own == 0 or own == -1) and 0 or 1
 	for key, vote in pairs(votes) do
 		if key ~= author then score = score + vote end
 	end
@@ -106,24 +111,24 @@ end
 -- judgement: 1, 0 or -1.
 function Stones:Vote(stone, which)
 	if not stone or stone.deleted then return nil end
-	local current, new = self:Rating(stone), nil
-	if ns.Store.IsMine(stone) then
-		-- Appraise toggles your own appraisal; Disparage can only withdraw it.
-		new = (which == self.APPRAISE and current == 0) and 1 or 0
-		ns.Store:Rate(stone.id, new == 0 and 0 or nil) -- 1 is the default; store only a withdrawal
+	local mine = ns.Store.IsMine(stone)
+	local current = self:Rating(stone)
+	local new = current == which and 0 or which -- the same button again withdraws
+	if mine then
+		ns.Store:Rate(stone.id, new ~= 1 and new or nil) -- your own default (1) isn't stored
 	else
-		new = current == which and 0 or which
 		ns.Store:Rate(stone.id, new ~= 0 and new or nil)
 	end
 
-	local mine, who = ns.Store.IsMine(stone), stone.author or "a stranger"
+	local who = stone.author or "a stranger"
 	if new == self.APPRAISE then
 		ns.Cues:Play("appraise")
 		UIErrorsFrame:AddMessage(mine and "You appraised your own soapstone again."
 			or format("You appraised %s's soapstone.", who), 1, 0.82, 0)
 	elseif new == self.DISPARAGE then
 		ns.Cues:Play("disparage")
-		UIErrorsFrame:AddMessage(format("You disparaged %s's soapstone.", who), 0.75, 0.6, 0.6)
+		UIErrorsFrame:AddMessage(mine and "You disparaged your own soapstone. It keeps 0 of your appraisal."
+			or format("You disparaged %s's soapstone.", who), 0.75, 0.6, 0.6)
 	elseif current == self.DISPARAGE then
 		UIErrorsFrame:AddMessage("You withdrew your disparagement.", 0.8, 0.8, 0.8)
 	else
