@@ -165,9 +165,17 @@ function Store:Tombstone(stone)
 	self:MarkChanged(stone.id)
 end
 
--- Your stone changed (dropped, edited, deleted): announce it in step 4.
+-- Your stone changed (dropped, edited, deleted): Sync announces it to the
+-- channel as soon as it can, then clears it from the outbox.
 function Store:MarkChanged(id)
 	db().outbox[id] = true
+	if ns.Sync and ns.Sync.OnChanged then ns.Sync:OnChanged() end
+end
+
+-- The author key an id starts with ("Mad-Decent-1790363195-1" -> "Mad-Decent").
+-- Names can't contain "-" and Identity.Key strips it from the second part.
+function Store.AuthorOf(id)
+	return type(id) == "string" and id:match("^([^%-]+%-[^%-]+)%-") or nil
 end
 
 function Store:Visit(zone)

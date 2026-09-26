@@ -3,9 +3,10 @@
 How Soapstone stones get from the player who drops them to every other player
 who walks past, with nothing to install but the addon.
 
-**Status (2026-09-25):** steps 1–3 built. Zone sync works on the simulated
-network in `tests/`; it hasn't yet run between two real players, which needs
-a second Soapstone player online. Next: step 4, live drops.
+**Status (2026-09-25):** steps 1–4 built. Zone sync and live changes work on
+the simulated network in `tests/`; neither has yet run between two real
+players, which needs a second Soapstone player online. Next: step 5, abuse
+limits and tuning from real traffic.
 
 ---
 
@@ -182,9 +183,34 @@ refused or oversized messages. Offline peers, forged edits, deletions,
 Retail/Forever separation, local test stones and multi-peer pulls all
 behave as described.
 
-**Live drops:** dropping a stone posts `NS zone=1456 id=… version=1` on the
-channel. Players in that zone fetch it by whisper; everyone else ignores it.
-Edits (`version+1`) and deletes (tombstones, below) are announced the same way.
+## Live changes (step 4, built: `Sync.lua`)
+
+Dropping, editing or deleting one of your stones puts it in the outbox; half
+a second later (so a burst goes out together) each change is announced with
+one small channel message, and fetched straight from the author:
+
+```
+author ─channel─►  NS zone id v      "stone id is now at version v"
+player ─whisper─►  SG id             "send it", only to the author
+author ─whisper─►  [SL] <stone>      only to players who asked
+```
+
+- **Who fetches:** players whose current zone is that zone, and anyone
+  already holding the stone in any zone (so edits and deletions reach
+  everyone who has it). Everyone else ignores the announcement.
+- **First-hand by construction:** the stone comes from its author, so edits
+  and deletions apply straight away.
+- **Guards:** only an announcement whose sender is the id's author counts;
+  an `SL` is accepted only if we asked for it and it comes from the author;
+  at most 20 fetches pending; at most **10 announcements acted on per author
+  per minute**; an author sends at most 30 stones per minute to any one
+  player. Local test stones are never announced.
+- **Offline:** changes made while not connected stay in the outbox and are
+  announced once the channel is joined.
+- **Simulated network** (`tests/live.test.lua`): a new stone reached a
+  player in the same zone in **2.6 s**; players elsewhere weren't bothered;
+  edits and deletions reached a holder in another zone; forged
+  announcements and unrequested stones were ignored.
 
 ---
 
@@ -260,7 +286,8 @@ Edits (`version+1`) and deletes (tombstones, below) are announced the same way.
 3. **Zone sync** *(built; verified on the simulated network, not yet
    between two real players)*: the protocol above, with chunking, pacing,
    multi-peer pulls, retry and first-hand-only changes.
-4. **Live drops, edits and deletes** over the channel.
+4. **Live drops, edits and deletes** over the channel *(built; verified on the
+   simulated network, not yet between two real players)*.
 5. **Abuse limits and tuning** from real traffic.
 
 ## Test plan for step 1

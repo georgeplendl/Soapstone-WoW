@@ -59,6 +59,7 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | `/soap version` | Shows the installed version |
 | `/soap stats` | How many stones are stored (yours, others', test), tombstones, pending changes, and the busiest zones |
 | Settle in a zone for a few seconds | Soapstone asks other players online for that zone's stones and fetches the ones you're missing ("12 new stones arrived for The Barrens") |
+| Drop, edit or delete a stone | Announced to other Soapstone players; those in the zone (or already holding it) fetch it from you within seconds |
 | `/soap sync` / `/soap sync now` | Zone sync status and recent results / ask again right away |
 | `/soap net` | Network test tools: `selftest` and `pacetest` (one character), `status`, `ping [channel\|guild\|party\|yell\|whisper Name]`, `burst [n]`, `log` (see [Sharing — Architecture](docs/Sharing%20-%20Architecture.md)) |
 | `/soap help` | All commands |
@@ -136,10 +137,11 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
 
 ## Next steps
 
-1. **Sharing.** Zone sync is in: settle in a zone and Soapstone fetches its
-   stones from other players online. Next are live drops (announcing new
-   stones as they're made). See [Sharing — Architecture](docs/Sharing%20-%20Architecture.md).
-   It still needs a real two-player test.
+1. **Sharing.** Zone sync and live changes are in: settle in a zone and
+   Soapstone fetches its stones from other players online, and new stones,
+   edits and deletions reach players nearby within seconds. See
+   [Sharing — Architecture](docs/Sharing%20-%20Architecture.md). It still
+   needs a real two-player test.
 2. **In-world presence.** An on-screen arrow toward the nearest sealed stone, a
    rune glow at your feet when on the spot, and the built-in waypoint marker
    (`C_SuperTrack`) if this client has it.

@@ -83,6 +83,7 @@ function Sync:OnZone(zone)
 end
 
 function Sync:OnNetReady()
+	self:FlushOutbox() -- changes made while offline
 	if self.zone and not self.settleTimer then self:Start(self.zone) end
 end
 
@@ -303,6 +304,99 @@ function Sync:OnFetch(sender, payload)
 	serving[requester] = nil
 end
 
+-- Live changes (step 4) -----------------------------------------------------------
+-- When you drop, edit or delete a stone, one small message goes to the
+-- channel. Players in that zone, and anyone already holding the stone, fetch
+-- it straight from you, so it arrives first-hand:
+--
+--  author ─channel─►  NS zone id v      "stone id is now at version v"
+--  player ─whisper─►  SG id             "send it" (only to the author)
+--  author ─whisper─►  [SL] <stone>      only to players who asked
+--
+-- Changes made while offline wait in the outbox until the channel is joined.
+
+Sync.LIVE_MAX_PENDING = 20   -- live fetches waiting at once
+Sync.LIVE_TIMEOUT = 30       -- forget a fetch the author never answered
+Sync.LIVE_PER_AUTHOR = 10    -- announcements acted on per author per minute
+Sync.LIVE_SERVE_PER_MIN = 30 -- stones sent to one requester per minute
+
+local livePending = {} -- id -> { author, at }
+local announced = {}   -- author key -> { times }
+local served = {}      -- requester key -> { times }
+
+-- True if `key` has used up `limit` events in the last 60 s; records one if not.
+local function overLimit(book, key, limit)
+	local now, recent = time(), {}
+	for _, t in ipairs(book[key] or {}) do
+		if now - t < 60 then recent[#recent + 1] = t end
+	end
+	book[key] = recent
+	if #recent >= limit then return true end
+	recent[#recent + 1] = now
+	return false
+end
+
+-- Called by Store:MarkChanged; announces on the next frame, so a burst of
+-- changes goes out together.
+function Sync:OnChanged()
+	if self.flushQueued then return end
+	self.flushQueued = true
+	C_Timer.After(0.5, function()
+		self.flushQueued = false
+		self:FlushOutbox()
+	end)
+end
+
+function Sync:FlushOutbox()
+	if not Net():IsReady() then return end
+	local outbox, me = ns.db.outbox, ns.Identity.PlayerKey()
+	for id in pairs(outbox) do
+		local stone = Store():Get(id)
+		if stone and Store().IsShareable(stone) and stone.authorKey == me and stone.zone then
+			Net():Enqueue("CHANNEL", nil, "NS", stone.zone, id, stone.v or 1)
+		end
+		outbox[id] = nil -- sent, or nothing anyone else should hear about
+	end
+end
+
+function Sync:OnAnnounce(sender, zone, id, v)
+	local author = keyOf(sender)
+	if not (zone and id and v) or Store().AuthorOf(id) ~= author then return end -- only authors announce
+	if author == ns.Identity.PlayerKey() then return end
+	local have = Store():Get(id)
+	if have and (have.v or 1) >= v then return end
+	if not have and zone ~= self.zone then return end -- not here, and not a stone we hold
+	if livePending[id] then return end
+	local pending = 0
+	for pid, p in pairs(livePending) do
+		if time() - p.at > self.LIVE_TIMEOUT then livePending[pid] = nil else pending = pending + 1 end
+	end
+	if pending >= self.LIVE_MAX_PENDING or overLimit(announced, author, self.LIVE_PER_AUTHOR) then return end
+	livePending[id] = { author = author, at = time() }
+	Net():Enqueue("WHISPER", sender, "SG", id)
+end
+
+function Sync:OnLiveRequest(sender, id)
+	local stone = id and Store():Get(id)
+	if not stone or stone.authorKey ~= ns.Identity.PlayerKey() or not Store().IsShareable(stone) then return end
+	if overLimit(served, keyOf(sender), self.LIVE_SERVE_PER_MIN) then return end
+	Net():SendPayload("WHISPER", sender, "SL", ns.Codec.EncodeStone(stone))
+end
+
+function Sync:OnLiveStone(sender, payload)
+	local rec = ns.Codec.DecodeStone(payload)
+	if not rec or not livePending[rec.id] then return end -- only stones we asked for
+	if keyOf(sender) ~= rec.authorKey then return end    -- and only from their author
+	livePending[rec.id] = nil
+	local result = Store():Merge(rec, rec.authorKey)
+	if not result then return end
+	if result == "added" or result == "updated" then Store():Enforce() end
+	if ns.MinimapPins then ns.MinimapPins:Update() end
+	self.liveCount = (self.liveCount or 0) + 1
+	remember(format("live: %s %s by %s", result, rec.deleted and "stone" or (rec.sketch and "sketch" or "stone"),
+		ns.Identity.Display(rec.authorKey) or "?"))
+end
+
 -- Wiring --------------------------------------------------------------------------
 
 function Sync:Init()
@@ -326,6 +420,13 @@ function Sync:Init()
 	net:OnPayload("ZI", function(_, sender, payload) self:OnList(sender, payload) end)
 	net:OnPayload("ZG", function(_, sender, payload) self:OnFetch(sender, payload) end)
 	net:OnPayload("ST", function(_, sender, payload) self:OnStone(sender, payload) end)
+	net:On("NS", function(_, sender, dist, zone, id, v)
+		if dist == "CHANNEL" then self:OnAnnounce(sender, tonumber(zone), id, tonumber(v)) end
+	end)
+	net:On("SG", function(_, sender, dist, id)
+		if dist == "WHISPER" then self:OnLiveRequest(sender, id) end
+	end)
+	net:OnPayload("SL", function(_, sender, payload) self:OnLiveStone(sender, payload) end)
 	net:OnPeerGone(function(name) self:OnPeerGone(name) end)
 end
 

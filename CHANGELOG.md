@@ -24,6 +24,10 @@ for players: what changed in game, not how.
   show their author; edits and deletions only take effect when they come
   from the author. `/soap sync` shows what's happening; `/soap sync now`
   asks again.
+- **Live changes:** when you drop, edit or delete a stone, other Soapstone
+  players in that zone (and anyone already holding it) get the change from
+  you within seconds. Changes you make while not connected go out when you
+  reconnect.
 
 ### Changed
 - Stones are signed with your full character name ("Mad Decent" on WoW
