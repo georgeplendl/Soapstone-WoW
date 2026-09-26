@@ -37,8 +37,11 @@ local TEXT_SIZE = 18   -- written stones' font size (GameFontHighlightLarge's fa
 ReadWindow.TEXT_WIDTH, ReadWindow.TEXT_SIZE = TEXT_WIDTH, TEXT_SIZE
 
 function ReadWindow.ApplyStoneFont(fontInstance)
-	local face, _, flags = GameFontHighlightLarge and GameFontHighlightLarge:GetFont()
-	if face then fontInstance:SetFont(face, TEXT_SIZE, flags) end
+	if not GameFontHighlightLarge then return end
+	-- Not `x and x:GetFont()`: that keeps only the first value, and an EditBox
+	-- (unlike a FontString) refuses a nil flags argument.
+	local face, _, flags = GameFontHighlightLarge:GetFont()
+	if face then fontInstance:SetFont(face, TEXT_SIZE, flags or "") end
 end
 local TICK = 0.25
 local BUTTON_HEIGHT = 22

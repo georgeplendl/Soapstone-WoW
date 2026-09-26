@@ -67,7 +67,12 @@ Frame.__index = function(f, key)
 		GetTop = function() return 0 end,
 		GetStringHeight = function() return 14 end,
 		GetStringWidth = function(self) return #tostring(self.text) * 6 end,
-		SetFont = function(self, face, size, flags) self.font = { face = face, size = size, flags = flags } end,
+		SetFont = function(self, face, size, flags)
+			-- The client rejects a nil flags argument (at least on an EditBox).
+			assert(type(face) == "string" and type(size) == "number" and type(flags) == "string",
+				"bad argument to 'SetFont' (Usage: self:SetFont(fontFile, height, flags))")
+			self.font = { face = face, size = size, flags = flags }
+		end,
 		SetJustifyH = function(self, justify) self.justify = justify end,
 		GetName = function(self) return self.name end,
 		SetScript = function(self, name, fn) self.scripts[name] = fn end,
