@@ -249,7 +249,12 @@ function Store:MyRating(id)
 	return ratings and ratings[ns.Identity.PlayerKey()] or nil
 end
 
--- value: 1, -1, or nil to clear.
+-- Every vote cast on this account for `id`: { [characterKey] = 1 | 0 | -1 }.
+function Store:Votes(id)
+	return db().ratings[id] or {}
+end
+
+-- value: 1, -1, 0 (an author taking back their own upvote), or nil to clear.
 function Store:Rate(id, value)
 	local ratings = db().ratings[id] or {}
 	ratings[ns.Identity.PlayerKey()] = value

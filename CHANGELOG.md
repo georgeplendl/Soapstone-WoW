@@ -21,11 +21,16 @@ for players: what changed in game, not how.
 - **Edit and delete your sketches** too, within the same 5-minute window as
   written stones: "Edit Soapstone" opens the drawing editor with your
   drawing loaded.
-- **Appraise and Disparage**, as in Dark Souls: rate other players' stones
-  from the read window. Appraised stones get a gold minimap pin;
-  disparaged ones fade and no longer trigger sound cues. One rating per
-  stone per character; click the same button again to take it back.
-  Ratings are personal for now.
+- **Appraise and Disparage**, as in Dark Souls: every stone's read window
+  has **Appraise** and **Disparage** centred under the message or sketch,
+  with Edit and the author's name below a rule, and the stone's
+  **appraisals** at the right of the title bar. Your own
+  stones start appraised (1 appraisal), and
+  disparaging your own only withdraws that, down to 0. On other players'
+  stones, appraise or disparage (press again to withdraw): appraised stones
+  get a gold minimap pin, disparaged ones fade and no longer trigger sound
+  cues. Scores count the author's appraisal plus your own characters'
+  judgements; they're personal for now.
 - `/soap version` also says which build is running: the git branch and
   commit in a development checkout, or the release tag in a release zip.
 - **Zone sync:** settle in a zone for a few seconds and Soapstone asks other
@@ -45,6 +50,8 @@ for players: what changed in game, not how.
   can't read the new format.**
 - The minimap and proximity checks only look at stones near you, so they
   stay fast however many stones are stored.
+- Sketches show **larger** in the read window (3× instead of 2×, the size they're drawn at),
+  and there's equal space above and below a stone's message or drawing.
 - The 5-minute edit window now **pauses while the edit dialog is open** (a
   slow edit costs nothing; cancelling picks up where it paused) and
   **restarts from a full 5 minutes each time you save an edit**.

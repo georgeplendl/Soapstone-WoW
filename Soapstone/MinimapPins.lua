@@ -29,12 +29,12 @@ local function onPinEnter(pin)
 	else
 		GameTooltip:AddLine("A sealed soapstone", 0.6, 0.6, 0.6)
 	end
-	local rating = ns.Stones:Rating(stone)
-	if rating == ns.Stones.APPRAISE then
-		GameTooltip:AddLine("You appraised this", 1, 0.82, 0)
-	elseif rating == ns.Stones.DISPARAGE then
-		GameTooltip:AddLine("You disparaged this", 0.6, 0.6, 0.6)
-	end
+	local rating = ns.Stones:OthersRating(stone)
+	local vote = rating == ns.Stones.APPRAISE and "  ·  you appraised it"
+		or rating == ns.Stones.DISPARAGE and "  ·  you disparaged it" or ""
+	GameTooltip:AddLine(format("Score %d%s", ns.Stones:Score(stone), vote),
+		rating == ns.Stones.DISPARAGE and 0.6 or 1, rating == ns.Stones.DISPARAGE and 0.6 or 0.82,
+		rating == ns.Stones.DISPARAGE and 0.6 or 0)
 	if not ns.Stones:IsReadable(stone, pin.dist) then
 		GameTooltip:AddLine(format("Walk within %d yards to read it (%d yd away).", ns.db.gateYards, pin.dist), 0.8, 0.8, 0.8, true)
 	end
@@ -65,7 +65,7 @@ end
 
 local function style(pin, readable, onRim)
 	local stone = pin.stone
-	local rating = ns.Stones:Rating(stone)
+	local rating = ns.Stones:OthersRating(stone) -- your own upvote doesn't gild your pins
 	if rating == ns.Stones.DISPARAGE then -- faded, whether or not in range
 		pin.tex:SetDesaturated(true)
 		pin.tex:SetVertexColor(0.5, 0.5, 0.5)
