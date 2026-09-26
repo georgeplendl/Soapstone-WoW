@@ -161,12 +161,14 @@ Edits (`version+1`) and deletes (tombstones, below) are announced the same way.
 
 ## Local storage
 
-- Stones stay in `SoapstoneDB` (per account, per client), grouped by flavour
-  and zone.
+- Stones stay in `SoapstoneDB` (per account, per client), keyed by id, each
+  tagged with its flavour and zone (see `Store.lua` for the exact shape).
 - **Caps:** for example the newest 200 stones per zone and ~5,000 in total,
   evicting the least recently visited zones first. **Your own stones are never
   evicted**; authors are always a source for their own stones.
-- Pins and proximity checks only consider the **current zone**.
+- Pins and proximity checks only look at stones **near the player**, via a
+  spatial index (500-yard cells per continent). This works across zone
+  borders, unlike filtering by current zone.
 
 ---
 
@@ -217,10 +219,15 @@ Edits (`version+1`) and deletes (tombstones, below) are announced the same way.
 1. **Network test build** *(this step)*: join the hidden channel;
    `/soap net` status, ping, burst and log; the flavour and identity helpers;
    stones record "Mad Decent" / `Mad-Decent`. No stone syncing.
-2. **Data model:** zone key, `version`, tombstones, `flavor`, `via`, an
-   outbox, and the per-zone and total caps. Also: "mine" must mean
-   `authorKey == your key`, not the account-wide `mine` flag. Today any
-   character on the account can edit another's fresh stone.
+2. **Data model** *(done: `Store.lua`, schema 2)*: stones keyed by id with
+   `v`, `flavor` and `zone`; tombstones (7 days); an outbox; caps of 200
+   others' stones per zone and 5,000 in total (least recently visited zones
+   go first, your own never); a spatial index in 500-yard cells so the
+   minimap and proximity checks only look nearby; "mine" is
+   `authorKey == your key` (the old account-wide flag only counts for
+   stones from before names were stored); test stones are `localOnly`; and
+   `Net:Enqueue`, a send queue that stays inside the measured allowance.
+   Still to add when step 3 needs them: `via` / `verified`.
 3. **Zone sync:** the protocol above, with chunking and pacing.
 4. **Live drops, edits and deletes** over the channel.
 5. **Abuse limits and tuning** from real traffic.

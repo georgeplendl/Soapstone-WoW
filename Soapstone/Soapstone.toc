@@ -8,6 +8,7 @@
 
 Core.lua
 Identity.lua
+Store.lua
 Sketch.lua
 Stones.lua
 Cues.lua

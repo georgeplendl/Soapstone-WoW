@@ -1,0 +1,289 @@
+local _, ns = ...
+
+-- All stone data lives here (sharing step 2, "data model"; see
+-- docs/Sharing - Architecture.md).
+--
+-- SoapstoneDB (schema 2):
+--   stones  = { [id] = stone }      live stones and tombstones, keyed by id
+--   zones   = { [zone] = { visited = time } }   for least-recently-visited eviction
+--   outbox  = { [id] = true }       your changes not yet announced (step 4)
+--
+-- stone = { id, v (version, edits bump it), flavor, zone (zone-level uiMapID),
+--           instance, wx, wy (world yards), mapID, x, y (map 0-1), t (dropped),
+--           author, authorKey, text | sketch, edited, heard,
+--           localOnly (test stones, never shared), via / verified (step 3) }
+-- tombstone = { id, v, deleted = true, deletedAt, zone, flavor, authorKey }
+--
+-- A runtime spatial index (CELL-yard squares per continent) lets the minimap
+-- and proximity checks look only at nearby stones, across zone borders.
+
+local Store = {}
+ns.Store = Store
+
+Store.SCHEMA = 2
+Store.CELL = 500                    -- yards per spatial-index cell
+Store.MAX_PER_ZONE = 200            -- other players' stones kept per zone
+Store.MAX_TOTAL = 5000              -- other players' stones kept overall
+Store.TOMBSTONE_TTL = 7 * 24 * 3600 -- deleted stones remembered this long
+
+local ZONE_TYPE = (Enum and Enum.UIMapType and Enum.UIMapType.Zone) or 3
+
+local cells = {} -- "instance:cx:cy" -> { [id] = stone } (live stones only)
+
+local function db() return ns.db end
+
+-- Keys ------------------------------------------------------------------------
+
+local zoneCache = {}
+
+-- The zone-level map a map belongs to: climb from dungeon/micro/orphan maps
+-- to their parent until reaching a Zone (or anything above one).
+function Store.ZoneKey(mapID)
+	if not mapID then return nil end
+	local cached = zoneCache[mapID]
+	if cached then return cached end
+	local id = mapID
+	for _ = 1, 10 do
+		local info = C_Map.GetMapInfo(id)
+		if not info or info.mapType <= ZONE_TYPE or not info.parentMapID or info.parentMapID == 0 then break end
+		id = info.parentMapID
+	end
+	zoneCache[mapID] = id
+	return id
+end
+
+-- Yours = written by this character. Stones from before names were stored in
+-- full have no authorKey; fall back to their old account-wide flag.
+function Store.IsMine(stone)
+	if stone.authorKey then return stone.authorKey == ns.Identity.PlayerKey() end
+	return stone.mine == true
+end
+
+-- Live, and from this game (Forever / Retail / Classic never mix).
+function Store.IsLive(stone)
+	return not stone.deleted and (stone.flavor == nil or stone.flavor == ns.Identity.Flavor())
+end
+
+-- Spatial index -------------------------------------------------------------
+
+local function cellKey(instance, cx, cy)
+	return instance .. ":" .. cx .. ":" .. cy
+end
+
+local function cellOf(stone)
+	return cellKey(stone.instance, math.floor(stone.wx / Store.CELL), math.floor(stone.wy / Store.CELL))
+end
+
+local function index(stone)
+	if not Store.IsLive(stone) or not stone.wx or not stone.instance then return end
+	local key = cellOf(stone)
+	local cell = cells[key]
+	if not cell then
+		cell = {}
+		cells[key] = cell
+	end
+	cell[stone.id] = stone
+end
+
+local function unindex(stone)
+	if not stone.wx or not stone.instance then return end
+	local cell = cells[cellOf(stone)]
+	if cell then cell[stone.id] = nil end
+end
+
+-- Live stones on `loc`'s continent within a square of `range` yards around
+-- it (callers check exact distance). Fills and returns `out` if given.
+function Store:Near(loc, range, out)
+	out = out or {}
+	wipe(out)
+	if not loc or not loc.wx then return out end
+	local x0, x1 = math.floor((loc.wx - range) / self.CELL), math.floor((loc.wx + range) / self.CELL)
+	local y0, y1 = math.floor((loc.wy - range) / self.CELL), math.floor((loc.wy + range) / self.CELL)
+	for cx = x0, x1 do
+		for cy = y0, y1 do
+			local cell = cells[cellKey(loc.instance, cx, cy)]
+			if cell then
+				for _, stone in pairs(cell) do out[#out + 1] = stone end
+			end
+		end
+	end
+	return out
+end
+
+-- Access --------------------------------------------------------------------
+
+function Store:Get(id)
+	return db().stones[id]
+end
+
+-- Iterates live stones from this game: for id, stone in Store:Each() do.
+function Store:Each()
+	local stones = db().stones
+	local id, stone
+	return function()
+		repeat
+			id, stone = next(stones, id)
+		until id == nil or Store.IsLive(stone)
+		return id, stone
+	end
+end
+
+-- Adds or replaces a stone, filling in version, game and zone.
+function Store:Put(stone)
+	local old = db().stones[stone.id]
+	if old then unindex(old) end
+	stone.v = stone.v or 1
+	stone.flavor = stone.flavor or ns.Identity.Flavor()
+	stone.zone = stone.zone or Store.ZoneKey(stone.mapID)
+	db().stones[stone.id] = stone
+	index(stone)
+	return stone
+end
+
+-- Forgets a stone outright (eviction); not the same as deleting one.
+function Store:Remove(id)
+	local stone = db().stones[id]
+	if not stone then return end
+	unindex(stone)
+	db().stones[id] = nil
+end
+
+-- Deletes a stone: keeps a tombstone at a higher version, so a stale copy
+-- from someone else can't bring it back.
+function Store:Tombstone(stone)
+	unindex(stone)
+	db().stones[stone.id] = {
+		id = stone.id,
+		v = (stone.v or 1) + 1,
+		deleted = true,
+		deletedAt = time(),
+		zone = stone.zone,
+		flavor = stone.flavor,
+		authorKey = stone.authorKey,
+	}
+	self:MarkChanged(stone.id)
+end
+
+-- Your stone changed (dropped, edited, deleted): announce it in step 4.
+function Store:MarkChanged(id)
+	db().outbox[id] = true
+end
+
+function Store:Visit(zone)
+	if zone then db().zones[zone] = { visited = time() } end
+end
+
+function Store:Clear()
+	wipe(db().stones)
+	wipe(db().outbox)
+	wipe(cells)
+end
+
+-- Upkeep --------------------------------------------------------------------
+
+-- Keeps other players' stones within MAX_PER_ZONE (newest win) and MAX_TOTAL
+-- (least recently visited zones go first). Your own stones are never
+-- evicted. Returns how many were removed.
+function Store:Enforce()
+	local byZone, foreign, removed = {}, 0, 0
+	for _, stone in self:Each() do
+		if not Store.IsMine(stone) then
+			local zone = stone.zone or 0
+			byZone[zone] = byZone[zone] or {}
+			table.insert(byZone[zone], stone)
+			foreign = foreign + 1
+		end
+	end
+	local newestFirst = function(a, b) return (a.t or 0) > (b.t or 0) end
+	for _, list in pairs(byZone) do
+		table.sort(list, newestFirst)
+		for i = #list, self.MAX_PER_ZONE + 1, -1 do
+			self:Remove(list[i].id)
+			list[i] = nil
+			removed, foreign = removed + 1, foreign - 1
+		end
+	end
+	if foreign > self.MAX_TOTAL then
+		local zonesByAge = {}
+		for zone in pairs(byZone) do zonesByAge[#zonesByAge + 1] = zone end
+		local visited = function(zone) return (db().zones[zone] or {}).visited or 0 end
+		table.sort(zonesByAge, function(a, b) return visited(a) < visited(b) end)
+		for _, zone in ipairs(zonesByAge) do
+			local list = byZone[zone]
+			for i = #list, 1, -1 do -- oldest stones in the stalest zone first
+				if foreign <= self.MAX_TOTAL then break end
+				self:Remove(list[i].id)
+				removed, foreign = removed + 1, foreign - 1
+			end
+			if foreign <= self.MAX_TOTAL then break end
+		end
+	end
+	return removed
+end
+
+function Store:PruneTombstones()
+	local cutoff = time() - self.TOMBSTONE_TTL
+	local stones, doomed = db().stones, {}
+	for id, stone in pairs(stones) do
+		if stone.deleted and (stone.deletedAt or 0) < cutoff then doomed[#doomed + 1] = id end
+	end
+	for _, id in ipairs(doomed) do
+		stones[id] = nil
+		db().outbox[id] = nil
+	end
+	return #doomed
+end
+
+-- Schema --------------------------------------------------------------------
+
+-- Schema 1 kept stones in a list. Key them by id and fill in version, game
+-- and zone. Stones that weren't yours were all local test stones then (no
+-- sharing existed), so they're marked never to be shared.
+local function migrate(d)
+	d.zones = d.zones or {}
+	d.outbox = d.outbox or {}
+	if d.schema == Store.SCHEMA then return 0 end
+	local old, stones, count = d.stones or {}, {}, 0
+	for _, stone in ipairs(old) do
+		stone.id = stone.id or format("local-%d-%04d", stone.t or 0, math.random(0, 9999))
+		stone.v = stone.v or 1
+		stone.flavor = stone.flavor or ns.Identity.Flavor()
+		stone.zone = stone.zone or Store.ZoneKey(stone.mapID)
+		if not stone.mine and not stone.authorKey then stone.localOnly = true end
+		stones[stone.id] = stone
+		count = count + 1
+	end
+	d.stones = stones
+	d.schema = Store.SCHEMA
+	return count
+end
+
+function Store:Init()
+	local migrated = migrate(db())
+	self:PruneTombstones()
+	wipe(cells)
+	for _, stone in pairs(db().stones) do index(stone) end
+	self:Enforce()
+	return migrated
+end
+
+-- Numbers for /soap stats.
+function Store:Stats(zone)
+	local s = { live = 0, mine = 0, others = 0, localOnly = 0, tombstones = 0, outbox = 0,
+		zones = 0, inZone = 0, perZone = {} }
+	for _, stone in pairs(db().stones) do
+		if stone.deleted then
+			s.tombstones = s.tombstones + 1
+		elseif Store.IsLive(stone) then
+			s.live = s.live + 1
+			if Store.IsMine(stone) then s.mine = s.mine + 1
+			elseif stone.localOnly then s.localOnly = s.localOnly + 1
+			else s.others = s.others + 1 end
+			if stone.zone then s.perZone[stone.zone] = (s.perZone[stone.zone] or 0) + 1 end
+			if zone and stone.zone == zone then s.inZone = s.inZone + 1 end
+		end
+	end
+	for _ in pairs(db().outbox) do s.outbox = s.outbox + 1 end
+	for _ in pairs(db().zones) do s.zones = s.zones + 1 end
+	return s
+end

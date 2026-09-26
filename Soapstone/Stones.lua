@@ -57,13 +57,13 @@ function Stones:Bearing(from, to)
 end
 
 function Stones:IsReadable(stone, dist)
-	return stone.mine or (dist ~= nil and dist <= ns.db.gateYards)
+	return ns.Store.IsMine(stone) or (dist ~= nil and dist <= ns.db.gateYards)
 end
 
 -- "— Author, 3 hr ago" (or "just now" for the first minute), plus "(edited)".
 function Stones:Byline(stone)
 	local age = time() - (stone.t or time())
-	local who = stone.mine and "You" or (stone.author or "A stranger")
+	local who = ns.Store.IsMine(stone) and "You" or (stone.author or "A stranger")
 	local when = age < 60 and "just now" or (SecondsToTime(age, true) .. " ago")
 	return format("— %s, %s%s", who, when, stone.edited and " (edited)" or "")
 end
@@ -76,7 +76,7 @@ Stones.EDIT_SECONDS = 5 * 60
 -- Seconds left to edit `stone`: only your own written stones, counted from
 -- when they were dropped. 0 when it can't (or can no longer) be edited.
 function Stones:EditTimeLeft(stone)
-	if not stone or not stone.mine or not stone.text or stone.sketch then return 0 end
+	if not stone or stone.deleted or not ns.Store.IsMine(stone) or not stone.text or stone.sketch then return 0 end
 	return math.max(0, (stone.t or 0) + self.EDIT_SECONDS - time())
 end
 
@@ -91,6 +91,8 @@ function Stones:Edit(stone, text)
 	if text ~= stone.text then
 		stone.text = text
 		stone.edited = time()
+		stone.v = (stone.v or 1) + 1
+		ns.Store:MarkChanged(stone.id)
 		ns.Print("Stone updated.")
 		if ns.ReadWindow:Current() == stone then ns.ReadWindow:Show(stone) end
 	end
@@ -103,16 +105,12 @@ function Stones:Delete(stone)
 		ns.Print("Too late — the stone has set and can't be deleted any more.")
 		return false
 	end
-	for i, s in ipairs(ns.db.stones) do
-		if s == stone then
-			table.remove(ns.db.stones, i)
-			if ns.ReadWindow:Current() == stone then ns.ReadWindow:Hide() end
-			ns.MinimapPins:Update()
-			ns.Print("Stone deleted.")
-			return true
-		end
-	end
-	return false
+	if ns.Store:Get(stone.id) ~= stone then return false end
+	ns.Store:Tombstone(stone)
+	if ns.ReadWindow:Current() == stone then ns.ReadWindow:Hide() end
+	ns.MinimapPins:Update()
+	ns.Print("Stone deleted.")
+	return true
 end
 
 -- One-line description for chat and tooltips.
@@ -142,7 +140,7 @@ end
 function Stones:AdoptOwnStones()
 	local short, display, key = UnitName("player"), ns.Identity.PlayerDisplay(), ns.Identity.PlayerKey()
 	local count = 0
-	for _, stone in ipairs(ns.db.stones) do
+	for _, stone in ns.Store:Each() do
 		if stone.mine and not stone.authorKey and stone.author == short then
 			stone.author, stone.authorKey = display, key
 			count = count + 1
@@ -158,7 +156,7 @@ end
 function Stones:Add(stone)
 	stone.id = stone.id or newID(stone)
 	stone.t = stone.t or time()
-	table.insert(ns.db.stones, stone)
+	ns.Store:Put(stone)
 	ns.MinimapPins:Update()
 	return stone
 end
@@ -182,6 +180,7 @@ function Stones:Drop(content)
 	here.mine = true
 	here.heard = true
 	self:Add(here)
+	ns.Store:MarkChanged(here.id)
 	ns.Print(format("%s left in %s (%.1f, %.1f).", here.sketch and "Sketch" or "Stone",
 		zoneName(here.mapID), here.x * 100, here.y * 100))
 	return here
@@ -201,6 +200,7 @@ function Stones:DropTestStone(yards)
 		text = not sketch and TEST_MESSAGES[math.random(#TEST_MESSAGES)] or nil,
 		sketch = sketch and ns.Sketch.Pack(ns.Sketch.Sun()) or nil,
 		author = "A stranger",
+		localOnly = true, -- a test stone: never shared
 		instance = here.instance,
 		wx = here.wx + yards,
 		wy = here.wy,
@@ -225,13 +225,15 @@ function Stones:StartProximity()
 	self:CheckProximity()
 end
 
--- Each stone sits in a zone relative to the player: "far", "near" (within
--- nearYards) or "read" (within gateYards). Crossing inward fires a cue; a
--- band of HYSTERESIS yards keeps a boundary from flickering.
+-- Each nearby stone sits in a band relative to the player: "far", "near"
+-- (within nearYards) or "read" (within gateYards). Crossing inward fires a
+-- cue; HYSTERESIS yards of slack keep a boundary from flickering. Stones not
+-- looked at this tick drop out, so coming back counts as arriving again.
 local HYSTERESIS = 8
-local zones = {} -- stone.id -> zone, this session only
+local bands = {} -- stone.id -> band, rebuilt every tick
+local nearby = {} -- scratch list for Store:Near
 
-local function zoneFor(dist, prev)
+local function bandFor(dist, prev)
 	local gate, near = ns.db.gateYards, ns.db.nearYards
 	if dist <= gate or (prev == "read" and dist <= gate + HYSTERESIS) then return "read" end
 	if dist <= near or (prev and prev ~= "far" and dist <= near + HYSTERESIS) then return "near" end
@@ -241,28 +243,33 @@ end
 function Stones:CheckProximity()
 	local here = self:GetPlayerLocation()
 	local anyInRange, cueNear, cueRead = false, false, false
+	local nextBands = {}
 	if here then
-		for _, stone in ipairs(ns.db.stones) do
-			local dist = not stone.mine and self:Distance(here, stone)
+		local zone = ns.Store.ZoneKey(here.mapID)
+		if zone ~= self.zone then
+			self.zone = zone
+			ns.Store:Visit(zone)
+		end
+		for _, stone in ipairs(ns.Store:Near(here, ns.db.nearYards + HYSTERESIS, nearby)) do
+			local dist = not ns.Store.IsMine(stone) and self:Distance(here, stone)
 			if dist then
-				local prev = zones[stone.id]
-				local zone = zoneFor(dist, prev)
-				zones[stone.id] = zone
-				if zone == "read" then
+				local prev = bands[stone.id]
+				local band = bandFor(dist, prev)
+				nextBands[stone.id] = band
+				if band == "read" then
 					anyInRange = true
 					if prev ~= "read" then cueRead = true end
 					if not stone.heard then
 						stone.heard = true
 						self:OnUnlock(stone)
 					end
-				elseif zone == "near" and (prev == nil or prev == "far") and not stone.heard then
+				elseif band == "near" and (prev == nil or prev == "far") and not stone.heard then
 					cueNear = true
 				end
-			else
-				zones[stone.id] = nil
 			end
 		end
 	end
+	bands = nextBands
 	-- One sound per tick; being able to read outranks being close.
 	if cueRead then
 		ns.Cues:Play("read")
@@ -296,7 +303,7 @@ function Stones:Nearby()
 	local here = self:GetPlayerLocation()
 	local list = {}
 	if not here then return list, nil end
-	for _, stone in ipairs(ns.db.stones) do
+	for _, stone in ns.Store:Each() do
 		local dist = self:Distance(here, stone)
 		if dist then table.insert(list, { stone = stone, dist = dist }) end
 	end

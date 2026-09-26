@@ -98,8 +98,62 @@ function Net:Send(dist, target, kind, ...)
 		target = channelIndex()
 		if not target then return "not in channel" end
 	end
-	local msg = table.concat({ PROTOCOL, Identity.Flavor(), kind, ... }, ";")
+	local parts = { PROTOCOL, Identity.Flavor(), kind }
+	for i = 1, select("#", ...) do
+		local field = select(i, ...)
+		parts[#parts + 1] = field == nil and "" or field -- nil = empty field
+	end
+	local msg = table.concat(parts, ";")
 	return describe(C_ChatInfo.SendAddonMessage(PREFIX, msg, dist, target))
+end
+
+-- Outgoing queue --------------------------------------------------------------
+-- Real traffic goes through here so it stays inside the client's allowance
+-- (about 10 at once, then about 1/s, measured on WoW Forever) and is never
+-- dropped with AddonMessageThrottle. A local token bucket sets the pace, a
+-- little under the measured limits; if the client refuses anyway (the test
+-- tools share the same allowance), we back off and retry the same message.
+-- The test commands above call Send directly, on purpose.
+
+Net.BUCKET_SIZE = 9
+Net.REFILL_PER_SEC = 0.9
+local PUMP_INTERVAL = 0.25
+
+local queue = {}
+local tokens, lastRefill, pump = Net.BUCKET_SIZE, nil, nil
+
+function Net:Enqueue(dist, target, kind, ...)
+	queue[#queue + 1] = { dist = dist, target = target, kind = kind, n = select("#", ...), ... }
+	self:Pump()
+end
+
+function Net:QueueLength()
+	return #queue
+end
+
+function Net:Pump()
+	local t = now()
+	tokens = math.min(self.BUCKET_SIZE, tokens + (t - (lastRefill or t)) * self.REFILL_PER_SEC)
+	lastRefill = t
+	while #queue > 0 and tokens >= 1 do
+		local m = queue[1]
+		local result = self:Send(m.dist, m.target, m.kind, unpack(m, 1, m.n))
+		if result == "AddonMessageThrottle" then
+			tokens = 0 -- the client disagrees with our count; wait for a refill
+			break
+		end
+		table.remove(queue, 1)
+		tokens = tokens - 1
+		if logging and not DELIVERED[result] then
+			ns.Print(format("net > dropped %s to %s: %s", m.kind, tostring(m.target or m.dist), result))
+		end
+	end
+	if #queue > 0 and not pump then
+		pump = C_Timer.NewTicker(PUMP_INTERVAL, function() self:Pump() end)
+	elseif #queue == 0 and pump then
+		pump:Cancel()
+		pump = nil
+	end
 end
 
 -- Receiving -----------------------------------------------------------------
