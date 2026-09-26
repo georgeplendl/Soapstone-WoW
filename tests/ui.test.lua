@@ -28,6 +28,7 @@ UISpecialFrames = {}
 SlashCmdList = {}
 tinsert = table.insert
 ChatFontNormal = {}
+GameFontHighlightLarge = { GetFont = function() return "Fonts\\FRIZQT__.TTF", 16, "" end }
 UIErrorsFrame = { AddMessage = function() end }
 GameTooltip = setmetatable({}, { __index = function() return function() end end })
 GameTooltip_Hide = function() end
@@ -55,6 +56,9 @@ Frame.__index = function(f, key)
 		SetText = function(self, text) self.text = text or "" end,
 		GetText = function(self) return self.text end,
 		SetSize = function(self, w, h) self.w, self.h = w, h end,
+		SetHeight = function(self, h) self.h = h end,
+		GetCenter = function() return 700, 500 end,
+		SetPoint = function(self, ...) self.point = { ... } end,
 		GetSize = function(self) return self.w, self.h end,
 		GetWidth = function(self) return self.w end,
 		GetHeight = function(self) return self.h end,
@@ -63,6 +67,13 @@ Frame.__index = function(f, key)
 		GetTop = function() return 0 end,
 		GetStringHeight = function() return 14 end,
 		GetStringWidth = function(self) return #tostring(self.text) * 6 end,
+		SetFont = function(self, face, size, flags)
+			-- The client rejects a nil flags argument (at least on an EditBox).
+			assert(type(face) == "string" and type(size) == "number" and type(flags) == "string",
+				"bad argument to 'SetFont' (Usage: self:SetFont(fontFile, height, flags))")
+			self.font = { face = face, size = size, flags = flags }
+		end,
+		SetJustifyH = function(self, justify) self.justify = justify end,
 		GetName = function(self) return self.name end,
 		SetScript = function(self, name, fn) self.scripts[name] = fn end,
 		GetScript = function(self, name) return self.scripts[name] end,
@@ -119,7 +130,21 @@ check(ok, "drop window opens (" .. tostring(err) .. ")")
 local write, draw = drop.modeButtons[1], drop.modeButtons[2]
 check(write.text == "Write" and draw.text == "Draw", "Write and Draw buttons")
 check(write.locked and not draw.locked, "it opens on Write")
-check(drop.frame.w > 400 and drop.frame.h > 200, ("drop window sized %.0fx%.0f from the draw panel"):format(drop.frame.w, drop.frame.h))
+-- Write looks just like the Edit Soapstone box: stone font, centred, same size.
+local dropBox = drop.writer.edit
+check(dropBox.font and dropBox.font.size == ns.ReadWindow.TEXT_SIZE, "the Write box types at the stone window's size")
+check(dropBox.justify == "CENTER" and drop.writer.placeholder.justify == "CENTER", "and centred, placeholder too")
+check(drop.frame.w - 2 * 14 - 2 * ns.WritePanel.INSET == ns.ReadWindow.TEXT_WIDTH
+	and drop.writer.frame.h == ns.WritePanel.STONE_HEIGHT,
+	("on Write the window fits the message box (%.0fx%.0f)"):format(drop.frame.w, drop.frame.h))
+local writeW, writeH = drop.frame.w, drop.frame.h
+click(draw)
+check(drop.frame.w > writeW and drop.frame.h > writeH,
+	("Draw grows it to fit the drawing editor (%.0fx%.0f)"):format(drop.frame.w, drop.frame.h))
+local pt = drop.frame.point
+check(pt and pt[1] == "CENTER" and pt[4] == 700 and pt[5] == 500, "and keeps the window centred where it was")
+click(write)
+check(drop.frame.w == writeW and drop.frame.h == writeH, "Write shrinks it back")
 drop.writer.edit:SetText("Try jumping")
 drop.writer.edit.scripts.OnTextChanged(drop.writer.edit)
 check(drop.dropButton.enabled == true, "Drop Stone lights up once there's text")
@@ -192,8 +217,16 @@ NOW = NOW + 60
 ok, err = pcall(function() edit:Open(text) end)
 check(ok, "edit window opens on a written stone (" .. tostring(err) .. ")")
 check(edit.writer.frame.shown and not edit.drawer.frame.shown, "with the message box, not the drawing editor")
+check(edit.frame.w == writeW and edit.writer.frame.h == drop.writer.frame.h, "the same size box as Leave a Soapstone")
+-- 1-for-1 with the stone window: same font size, centred, same wrap width.
+local box = edit.writer.edit
+check(box.font and box.font.size == ns.ReadWindow.TEXT_SIZE and box.font.size == read.text.font.size,
+	("the edit box types at the stone window's size (%s pt)"):format(box.font and box.font.size or "?"))
+check(box.justify == "CENTER" and edit.writer.placeholder.justify == "CENTER", "text and placeholder are centred")
+check(edit.frame.w - 2 * 14 - 2 * ns.WritePanel.INSET == ns.ReadWindow.TEXT_WIDTH,
+	("the typing area is %.0f wide, like the stone window's text (%d)"):format(edit.frame.w - 28 - 24, ns.ReadWindow.TEXT_WIDTH))
 check(Stones:IsEditClockPaused(text), "the clock pauses while it's open")
-check(edit.countdown.text:find("4:00") and edit.countdown.text:find("paused"), "countdown: " .. edit.countdown.text)
+check(edit.countdown == nil, "no 'Editable for' countdown in the editor")
 check(edit.saveButton.enabled == false, "Save waits for a change")
 NOW = NOW + 900
 edit.frame:Hide() -- Cancel

@@ -9,6 +9,14 @@ local WritePanel = {}
 ns.WritePanel = WritePanel
 
 WritePanel.MAX_LETTERS = 140
+WritePanel.INSET = 12 -- the text sits this far inside the panel's border
+WritePanel.STONE_HEIGHT = 130 -- the message box in both drop and edit windows
+
+-- The width that makes a stone-style panel wrap like the stone window's text.
+-- A function because ReadWindow loads after the drop window.
+function WritePanel.StoneWidth()
+	return ns.ReadWindow.TEXT_WIDTH + 2 * WritePanel.INSET
+end
 
 local BACKDROP = {
 	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -38,8 +46,8 @@ function WritePanel.Create(parent, onSubmit, onChange)
 	edit:SetAutoFocus(false)
 	edit:SetMaxLetters(max)
 	edit:SetFontObject(ChatFontNormal)
-	edit:SetPoint("TOPLEFT", 12, -12)
-	edit:SetPoint("TOPRIGHT", -12, -12)
+	edit:SetPoint("TOPLEFT", WritePanel.INSET, -WritePanel.INSET)
+	edit:SetPoint("TOPRIGHT", -WritePanel.INSET, -WritePanel.INSET)
 	edit:SetHeight(80)
 	frame:SetScript("OnMouseDown", function() edit:SetFocus() end)
 
@@ -64,8 +72,22 @@ function WritePanel.Create(parent, onSubmit, onChange)
 		if onChange then onChange() end
 	end)
 
-	self.frame, self.edit = frame, edit
+	self.frame, self.edit, self.placeholder = frame, edit, placeholder
 	return self
+end
+
+-- Types in the stone window's font and size, centred, so the text wraps and
+-- reads just as it will when opened (the caller makes the panel
+-- WritePanel.StoneWidth() wide and STONE_HEIGHT tall).
+function Panel:UseStoneStyle()
+	ns.ReadWindow.ApplyStoneFont(self.edit)
+	self.edit:SetJustifyH("CENTER")
+	ns.ReadWindow.ApplyStoneFont(self.placeholder)
+	self.placeholder:SetTextColor(0.5, 0.5, 0.5)
+	self.placeholder:ClearAllPoints()
+	self.placeholder:SetPoint("TOPLEFT", self.edit, "TOPLEFT", 0, 0)
+	self.placeholder:SetPoint("TOPRIGHT", self.edit, "TOPRIGHT", 0, 0)
+	self.placeholder:SetJustifyH("CENTER")
 end
 
 -- The message with surrounding whitespace removed.

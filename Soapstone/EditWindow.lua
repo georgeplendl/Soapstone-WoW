@@ -11,7 +11,7 @@ local _, ns = ...
 --  │ ┌──────────────────────────────────────────────┐  │
 --  │ │ message (or the drawing editor)      42 / 140│  │
 --  │ └──────────────────────────────────────────────┘  │
---  │ [Delete] Editable for 4:32 · paused   [Save][Cancel]
+--  │ [Delete]                           [Save][Cancel] │
 --  └───────────────────────────────────────────────────┘
 
 local Sketch = ns.Sketch
@@ -36,8 +36,10 @@ StaticPopupDialogs["SOAPSTONE_DELETE"] = {
 local FRAME_NAME = "SoapstoneEditFrame"
 local PAD = 14
 local TOP = 34
-local TEXT_WIDTH = 520
-local TEXT_HEIGHT = 130
+-- The message box is exactly as wide as the stone window's text, so it wraps
+-- the same way (see WritePanel:UseStoneStyle).
+local TEXT_WIDTH = ns.WritePanel.StoneWidth() + 2 * PAD
+local TEXT_HEIGHT = ns.WritePanel.STONE_HEIGHT
 local FOOTER = 46        -- action buttons
 local SKETCH_FOOTER = 62 -- hint line + action buttons
 local TICK = 0.25
@@ -58,6 +60,7 @@ function EditWindow:Build()
 	writer.frame:SetPoint("TOPLEFT", PAD, -TOP)
 	writer.frame:SetPoint("TOPRIGHT", -PAD, -TOP)
 	writer.frame:SetHeight(TEXT_HEIGHT)
+	writer:UseStoneStyle() -- same font, size, centring and width as the stone window
 	self.writer = writer
 
 	local drawer = ns.DrawPanel.Create(f, function() self:OnDrawingChanged() end)
@@ -79,10 +82,6 @@ function EditWindow:Build()
 		if self.stone then StaticPopup_Show("SOAPSTONE_DELETE", nil, nil, self.stone) end
 	end)
 	self.deleteButton = delete
-
-	local countdown = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	countdown:SetPoint("LEFT", delete, "RIGHT", 10, 0)
-	self.countdown = countdown
 
 	local elapsed = 0
 	f:SetScript("OnUpdate", function(_, dt)
@@ -136,17 +135,10 @@ function EditWindow:OnDrawingChanged()
 	self:UpdateButtons()
 end
 
+-- No countdown here: the clock is paused while the editor is open (the stone
+-- window's Edit button shows the time left).
 function EditWindow:Tick()
-	local stone = self.stone
-	if not stone then return end
-	local left = ns.Stones:EditTimeLeft(stone)
-	if left > 0 then
-		local paused = ns.Stones:IsEditClockPaused(stone) and "  ·  paused while you edit" or ""
-		self.countdown:SetText(format("Editable for %s%s", ns.FormatCountdown(left), paused))
-	else
-		self.countdown:SetText("|cffff6060The stone has set and can't be edited.|r")
-	end
-	self:UpdateButtons()
+	if self.stone then self:UpdateButtons() end
 end
 
 -- Delete is live while there's time left; Save also needs a real change.
