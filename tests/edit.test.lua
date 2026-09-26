@@ -66,12 +66,12 @@ who = { "Osha", "Compliant" }
 check(Stones:EditTimeLeft(mine) == 0, "another character on the account can't edit it")
 check(Stones:Byline(mine):find("Mad Decent") ~= nil, "and sees Mad's name, not 'You'")
 who = { "Mad", "Decent" }
-check(Stones:Byline(mine) == "— Mad Decent(You), just now", "the author sees 'Mad Decent(You)': " .. Stones:Byline(mine))
+check(Stones:Byline(mine) == "— Mad Decent (You), just now", "the author sees 'Mad Decent (You)': " .. Stones:Byline(mine))
 who = { "Osha", "Compliant" }
 check(Stones:Byline(mine) == "— Mad Decent, just now", "anyone else sees just the name")
 who = { "Mad", "Decent" }
 NOW = NOW + 24 * 60
-check(Stones:Byline(mine) == "— Mad Decent(You), 24 mins ago", "'24 mins ago': " .. Stones:Byline(mine))
+check(Stones:Byline(mine) == "— Mad Decent (You), 24 mins ago", "'24 mins ago': " .. Stones:Byline(mine))
 NOW = NOW - 24 * 60
 
 -- Friendly times

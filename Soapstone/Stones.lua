@@ -156,13 +156,13 @@ function Stones.TimeAgo(seconds)
 	return format("%d %s%s ago", n, unit, n == 1 and "" or "s")
 end
 
--- "— Zug Zug, 3 hrs ago", or for your own "— Mad Decent(You), 24 mins ago",
+-- "— Zug Zug, 3 hrs ago", or for your own "— Mad Decent (You), 24 mins ago",
 -- plus " (edited)".
 function Stones:Byline(stone)
 	local age = time() - (stone.t or time())
 	local who = stone.author or "A stranger"
 	if ns.Store.IsMine(stone) then
-		who = (stone.author or ns.Identity.PlayerDisplay() or "You") .. "(You)"
+		who = (stone.author or ns.Identity.PlayerDisplay() or "You") .. " (You)"
 	end
 	return format("— %s, %s%s", who, self.TimeAgo(age), stone.edited and " (edited)" or "")
 end
