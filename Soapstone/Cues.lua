@@ -12,7 +12,6 @@ ns.Cues = Cues
 
 local CUES = {
 	near = { kits = { "MAP_PING", "TELL_MESSAGE" } },                          -- a sealed stone is somewhere close
-	read = { kits = { "IG_QUEST_LIST_COMPLETE", "READY_CHECK", "MAP_PING" } }, -- you can read it from here
 	appraise = { kits = { "IG_QUEST_LIST_SELECT", "IG_QUEST_LIST_OPEN", "IG_MAINMENU_OPTION_CHECKBOX_ON" } },
 	disparage = { kits = { "IG_QUEST_LOG_ABANDON_QUEST", "IG_MAINMENU_OPTION_CHECKBOX_OFF", "IG_MAINMENU_CLOSE" } },
 	-- you set a stone down: a crystal settling into place, else a gem clink,
@@ -21,7 +20,7 @@ local CUES = {
 	-- you delete one of your stones: an aura fading away (chosen in game)
 	delete = { id = 165943, label = "UI_ADVENTURES_AURA_REMOVE" },
 }
-Cues.NAMES = { "near", "read", "appraise", "disparage", "drop", "delete" }
+Cues.NAMES = { "near", "appraise", "disparage", "drop", "delete" }
 
 local function resolveKit(cue)
 	if cue.kit == nil then

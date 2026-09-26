@@ -166,9 +166,8 @@ SlashCmdList.SOAPSTONE = function(input)
 	elseif cmd == "sound" then
 		rest = rest:lower()
 		if rest == "test" then
-			ns.Print("Playing: somewhere close… then: readable.")
+			ns.Print("Playing: somewhere close.")
 			ns.Cues:Play("near", true)
-			C_Timer.After(1.5, function() ns.Cues:Play("read", true) end)
 			return
 		elseif tContains(ns.Cues.NAMES, rest) then
 			local played = ns.Cues:Preview(rest)
