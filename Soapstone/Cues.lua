@@ -16,8 +16,11 @@ local CUES = {
 	-- you set a stone down: a crystal settling into place, else a gem clink,
 	-- else the thunk of dropping an ability on the action bar
 	drop = { kits = { "UI_70_ARTIFACT_FORGE_RELIC_PLACE", "PUT_DOWN_GEMS", "IG_ABILITY_ICON_DROP" } },
+	-- you delete one of your stones: a keystone lifted from its socket, else
+	-- picking up a gem (drop's pair), else a bag closing
+	delete = { kits = { "UI_70_CHALLENGE_MODE_SOCKET_PAGE_REMOVE_KEYSTONE", "PICK_UP_GEMS", "IG_BACKPACK_CLOSE" } },
 }
-Cues.NAMES = { "near", "read", "appraise", "disparage", "drop" }
+Cues.NAMES = { "near", "read", "appraise", "disparage", "drop", "delete" }
 
 local function resolveKit(cue)
 	if cue.kit == nil then

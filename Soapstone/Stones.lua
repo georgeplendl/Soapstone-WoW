@@ -252,6 +252,7 @@ function Stones:Delete(stone)
 	ns.Store:Tombstone(stone)
 	if ns.ReadWindow:Current() == stone then ns.ReadWindow:Hide() end
 	ns.MinimapPins:Update()
+	ns.Cues:Play("delete")
 	ns.Print("Stone deleted.")
 	return true
 end

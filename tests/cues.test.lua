@@ -6,7 +6,7 @@ local played = {}
 function PlaySound(kit, channel) played[#played + 1] = { kit = kit, channel = channel } end
 function PlaySoundFile() end
 -- Like an older client: no artifact-forge sound, but the gem clink is there.
-SOUNDKIT = { PUT_DOWN_GEMS = 1204, IG_ABILITY_ICON_DROP = 838, MAP_PING = 3175 }
+SOUNDKIT = { PUT_DOWN_GEMS = 1204, PICK_UP_GEMS = 1221, IG_ABILITY_ICON_DROP = 838, MAP_PING = 3175 }
 
 local ns = { db = { sound = true } }
 assert(loadfile(ROOT .. "/Cues.lua"))("Soapstone", ns)
@@ -21,7 +21,8 @@ Cues:Play("drop")
 check(#played == 1, "no drop sound with sound cues off")
 
 check(Cues:Preview("drop") == "PUT_DOWN_GEMS" and #played == 2, "preview plays it anyway and names it")
-check(Cues:Preview("nope") == false and #played == 2, "an unknown cue plays nothing")
+check(Cues:Preview("delete") == "PICK_UP_GEMS" and played[3].kit == 1221, "delete picks up the gem drop put down")
+check(Cues:Preview("nope") == false and #played == 3, "an unknown cue plays nothing")
 
 local known = true
 for _, name in ipairs(Cues.NAMES) do

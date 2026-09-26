@@ -36,6 +36,8 @@ ns.ReadWindow = {
 	Hide = function() hidden = hidden + 1 end,
 }
 ns.MinimapPins = { Update = function() pinUpdates = pinUpdates + 1 end }
+local cues = {}
+ns.Cues = { Play = function(_, name) cues[#cues + 1] = name end }
 local Stones, Store = ns.Stones, ns.Store
 
 local function put(fields)
@@ -97,12 +99,14 @@ local doomed = put({ id = "Mad-Decent-1-4", authorKey = "Mad-Decent", text = "de
 local stranger = Store:Get("Zug-Zug-1-1")
 ns._open = doomed
 check(Stones:Delete(stranger) == false and Store:Get("Zug-Zug-1-1") == stranger, "can't delete a stranger's stone")
+check(#cues == 0, "a refused delete makes no sound")
 check(Stones:Delete(doomed) == true, "delete within window succeeds")
+check(#cues == 1 and cues[1] == "delete", "with the delete sound")
 local tomb = Store:Get("Mad-Decent-1-4")
 check(tomb.deleted and tomb.v == 2 and tomb.text == nil, "leaves a v2 tombstone")
 check(Store:Get("Mad-Decent-1-3") == keep, "other stones untouched")
 check(hidden == 1 and pinUpdates >= 1, "read window closes, pins refresh")
-check(Stones:Delete(doomed) == false, "deleting it twice does nothing")
+check(Stones:Delete(doomed) == false and #cues == 1, "deleting it twice does nothing (and stays quiet)")
 check(Stones:EditTimeLeft(tomb) == 0, "a tombstone can't be edited")
 
 NOW = NOW + 301
