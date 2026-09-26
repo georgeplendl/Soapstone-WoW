@@ -317,7 +317,7 @@ end
 
 function Net:Status()
 	ns.Print(format("You are |cffffffff%s|r (key %s) on %s, Soapstone %s.",
-		Identity.PlayerDisplay() or "?", Identity.PlayerKey() or "?", Identity.Flavor(), ns.Version()))
+		Identity.PlayerDisplay() or "?", Identity.PlayerKey() or "?", Identity.Flavor(), ns.VersionString()))
 	local id = channelIndex()
 	ns.Print(id and format("Network channel %s joined as /%d, hidden from chat.", CHANNEL, id)
 		or format("Network channel %s not joined.", CHANNEL))

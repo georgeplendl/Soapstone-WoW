@@ -18,6 +18,8 @@ for players: what changed in game, not how.
   reach each other.
 
 - `/soap stats` shows how many stones are stored, and where.
+- `/soap version` also says which build is running: the git branch and
+  commit in a development checkout, or the release tag in a release zip.
 - **Zone sync:** settle in a zone for a few seconds and Soapstone asks other
   Soapstone players online for that zone's stones, then fetches the ones you
   don't have ("12 new stones arrived for The Barrens"). Stones you receive
