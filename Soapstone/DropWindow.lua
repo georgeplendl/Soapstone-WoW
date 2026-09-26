@@ -1,9 +1,8 @@
 local _, ns = ...
 
 -- "Leave a Soapstone": the drop window. Two Blizzard-style tabs along the
--- bottom switch between Write (a short message) and Draw (a sketch). The Draw
--- layout follows Splatoon's post editor: tools down the left, the canvas
--- beside them, actions along the bottom.
+-- bottom switch between Write (a short message, WritePanel) and Draw (a
+-- sketch, DrawPanel: Splatoon-style tools beside the canvas).
 --
 --  ┌ Leave a Soapstone ─────────────────────────────── x ┐
 --  │ Pen  Eraser   ┌──────────────────────────────────┐   │
@@ -16,27 +15,17 @@ local _, ns = ...
 --  └──────────────────────────────────────────────────────┘
 --    (Write)(Draw)
 
-local Sketch, SketchCanvas = ns.Sketch, ns.SketchCanvas
+local Sketch = ns.Sketch
 
 local DropWindow = {}
 ns.DropWindow = DropWindow
 
 local FRAME_NAME = "SoapstoneDropFrame"
-local DRAW_SCALE = 3
-
 local PAD = 14
-local TOP = 34 -- clears the title bar
-local TOOL_BUTTON = 30
-local TOOL_GAP = 6
-local TOOL_ROW = TOOL_BUTTON + 4
-local TOOLS_WIDTH = TOOL_BUTTON * 2 + TOOL_GAP
-local LABEL_HEIGHT = 14
-local TOOLS_HEIGHT = LABEL_HEIGHT + 3 * TOOL_ROW + 8 + 22 + 4 + 22
-local CANVAS_LEFT = PAD + TOOLS_WIDTH + PAD + 6
+local TOP = 34    -- clears the title bar
 local FOOTER = 62 -- hint line + action buttons
 
 local TAB_TEMPLATES = { "CharacterFrameTabButtonTemplate", "CharacterFrameTabTemplate", "PanelTabButtonTemplate" }
-local SIZE_NAMES = { "Small", "Medium", "Large" }
 
 local function templateExists(name)
 	if C_XMLUtil and C_XMLUtil.GetTemplateInfo then
@@ -64,49 +53,6 @@ local function createTab(parent, id)
 	return tab, false
 end
 
-local function showTooltip(owner, title, hint)
-	GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-	GameTooltip:AddLine(title)
-	if hint then GameTooltip:AddLine(hint, 0.8, 0.8, 0.8, true) end
-	GameTooltip:Show()
-end
-
--- A square button showing a brush swatch: a solid dot for the pen, a hollow
--- one for the eraser, sized to match the brush.
-local function createToolButton(parent, mode, size, index)
-	local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-	btn:SetSize(TOOL_BUTTON, TOOL_BUTTON)
-	btn.mode, btn.size = mode, size
-
-	local swatch = btn:CreateTexture(nil, "OVERLAY")
-	swatch:SetColorTexture(unpack(SketchCanvas.PAPER))
-	swatch:SetSize(TOOL_BUTTON - 10, TOOL_BUTTON - 10)
-	swatch:SetPoint("CENTER")
-
-	local d = math.max(4, size * 3)
-	local dot = btn:CreateTexture(nil, "OVERLAY", nil, 1)
-	dot:SetColorTexture(unpack(SketchCanvas.INK))
-	dot:SetSize(d + (mode == "eraser" and 2 or 0), d + (mode == "eraser" and 2 or 0))
-	dot:SetPoint("CENTER")
-	if mode == "eraser" then
-		local hole = btn:CreateTexture(nil, "OVERLAY", nil, 2)
-		hole:SetColorTexture(unpack(SketchCanvas.PAPER))
-		hole:SetSize(d - 2, d - 2)
-		hole:SetPoint("CENTER")
-	end
-
-	local label = (mode == "pen" and "Pen" or "Eraser") .. " — " .. SIZE_NAMES[index]
-	btn:SetScript("OnEnter", function(self)
-		showTooltip(self, label, "Right-drag on the canvas always erases.")
-	end)
-	btn:SetScript("OnLeave", GameTooltip_Hide)
-	btn:SetScript("OnClick", function()
-		DropWindow.canvas:SetTool(mode, size)
-		DropWindow:UpdateButtons()
-	end)
-	return btn
-end
-
 local function createActionButton(parent, text, width)
 	local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
 	btn:SetSize(width, 22)
@@ -116,67 +62,19 @@ end
 
 -- Building ------------------------------------------------------------------
 
-function DropWindow:BuildDrawPanel(f)
-	local panel = CreateFrame("Frame", nil, f)
-	panel:SetAllPoints()
-
-	local canvas = SketchCanvas.Create(panel, DRAW_SCALE)
-	canvas.frame:SetPoint("TOPLEFT", CANVAS_LEFT, -TOP - 6)
-	canvas:EnableEditing(function() self:UpdateButtons() end)
-	self.canvas = canvas
-
-	local penLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	penLabel:SetPoint("TOPLEFT", PAD, -TOP)
-	penLabel:SetWidth(TOOL_BUTTON)
-	penLabel:SetText("Pen")
-	local eraserLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	eraserLabel:SetPoint("TOPLEFT", PAD + TOOL_BUTTON + TOOL_GAP - 8, -TOP)
-	eraserLabel:SetWidth(TOOL_BUTTON + 16)
-	eraserLabel:SetText("Eraser")
-
-	self.toolButtons = {}
-	for i, size in ipairs(Sketch.SIZES) do
-		local y = -TOP - LABEL_HEIGHT - (i - 1) * TOOL_ROW
-		local pen = createToolButton(panel, "pen", size, i)
-		pen:SetPoint("TOPLEFT", PAD, y)
-		local eraser = createToolButton(panel, "eraser", size, i)
-		eraser:SetPoint("TOPLEFT", PAD + TOOL_BUTTON + TOOL_GAP, y)
-		table.insert(self.toolButtons, pen)
-		table.insert(self.toolButtons, eraser)
-	end
-
-	local undo = createActionButton(panel, "Undo", TOOLS_WIDTH)
-	undo:SetPoint("TOPLEFT", PAD, -TOP - LABEL_HEIGHT - 3 * TOOL_ROW - 8)
-	undo:SetScript("OnClick", function() canvas:Undo() end)
-	local clear = createActionButton(panel, "Clear", TOOLS_WIDTH)
-	clear:SetPoint("TOPLEFT", undo, "BOTTOMLEFT", 0, -4)
-	clear:SetScript("OnClick", function() canvas:Clear() end)
-	clear:SetScript("OnEnter", function(btn) showTooltip(btn, "Clear", "Wipes the canvas. Undo brings it back.") end)
-	clear:SetScript("OnLeave", GameTooltip_Hide)
-	self.undoButton, self.clearButton = undo, clear
-
-	local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	hint:SetPoint("TOPRIGHT", canvas.frame, "BOTTOMRIGHT", 0, -10)
-	hint:SetText("Left-drag to draw  ·  Right-drag to erase")
-
-	return panel
-end
-
-function DropWindow:BuildWritePanel(f)
-	local writer = ns.WritePanel.Create(f, function() self:Submit() end, function() self:UpdateButtons() end)
-	writer.frame:SetPoint("TOPLEFT", PAD, -TOP)
-	writer.frame:SetPoint("BOTTOMRIGHT", self.canvas.frame, "BOTTOMRIGHT", 6, -6)
-	self.writer = writer
-	return writer.frame
-end
-
 function DropWindow:Build()
 	local f = ns.CreateWindow(FRAME_NAME, "Leave a Soapstone")
 	f:SetPoint("CENTER", 0, 80)
 	self.frame = f
 
-	self.drawPanel = self:BuildDrawPanel(f)
-	self.writePanel = self:BuildWritePanel(f)
+	local drawer = ns.DrawPanel.Create(f, function() self:UpdateButtons() end)
+	drawer.frame:SetPoint("TOPLEFT", 0, -TOP)
+	self.drawer = drawer
+
+	local writer = ns.WritePanel.Create(f, function() self:Submit() end, function() self:UpdateButtons() end)
+	writer.frame:SetPoint("TOPLEFT", PAD, -TOP)
+	writer.frame:SetPoint("BOTTOMRIGHT", drawer.canvas.frame, "BOTTOMRIGHT", 6, -6)
+	self.writer = writer
 
 	local cancel = createActionButton(f, CANCEL, 90)
 	cancel:SetPoint("BOTTOMRIGHT", -PAD, 12)
@@ -209,9 +107,8 @@ end
 -- Behaviour -----------------------------------------------------------------
 
 function DropWindow:Layout()
-	self.canvas:Layout()
-	local cw, ch = self.canvas:GetSize()
-	self.frame:SetSize(CANVAS_LEFT + cw + PAD + 6, TOP + 6 + math.max(ch, TOOLS_HEIGHT) + FOOTER)
+	local width, height = self.drawer:Layout()
+	self.frame:SetSize(width + PAD, TOP + height + FOOTER)
 end
 
 function DropWindow:Open()
@@ -225,8 +122,8 @@ function DropWindow:SetMode(mode)
 	if mode ~= "sketch" then mode = "text" end
 	ns.db.dropMode = mode
 	local sketch = mode == "sketch"
-	self.drawPanel:SetShown(sketch)
-	self.writePanel:SetShown(not sketch)
+	self.drawer.frame:SetShown(sketch)
+	self.writer.frame:SetShown(not sketch)
 
 	if self.blizzardTabs then
 		PanelTemplates_SetTab(self.frame, sketch and 2 or 1)
@@ -242,23 +139,15 @@ end
 
 function DropWindow:HasContent()
 	if ns.db.dropMode == "sketch" then
-		return not Sketch.IsEmpty(self.canvas.grid)
+		return not self.drawer:IsEmpty()
 	end
 	return self.writer:GetText() ~= ""
 end
 
 function DropWindow:UpdateButtons()
-	if not self.frame then return end
+	if not self.dropButton then return end
 	self.dropButton:SetEnabled(self:HasContent())
-	self.undoButton:SetEnabled(self.canvas:CanUndo())
-	self.clearButton:SetEnabled(not Sketch.IsEmpty(self.canvas.grid))
-
-	local tool = self.canvas.tool
-	for _, btn in ipairs(self.toolButtons) do
-		local selected = btn.mode == tool.mode
-			and btn.size == (tool.mode == "pen" and tool.penSize or tool.eraserSize)
-		if selected then btn:LockHighlight() else btn:UnlockHighlight() end
-	end
+	self.drawer:Refresh()
 end
 
 -- Drops the current text or sketch. The draft is kept if the window is simply
@@ -267,8 +156,8 @@ function DropWindow:Submit()
 	if not self:HasContent() then return end
 	local stone
 	if ns.db.dropMode == "sketch" then
-		stone = ns.Stones:Drop({ sketch = Sketch.Pack(self.canvas.grid) })
-		if stone then self.canvas:Reset() end
+		stone = ns.Stones:Drop({ sketch = Sketch.Pack(self.drawer:GetGrid()) })
+		if stone then self.drawer:Reset() end
 	else
 		stone = ns.Stones:Drop({ text = self.writer:GetText() })
 		if stone then self.writer:SetText("") end

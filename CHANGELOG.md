@@ -18,6 +18,9 @@ for players: what changed in game, not how.
   reach each other.
 
 - `/soap stats` shows how many stones are stored, and where.
+- **Edit and delete your sketches** too, within the same 5-minute window as
+  written stones: "Edit Soapstone" opens the drawing editor with your
+  drawing loaded.
 - **Appraise and Disparage**, as in Dark Souls: rate other players' stones
   from the read window. Appraised stones get a gold minimap pin;
   disparaged ones fade and no longer trigger sound cues. One rating per
@@ -42,6 +45,9 @@ for players: what changed in game, not how.
   can't read the new format.**
 - The minimap and proximity checks only look at stones near you, so they
   stay fast however many stones are stored.
+- The 5-minute edit window now **pauses while the edit dialog is open** (a
+  slow edit costs nothing; cancelling picks up where it paused) and
+  **restarts from a full 5 minutes each time you save an edit**.
 
 ## [0.2.0] - 2026-09-25
 

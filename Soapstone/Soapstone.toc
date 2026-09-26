@@ -18,6 +18,7 @@ Net.lua
 Sync.lua
 SketchCanvas.lua
 WritePanel.lua
+DrawPanel.lua
 DropWindow.lua
 ReadWindow.lua
 EditWindow.lua

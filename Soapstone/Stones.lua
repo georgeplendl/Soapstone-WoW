@@ -6,6 +6,7 @@ local _, ns = ...
 --
 -- stone = { id, author ("Mad Decent"), authorKey ("Mad-Decent"), flavor,
 --           t, mapID, x, y, instance, wx, wy, mine, heard, edited,
+--           windowStart (when the edit window last restarted; defaults to t),
 --           text = "..." or sketch = <Sketch.Pack result> }
 
 local Stones = {}
@@ -105,27 +106,70 @@ end
 
 -- Editing -------------------------------------------------------------------
 
--- How long after dropping a stone its author may still reword it.
+-- The edit window: your own stones (written or drawn) can be edited or
+-- deleted for EDIT_SECONDS. The clock
+--   * starts when the stone is posted (windowStart, defaulting to the drop),
+--   * restarts from a full EDIT_SECONDS whenever an edit is saved, and
+--   * stands still while the edit dialog is open, so a slow edit costs
+--     nothing; cancelling picks up where it paused.
 Stones.EDIT_SECONDS = 5 * 60
 
--- Seconds left to edit `stone`: only your own written stones, counted from
--- when they were dropped. 0 when it can't (or can no longer) be edited.
+local pausedAt = {} -- stone id -> time the editor opened (this session only)
+
+-- Seconds left to edit `stone`; 0 when it can't (or can no longer) be.
 function Stones:EditTimeLeft(stone)
-	if not stone or stone.deleted or not ns.Store.IsMine(stone) or not stone.text or stone.sketch then return 0 end
-	return math.max(0, (stone.t or 0) + self.EDIT_SECONDS - time())
+	if not stone or stone.deleted or not ns.Store.IsMine(stone) then return 0 end
+	if not stone.text and not stone.sketch then return 0 end
+	local now = pausedAt[stone.id] or time()
+	return math.max(0, (stone.windowStart or stone.t or 0) + self.EDIT_SECONDS - now)
 end
 
--- Rewords a written stone. Returns true if it changed.
-function Stones:Edit(stone, text)
-	text = strtrim(text or "")
-	if text == "" then return false end
+-- The edit dialog opened: stop the clock.
+function Stones:PauseEditClock(stone)
+	if stone and not pausedAt[stone.id] and self:EditTimeLeft(stone) > 0 then
+		pausedAt[stone.id] = time()
+	end
+end
+
+-- The edit dialog closed without saving: carry on from where it paused.
+function Stones:ResumeEditClock(stone)
+	local at = stone and pausedAt[stone.id]
+	if not at then return end
+	stone.windowStart = (stone.windowStart or stone.t or 0) + (time() - at)
+	pausedAt[stone.id] = nil
+end
+
+function Stones:IsEditClockPaused(stone)
+	return stone ~= nil and pausedAt[stone.id] ~= nil
+end
+
+-- Saves an edit. `content` is { text = "..." } for a written stone or
+-- { sketch = <packed> } for a drawing (a plain string counts as text); a
+-- stone can't switch between the two. A real change bumps the version and
+-- restarts the edit window. Returns true if the edit was accepted.
+function Stones:Edit(stone, content)
+	if type(content) == "string" then content = { text = content } end
 	if self:EditTimeLeft(stone) <= 0 then
 		ns.Print("Too late — the stone has set and can't be edited any more.")
 		return false
 	end
-	if text ~= stone.text then
-		stone.text = text
+	local changed
+	if stone.sketch then
+		local packed = content.sketch
+		local grid = packed and ns.Sketch.Unpack(packed)
+		if not grid or ns.Sketch.IsEmpty(grid) then return false end
+		changed = packed.data ~= stone.sketch.data
+		if changed then stone.sketch = packed end
+	else
+		local text = strtrim(content.text or "")
+		if text == "" then return false end
+		changed = text ~= stone.text
+		if changed then stone.text = text end
+	end
+	pausedAt[stone.id] = nil
+	if changed then
 		stone.edited = time()
+		stone.windowStart = time() -- a fresh five minutes
 		stone.v = (stone.v or 1) + 1
 		ns.Store:MarkChanged(stone.id)
 		ns.Print("Stone updated.")
@@ -134,13 +178,14 @@ function Stones:Edit(stone, text)
 	return true
 end
 
--- Removes a written stone during its edit window. Returns true if deleted.
+-- Removes one of your stones during its edit window. Returns true if deleted.
 function Stones:Delete(stone)
 	if self:EditTimeLeft(stone) <= 0 then
 		ns.Print("Too late — the stone has set and can't be deleted any more.")
 		return false
 	end
 	if ns.Store:Get(stone.id) ~= stone then return false end
+	pausedAt[stone.id] = nil
 	ns.Store:Tombstone(stone)
 	if ns.ReadWindow:Current() == stone then ns.ReadWindow:Hide() end
 	ns.MinimapPins:Update()
