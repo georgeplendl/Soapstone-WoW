@@ -28,6 +28,14 @@ local function onPinEnter(pin)
 		GameTooltip:AddLine(stone.sketch and "Click to view" or "Click to open", 0.5, 0.5, 0.5)
 	else
 		GameTooltip:AddLine("A sealed soapstone", 0.6, 0.6, 0.6)
+	end
+	local rating = ns.Stones:Rating(stone)
+	if rating == ns.Stones.APPRAISE then
+		GameTooltip:AddLine("You appraised this", 1, 0.82, 0)
+	elseif rating == ns.Stones.DISPARAGE then
+		GameTooltip:AddLine("You disparaged this", 0.6, 0.6, 0.6)
+	end
+	if not ns.Stones:IsReadable(stone, pin.dist) then
 		GameTooltip:AddLine(format("Walk within %d yards to read it (%d yd away).", ns.db.gateYards, pin.dist), 0.8, 0.8, 0.8, true)
 	end
 	GameTooltip:Show()
@@ -57,6 +65,18 @@ end
 
 local function style(pin, readable, onRim)
 	local stone = pin.stone
+	local rating = ns.Stones:Rating(stone)
+	if rating == ns.Stones.DISPARAGE then -- faded, whether or not in range
+		pin.tex:SetDesaturated(true)
+		pin.tex:SetVertexColor(0.5, 0.5, 0.5)
+		pin:SetAlpha(0.35)
+		return
+	elseif rating == ns.Stones.APPRAISE then -- gold
+		pin.tex:SetDesaturated(false)
+		pin.tex:SetVertexColor(1, 0.85, 0.35)
+		pin:SetAlpha(readable and 1 or 0.8)
+		return
+	end
 	pin.tex:SetDesaturated(not readable)
 	if readable then
 		pin.tex:SetVertexColor(1, 1, 1)

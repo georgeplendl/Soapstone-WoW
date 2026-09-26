@@ -7,6 +7,7 @@ local _, ns = ...
 --   stones  = { [id] = stone }      live stones and tombstones, keyed by id
 --   zones   = { [zone] = { visited = time } }   for least-recently-visited eviction
 --   outbox  = { [id] = true }       your changes not yet announced (step 4)
+--   ratings = { [id] = { [characterKey] = 1 | -1 } }   appraise / disparage
 --
 -- stone = { id, v (version, edits bump it), flavor, zone (zone-level uiMapID),
 --           instance, wx, wy (world yards), mapID, x, y (map 0-1), t (dropped),
@@ -146,6 +147,7 @@ function Store:Remove(id)
 	if not stone then return end
 	unindex(stone)
 	db().stones[id] = nil
+	db().ratings[id] = nil
 end
 
 -- Deletes a stone: keeps a tombstone at a higher version, so a stale copy
@@ -177,6 +179,7 @@ end
 function Store:Clear()
 	wipe(db().stones)
 	wipe(db().outbox)
+	wipe(db().ratings)
 	wipe(cells)
 end
 
@@ -231,8 +234,26 @@ function Store:PruneTombstones()
 	for _, id in ipairs(doomed) do
 		stones[id] = nil
 		db().outbox[id] = nil
+		db().ratings[id] = nil
 	end
 	return #doomed
+end
+
+-- Ratings -------------------------------------------------------------------------
+-- Appraise (+1) or disparage (-1): one rating per stone per character, kept in
+-- db.ratings[id][characterKey], apart from the stone record, so a fresh copy
+-- of a stone (from sync or, later, a server) never wipes your rating.
+
+function Store:MyRating(id)
+	local ratings = db().ratings[id]
+	return ratings and ratings[ns.Identity.PlayerKey()] or nil
+end
+
+-- value: 1, -1, or nil to clear.
+function Store:Rate(id, value)
+	local ratings = db().ratings[id] or {}
+	ratings[ns.Identity.PlayerKey()] = value
+	db().ratings[id] = next(ratings) and ratings or nil
 end
 
 -- Sync view -------------------------------------------------------------------
@@ -347,6 +368,7 @@ end
 local function migrate(d)
 	d.zones = d.zones or {}
 	d.outbox = d.outbox or {}
+	d.ratings = d.ratings or {}
 	if d.schema == Store.SCHEMA then return 0 end
 	local old, stones, count = d.stones or {}, {}, 0
 	for _, stone in ipairs(old) do

@@ -11,6 +11,8 @@ ns.Cues = Cues
 local CUES = {
 	near = { kits = { "MAP_PING", "TELL_MESSAGE" } },                          -- a sealed stone is somewhere close
 	read = { kits = { "IG_QUEST_LIST_COMPLETE", "READY_CHECK", "MAP_PING" } }, -- you can read it from here
+	appraise = { kits = { "IG_QUEST_LIST_SELECT", "IG_QUEST_LIST_OPEN", "IG_MAINMENU_OPTION_CHECKBOX_ON" } },
+	disparage = { kits = { "IG_QUEST_LOG_ABANDON_QUEST", "IG_MAINMENU_OPTION_CHECKBOX_OFF", "IG_MAINMENU_CLOSE" } },
 }
 
 local function resolveKit(cue)
