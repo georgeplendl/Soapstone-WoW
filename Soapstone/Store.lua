@@ -155,6 +155,7 @@ function Store:Tombstone(stone)
 	db().stones[stone.id] = {
 		id = stone.id,
 		v = (stone.v or 1) + 1,
+		t = stone.t,
 		deleted = true,
 		deletedAt = time(),
 		zone = stone.zone,
@@ -232,6 +233,110 @@ function Store:PruneTombstones()
 		db().outbox[id] = nil
 	end
 	return #doomed
+end
+
+-- Sync view -------------------------------------------------------------------
+-- What Sync.lua compares and trades. A zone's shareable stones (tombstones
+-- included, so deletions spread) are split into BUCKETS by id; each bucket's
+-- fingerprint is an order-independent sum of hash("id:v"). Two players swap
+-- the 16 fingerprints and only list the buckets that differ.
+
+Store.BUCKETS = 16
+
+-- Shareable: from this game, not a local test stone, and with a known
+-- author (stones from before names were stored in full have none).
+function Store.IsShareable(stone)
+	return not stone.localOnly and stone.authorKey ~= nil
+		and (stone.flavor == nil or stone.flavor == ns.Identity.Flavor())
+end
+
+local function bucketOf(id)
+	return ns.Codec.Hash(id) % Store.BUCKETS + 1
+end
+
+-- Shareable stones and tombstones in `zone`.
+function Store:ZoneEntries(zone)
+	local list = {}
+	for _, stone in pairs(db().stones) do
+		if stone.zone == zone and Store.IsShareable(stone) then list[#list + 1] = stone end
+	end
+	return list
+end
+
+-- Per-bucket fingerprints for `zone`, and the number of entries.
+function Store:Buckets(zone)
+	local sums, count = {}, 0
+	for b = 1, self.BUCKETS do sums[b] = 0 end
+	for _, stone in ipairs(self:ZoneEntries(zone)) do
+		local b = bucketOf(stone.id)
+		sums[b] = (sums[b] + ns.Codec.Hash(stone.id .. ":" .. (stone.v or 1))) % 16777216
+		count = count + 1
+	end
+	return sums, count
+end
+
+-- The 16 fingerprints as one 96-character string, and back.
+function Store.EncodeBuckets(sums)
+	local parts = {}
+	for b = 1, Store.BUCKETS do parts[b] = ns.Codec.Hex6(sums[b]) end
+	return table.concat(parts)
+end
+
+function Store.DecodeBuckets(s)
+	if type(s) ~= "string" or #s ~= Store.BUCKETS * 6 or s:find("[^0-9a-f]") then return nil end
+	local sums = {}
+	for b = 1, Store.BUCKETS do sums[b] = tonumber(s:sub(b * 6 - 5, b * 6), 16) end
+	return sums
+end
+
+-- One short fingerprint for the whole zone, plus its entry count.
+function Store:ZoneDigest(zone)
+	local sums, count = self:Buckets(zone)
+	return ns.Codec.Hex6(ns.Codec.Hash(Store.EncodeBuckets(sums))), count
+end
+
+-- "id:v" for every entry of `zone` in the buckets marked true in `wanted`.
+function Store:BucketEntries(zone, wanted)
+	local out = {}
+	for _, stone in ipairs(self:ZoneEntries(zone)) do
+		if wanted[bucketOf(stone.id)] then out[#out + 1] = stone.id .. ":" .. (stone.v or 1) end
+	end
+	return out
+end
+
+-- Takes a stone (or tombstone) decoded from another player. `viaKey` is who
+-- sent it. Rules:
+--   * your own stones are never overwritten; you're their only source
+--   * only a newer version replaces what you have
+--   * changing or deleting a stone you already have must come first-hand
+--     from its author (a relay could forge an edit); new stones are
+--     accepted from anyone and marked verified when first-hand
+-- Returns "added" | "updated" | "deleted" | "tombstone", or nil and a reason.
+function Store:Merge(rec, viaKey)
+	if rec.authorKey == ns.Identity.PlayerKey() then return nil, "own stone" end
+	local firstHand = viaKey ~= nil and viaKey == rec.authorKey
+	local have = db().stones[rec.id]
+	if have then
+		if (have.v or 1) >= rec.v then return nil, "not newer" end
+		if not firstHand then return nil, "change not from the author" end
+	end
+
+	if rec.deleted then
+		if have then unindex(have) end
+		db().stones[rec.id] = {
+			id = rec.id, v = rec.v, t = rec.t, deleted = true, deletedAt = rec.deletedAt or time(),
+			zone = rec.zone, flavor = ns.Identity.Flavor(), authorKey = rec.authorKey,
+		}
+		return have and "deleted" or "tombstone"
+	end
+
+	rec.author = ns.Identity.Display(rec.authorKey)
+	rec.flavor = ns.Identity.Flavor()
+	rec.via = viaKey
+	rec.verified = firstHand
+	if have then rec.heard = have.heard end
+	self:Put(rec)
+	return have and "updated" or "added"
 end
 
 -- Schema --------------------------------------------------------------------

@@ -10,9 +10,11 @@ Core.lua
 Identity.lua
 Store.lua
 Sketch.lua
+Codec.lua
 Stones.lua
 Cues.lua
 Net.lua
+Sync.lua
 SketchCanvas.lua
 WritePanel.lua
 DropWindow.lua

@@ -95,6 +95,7 @@ local HELP = {
 	"/soap version — show the installed version",
 	"/soap net — network test tools (selftest, pacetest, status, ping, burst, log)",
 	"/soap stats — how many stones are stored, by zone",
+	"/soap sync [now] — zone sync status, or ask other players for this zone's stones now",
 	"/soap clear — delete every stone",
 }
 
@@ -173,6 +174,8 @@ SlashCmdList.SOAPSTONE = function(input)
 		ns.MinimapButton:UpdateVisibility()
 	elseif cmd == "stats" then
 		printStats()
+	elseif cmd == "sync" then
+		ns.Sync:Command(rest)
 	elseif cmd == "clear" then
 		ns.Store:Clear()
 		ns.MinimapPins:Update()
@@ -203,7 +206,8 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		ns.MinimapButton:Init()
 		ns.MinimapPins:Init()
 		ns.Stones:AdoptOwnStones()
-		ns.Stones:StartProximity()
 		ns.Net:Init()
+		ns.Sync:Init()
+		ns.Stones:StartProximity()
 	end
 end)

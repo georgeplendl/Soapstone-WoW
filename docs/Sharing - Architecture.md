@@ -3,8 +3,9 @@
 How Soapstone stones get from the player who drops them to every other player
 who walks past, with nothing to install but the addon.
 
-**Status:** design agreed with George on 2026-09-25. Step 1 (the network test
-build) is in progress; nothing syncs stones yet.
+**Status (2026-09-25):** steps 1–3 built. Zone sync works on the simulated
+network in `tests/`; it hasn't yet run between two real players, which needs
+a second Soapstone player online. Next: step 4, live drops.
 
 ---
 
@@ -125,33 +126,61 @@ message (`Identity.Flavor()`), so nothing can cross by accident.
 
 ---
 
-## Zone sync (step 3)
+## Zone sync (step 3, built: `Sync.lua`, `Codec.lua`)
 
 The **zone key** is the zone-level map ID. From `C_Map.GetBestMapForUnit`,
 climb parents until the map type is *Zone*; Thunder Bluff is `1456`.
 
-When you enter a zone:
+After you've been in a zone for 4 seconds (so passing through doesn't
+count), or once the network channel is joined after login:
 
 ```
-you ──(channel)──►  ZQ   zone=1456  digest=a91f  count=12
-                         "who has Thunder Bluff? here's a fingerprint of mine"
-
-peers whose digest differs wait a random 0–2 s; the first to answer posts:
-peer ─(channel)──►  ZH   zone=1456  digest=77c0  count=19
-                    everyone else with the same digest hears it and stays quiet
-
-you ──(whisper)──►  ZL   zone=1456                     "send your list"
-peer ─(whisper)──►  ZI   id:version, id:version, …     (in parts)
-you ──(whisper)──►  ZG   id, id, …                     "send me these"
-peer ─(whisper)──►  ST   <stone>, …                    (in parts, paced)
+you  ─channel─►  ZQ zone digest count          "who has this zone?"
+peer ─channel─►  ZH zone digest count          offer, after a random 0.4–2.5 s;
+                                               anyone about to offer the same
+                                               digest hears it and stays quiet
+you  ─whisper─►  ZL zone <16 bucket fingerprints>     to the biggest offer
+peer ─whisper─►  [ZI] zone,id:v,id:v…          entries in buckets that differ
+you  ─whisper─►  [ZG] zone,id,id…              the ones you lack or have older
+peer ─whisper─►  [ST] <stone> …  ZE zone n     text and deletions first, then sketches
+peer ─whisper─►  ZX zone reason                can't help right now (busy)
 ```
 
-- **Digest:** a short hash of the sorted `id:version` list for that zone, so
-  two players can tell whether they agree without sending the list.
-- **Suppression:** random backoff plus "someone already answered with that
-  digest" keeps a crowded channel from replying all at once.
-- **Retry:** if the answering peer leaves mid-transfer, ask again. A second
-  pass with another peer catches anything the first one lacked.
+`[..]` are multi-part payloads (up to 200 bytes per message, reassembled on
+arrival). Stone records are 16 `~`-separated fields with `%XX` escaping
+(see `Codec.lua`); a sketch record is ~450 characters, so 3 messages.
+
+- **Fingerprints:** a zone's shareable stones and tombstones are split into
+  16 buckets by id. Each bucket's fingerprint is an order-independent sum
+  of `hash("id:v")`; the zone digest is a hash of all 16. An up-to-date zone
+  costs **one broadcast**, and a partial difference only lists the buckets
+  that differ.
+- **Suppression:** random backoff, plus "someone already offered that exact
+  digest", keeps a crowded channel from all answering at once.
+- **Several peers:** after one peer is done, any other offer whose digest
+  still differs from ours is pulled next (up to 3 peers per sync).
+- **Offline peers:** if the peer goes quiet for 20 s or logs off (its
+  "No player named…" system line is hidden), the next offer is tried. If
+  none is left, the sync asks again 10 s later (twice at most per zone
+  visit). Players with the same stones stayed quiet the first time, so one
+  of them answers now.
+- **Merging** (`Store:Merge`): new stones are accepted from anyone and
+  marked `verified` only when they come first-hand from the author. An
+  **existing** stone can only be changed or deleted **first-hand by its
+  author**, so a relay can't forge an edit. Your own stones are never
+  overwritten or requested. A relayed tombstone for a stone you've never
+  seen is kept, so a stale copy can't resurrect it later. Every record is
+  validated by `Codec.DecodeStone` first (id belongs to the author, text
+  ≤ 140 characters, sketch format and data, numbers, position).
+- **`/soap sync`** shows the zone, its fingerprint, any sync in progress
+  and recent results; `/soap sync now` asks again immediately.
+
+**Simulated-network results** (`tests/sync.test.lua`, with WoW Forever's
+measured latency and allowance): a newcomer pulled 25 stones (5 sketches)
+from one player in **43 s over 46 messages** (35 carrying stones), with no
+refused or oversized messages. Offline peers, forged edits, deletions,
+Retail/Forever separation, local test stones and multi-peer pulls all
+behave as described.
 
 **Live drops:** dropping a stone posts `NS zone=1456 id=… version=1` on the
 channel. Players in that zone fetch it by whisper; everyone else ignores it.
@@ -228,7 +257,9 @@ Edits (`version+1`) and deletes (tombstones, below) are announced the same way.
    stones from before names were stored); test stones are `localOnly`; and
    `Net:Enqueue`, a send queue that stays inside the measured allowance.
    Still to add when step 3 needs them: `via` / `verified`.
-3. **Zone sync:** the protocol above, with chunking and pacing.
+3. **Zone sync** *(built; verified on the simulated network, not yet
+   between two real players)*: the protocol above, with chunking, pacing,
+   multi-peer pulls, retry and first-hand-only changes.
 4. **Live drops, edits and deletes** over the channel.
 5. **Abuse limits and tuning** from real traffic.
 
