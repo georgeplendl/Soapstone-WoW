@@ -4,7 +4,7 @@ local _, ns = ...
 -- inside its edit window (Stones.EDIT_SECONDS; see Stones.lua for how the
 -- clock pauses while this is open and restarts after a saved edit).
 -- Written stones get the message box (WritePanel), sketches the drawing
--- editor (DrawPanel), loaded with the current drawing. No Write | Draw tabs:
+-- editor (DrawPanel), loaded with the current drawing. No Write / Draw choice:
 -- a stone can't switch between text and drawing.
 --
 --  ┌ Edit Soapstone ──────────────────────────────── x ┐

@@ -111,10 +111,13 @@ function ns.Stones:GetPlayerLocation()
 end
 local Stones, Store, Sketch = ns.Stones, ns.Store, ns.Sketch
 
--- Drop window: both tabs, drop a text stone and a sketch.
+-- Drop window: the Write / Draw buttons, drop a text stone and a sketch.
 local drop = ns.DropWindow
 local ok, err = pcall(function() drop:Open() end)
 check(ok, "drop window opens (" .. tostring(err) .. ")")
+local write, draw = drop.modeButtons[1], drop.modeButtons[2]
+check(write.text == "Write" and draw.text == "Draw", "Write and Draw buttons")
+check(write.locked and not draw.locked, "it opens on Write")
 check(drop.frame.w > 400 and drop.frame.h > 200, ("drop window sized %.0fx%.0f from the draw panel"):format(drop.frame.w, drop.frame.h))
 drop.writer.edit:SetText("Try jumping")
 drop.writer.edit.scripts.OnTextChanged(drop.writer.edit)
@@ -125,8 +128,13 @@ for _, s in Store:Each() do if s.text == "Try jumping" then text = s end end
 check(text ~= nil and not drop.frame.shown, "a written stone is dropped and the window closes")
 
 drop:Open()
-drop:SetMode("sketch")
-check(drop.drawer.frame.shown and not drop.writer.frame.shown, "the Draw tab shows the drawing editor")
+click(draw)
+check(drop.drawer.frame.shown and not drop.writer.frame.shown, "pressing Draw shows the drawing editor")
+check(draw.locked and not write.locked, "and lights Draw instead of Write")
+drop.frame:Hide()
+drop:Open()
+check(write.locked and not draw.locked and drop.writer.frame.shown, "reopening goes back to Write, not the last mode")
+click(draw)
 check(drop.dropButton.enabled == false, "Drop Stone is off for an empty canvas")
 drop.drawer:SetGrid(Sketch.Sun())
 drop:UpdateButtons()
@@ -138,10 +146,11 @@ local drawing
 for _, s in Store:Each() do if s.sketch then drawing = s end end
 check(drawing ~= nil and drop.drawer:IsEmpty(), "a sketch is dropped and the canvas cleared for next time")
 
--- Read window: one bottom row of Appraise · score · Disparage · Edit · byline.
+-- Read window: Appraise / Disparage under the stone, then Edit and the byline.
 local read = ns.ReadWindow
 ok, err = pcall(function() read:Show(text) end)
 check(ok, "read window opens on your own stone (" .. tostring(err) .. ")")
+check(read.text.text == "\"Try jumping\"", "a written stone is shown in quotes: " .. tostring(read.text.text))
 local appraise, disparage, score = read.appraiseButton, read.disparageButton, read.appraisalsText
 check(read.frame.title.text == "Soapstone", "the title bar still says Soapstone")
 check(appraise.shown and disparage.shown, "Appraise and Disparage show on your own stone")
@@ -149,7 +158,11 @@ check(appraise.text == "Appraised" and appraise.locked, "it reads 'Appraised': y
 check(score.text == "Appraisals: 1" and disparage.text == "Disparage", "score 1")
 check(read.editButton.shown, "Edit sits in the same row")
 check(read.frame.w >= read:MinWidth(), ("the window (%.0f) fits the buttons and footer (%.0f)"):format(read.frame.w, read:MinWidth()))
-check(read.rule ~= nil and read.frame.h >= 36 + 14 + 70, "a rule between the buttons and the footer, and room for both")
+check(read.rule ~= nil and read.frame.h >= 36 + 14 + 70, "a rule between the byline and the buttons, and room for both")
+-- Appraise/Disparage are centred (each 88 wide, 4 apart) in the same row as
+-- Edit (92 wide, 12 from the left): they must clear it.
+check(read.frame.w / 2 - (88 + 2) >= 12 + 92 + 24,
+	("the centred buttons clear Edit (window %.0f wide)"):format(read.frame.w))
 click(disparage)
 check(disparage.text == "Disparaged" and disparage.locked, "Disparage on your own stone lights up and reads 'Disparaged'")
 check(appraise.text == "Appraise" and not appraise.locked, "and Appraise goes back to normal")
@@ -216,5 +229,20 @@ check(#popups == 1 and popups[1].which == "SOAPSTONE_DELETE" and popups[1].data 
 StaticPopupDialogs.SOAPSTONE_DELETE.OnAccept(nil, drawing)
 check(Store:Get(drawing.id).deleted and not edit.frame.shown, "confirming deletes the sketch and closes the editor")
 check(not Stones:IsEditClockPaused(drawing), "no clock left paused")
+
+-- Opening "Leave a Soapstone" closes any stone being read or edited.
+read:Show(stranger)
+check(read.frame.shown, "(a stone is open)")
+drop:Open()
+check(drop.frame.shown and not read.frame.shown, "opening the drop window closes the open stone")
+drop.frame:Hide()
+local fresh = Store:Put({ id = "Mad-Decent-7-7", authorKey = "Mad-Decent", author = "Mad Decent", instance = 1,
+	wx = 9, wy = 9, mapID = 1413, t = NOW, text = "fresh" })
+read:Show(fresh)
+edit:Open(fresh)
+check(edit.frame.shown and read.frame.shown and Stones:IsEditClockPaused(fresh), "(reading and editing a stone)")
+drop:Open()
+check(drop.frame.shown and not edit.frame.shown and not read.frame.shown, "it closes the edit dialog and the stone too")
+check(not Stones:IsEditClockPaused(fresh), "and the edit clock resumes, as if cancelled")
 
 done()

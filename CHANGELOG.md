@@ -10,6 +10,20 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+### Changed
+- "Leave a Soapstone" picks between a message and a drawing with **Write**
+  and **Draw** buttons at the top instead of small tabs
+  under the window. The chosen one stays lit, and it always opens on
+  **Write**.
+- Written stones are shown in quotes when you read them.
+- Opening "Leave a Soapstone" closes any stone you had open, and any edit
+  in progress (as if cancelled).
+- In the stone window, who left it now sits just under the stone, with
+  Appraise and Disparage on the bottom row beside Edit.
+- Your own stones are signed with your name and "(You)", e.g. "— Mad
+  Decent (You), 24 mins ago", and ages read naturally ("1 min ago",
+  "3 hrs ago", "5 days ago").
+
 ## [0.3.1] - 2026-09-25
 
 ### Changed

@@ -10,7 +10,6 @@ ns.DEFAULTS = {
 	gateYards = 40, -- the app's 1-mile gate, scaled down to Azeroth
 	nearYards = 150, -- "somewhere close" sound cue for unread stones
 	sound = true,
-	dropMode = "text", -- last tab used in the drop window: "text" or "sketch"
 	network = false, -- sharing with other players is opt-in: /soap net join
 	minimap = { angle = 210, hide = false },
 }
@@ -209,6 +208,7 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		SoapstoneDB = SoapstoneDB or {}
 		applyDefaults(SoapstoneDB, ns.DEFAULTS)
 		SoapstoneDB.net = nil -- 0.3.0 joined the network by default; since 0.3.1 it's opt-in (`network`)
+		SoapstoneDB.dropMode = nil -- the drop window used to remember Write/Draw; it now always opens on Write
 		ns.db = SoapstoneDB
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_LOGIN" then

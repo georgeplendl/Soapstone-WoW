@@ -57,8 +57,8 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 
 | Action | What happens |
 |---|---|
-| Left-click minimap button (or `/soap`) | "Leave a Soapstone" window: **Write** tab for a message, **Draw** tab for a sketch |
-| Draw tab | 160×60 black-and-white canvas at 3×; 3 pen and 3 eraser sizes; left-drag draws, right-drag erases; Undo, Clear (undoable) |
+| Left-click minimap button (or `/soap`) | "Leave a Soapstone" window: **Write** / **Draw** buttons at the top pick a message or a sketch |
+| Draw | 160×60 black-and-white canvas at 3×; 3 pen and 3 eraser sizes; left-drag draws, right-drag erases; Undo, Clear (undoable) |
 | Right-click minimap button (or `/soap list`) | Nearest 10 stones with distance + compass direction |
 | Click a readable minimap pin (or `/soap read`) | Opens the stone: message, or sketch at 3×. It closes if you walk out of range |
 | Open one of your own stones (written or drawn) within 5 min of posting it | **Edit (m:ss)** button counts down; opens "Edit Soapstone" (the message box, or the drawing editor for a sketch) to change it (marked "(edited)") or delete it (with confirmation). The clock pauses while the editor is open, and a saved edit restarts the full 5 minutes |
@@ -66,7 +66,7 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | Walk within 150 yd of an unread stone | Soft "somewhere close" ping + notice (re-arms when you walk away) |
 | Walk within 40 yd of a stone | Readable chime on every approach, button glows while in range; the first time also prints the message |
 | Hover a minimap pin | Message if you're in range; "sealed" + distance if not |
-| **Appraise** / **Disparage** on any stone | Centred under the message or sketch; below a rule, Edit (left) and the author (right); the stone's appraisals show at the right of the title bar. Your own stones start appraised (score 1); Disparage withdraws that to 0, never below. On others' stones, Appraise (+1) or Disparage (−1), press again to withdraw; appraised pins turn gold, disparaged pins fade and stop triggering sound cues. The score counts the author's appraisal plus your characters' judgements (personal until there's a server) |
+| **Appraise** / **Disparage** on any stone | Under the message or sketch: the author (right), a rule, then Edit (left) and Appraise / Disparage (centred); the stone's appraisals show at the right of the title bar. Your own stones start appraised (score 1); Disparage withdraws that to 0, never below. On others' stones, Appraise (+1) or Disparage (−1), press again to withdraw; appraised pins turn gold, disparaged pins fade and stop triggering sound cues. The score counts the author's appraisal plus your characters' judgements (personal until there's a server) |
 | `/soap sound test` | Preview both cues; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version and which build it is: `0.2.0 (branch ratings @ 16dd7e0, 2026-09-25 18:02)` in a dev checkout, `(release v0.3.0 @ …)` from a release zip |
@@ -103,7 +103,7 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `Net.lua`: the hidden `SoapstoneNet` channel, wire format, paced send queue, multi-part payloads, offline-peer detection, and `/soap net` test tools
 - `Sync.lua`: zone sync, i.e. fetching the current zone's stones from other players
 - `SketchCanvas.lua`: draws a sketch as pooled row-run rectangles; mouse drawing and undo when editable
-- `DropWindow.lua`: "Leave a Soapstone" window with Write | Draw tabs and the Splatoon-style tool strip
+- `DropWindow.lua`: "Leave a Soapstone" window with Write / Draw buttons and the Splatoon-style tool strip
 - `WritePanel.lua`: the message box shared by the drop and edit windows
 - `DrawPanel.lua`: the drawing editor (tool strip + canvas) shared by the drop and edit windows
 - `ReadWindow.lua`: shows one stone's message or sketch, with the Edit countdown on your own written stones
