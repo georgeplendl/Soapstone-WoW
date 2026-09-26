@@ -5,3 +5,4 @@ Thumbs.db
 __pycache__/
 dist/
 node_modules/
+Soapstone/BuildInfo.lua

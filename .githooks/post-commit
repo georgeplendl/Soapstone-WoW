@@ -1,0 +1,4 @@
+#!/bin/sh
+# Keeps Soapstone/BuildInfo.lua current (see tools/buildinfo.sh).
+sh "$(git rev-parse --show-toplevel)/tools/buildinfo.sh"
+exit 0

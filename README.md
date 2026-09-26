@@ -37,6 +37,18 @@ Link the addon folder into AddOns so edits are live after `/reload`. From an **a
 mklink /J "D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns\Soapstone" "C:\Users\PC\Documents\Playground\Soapstone-WoW\Soapstone"
 ```
 
+**Branch in `/soap version`:** once per clone, turn on the repo's git hooks:
+
+```
+git config core.hooksPath .githooks
+```
+
+After every checkout, commit, merge or pull they write
+`Soapstone/BuildInfo.lua` (git-ignored) with the branch, commit and date,
+so `/soap version` shows which build is running. After switching branches,
+`/reload` in game to pick it up. To write the file by hand:
+`sh tools/buildinfo.sh`.
+
 **Interface version:** `Soapstone.toc` says `16001`, confirmed on the WoW
 Forever client with `/dump (select(4, GetBuildInfo()))`. If a client update
 changes it, update `## Interface:` (or tick *Load out of date AddOns*).
@@ -57,7 +69,7 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | **Appraise** / **Disparage** in someone else's stone | Rate it (one rating per stone per character; click again to take it back). Appraised pins turn gold; disparaged pins fade and stop triggering sound cues |
 | `/soap sound test` | Preview both cues; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
-| `/soap version` | Shows the installed version |
+| `/soap version` | Shows the installed version and which build it is: `0.2.0 (branch ratings @ 16dd7e0, 2026-09-25 18:02)` in a dev checkout, `(release v0.3.0 @ …)` from a release zip |
 | `/soap stats` | How many stones are stored (yours, others', test), tombstones, pending changes, and the busiest zones |
 | Settle in a zone for a few seconds | Soapstone asks other players online for that zone's stones and fetches the ones you're missing ("12 new stones arrived for The Barrens") |
 | `/soap sync` / `/soap sync now` | Zone sync status and recent results / ask again right away |

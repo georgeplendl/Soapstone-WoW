@@ -23,6 +23,8 @@ for players: what changed in game, not how.
   disparaged ones fade and no longer trigger sound cues. One rating per
   stone per character; click the same button again to take it back.
   Ratings are personal for now.
+- `/soap version` also says which build is running: the git branch and
+  commit in a development checkout, or the release tag in a release zip.
 - **Zone sync:** settle in a zone for a few seconds and Soapstone asks other
   Soapstone players online for that zone's stones, then fetches the ones you
   don't have ("12 new stones arrived for The Barrens"). Stones you receive
