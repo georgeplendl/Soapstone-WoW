@@ -4,15 +4,18 @@ local _, ns = ...
 -- readable minimap pin or with /soap read. Stones.lua closes it when the
 -- player walks out of reading range.
 --
--- The title bar: "Soapstone" on the left, the stone's appraisals on the
--- right. One row along the bottom: Appraise, Disparage (see Stones.lua for
--- the rules), Edit while your own stone's edit window is open, and who left
--- it. The window widens to fit that row; the stone stays centred above.
+-- Layout, top to bottom: the title bar ("Soapstone" left, the stone's
+-- appraisals right); the message or sketch; Appraise and Disparage centred
+-- under it (see Stones.lua for the rules); a horizontal rule; then Edit
+-- (left, while your own stone's edit window is open) and who left it
+-- (right). The window is as wide as the widest of those.
 --
---  ┌ Soapstone                                    Appraisals: 1  x ┐
---  │                     "Try jumping"                             │
---  │ [Appraised] [Disparage] [Edit (4:32)]  — Mad Decent, just now │
---  └───────────────────────────────────────────────────────────────┘
+--  ┌ Soapstone                          Appraisals: 1   x ┐
+--  │                  "Try jumping"                       │
+--  │             [Appraised]  [Disparage]                 │
+--  │ ──────────────────────────────────────────────────── │
+--  │ [Edit (4:32)]                 — Mad Decent, just now │
+--  └──────────────────────────────────────────────────────┘
 
 local Sketch, SketchCanvas = ns.Sketch, ns.SketchCanvas
 
@@ -25,14 +28,17 @@ local PAD = 16
 local TOP = 36
 local TEXT_WIDTH = 320
 local TICK = 0.25
-local FOOTER = 44          -- the bottom row, with margins
-local ROW_Y = 10           -- bottom row's distance from the window's bottom edge
 local BUTTON_HEIGHT = 22
 local VOTE_WIDTH = 88      -- fits "Appraised" / "Disparaged"
 local EDIT_WIDTH = 92
 local CLOSE_BUTTON = 28    -- room left for the title bar's close button
 local GAP = 4
-local BYLINE_GAP = 16      -- at least this much between the buttons and the byline
+local BYLINE_GAP = 16      -- at least this much between Edit and the byline
+-- Measured up from the window's bottom edge:
+local ROW_Y = 10                            -- Edit + byline row
+local RULE_Y = ROW_Y + BUTTON_HEIGHT + 8    -- the horizontal rule
+local VOTE_Y = RULE_Y + 1 + 10              -- Appraise / Disparage
+local FOOTER = VOTE_Y + BUTTON_HEIGHT + 10  -- everything below the stone itself
 
 local APPRAISED_COLOR = { 1, 0.82, 0 }     -- gold, like appraised pins
 local DISPARAGED_COLOR = { 0.6, 0.6, 0.6 } -- grey, like disparaged pins
@@ -85,8 +91,9 @@ function ReadWindow:Build()
 	canvas.frame:SetPoint("TOP", 0, -TOP - 4)
 	self.canvas = canvas
 
+	-- Appraise and Disparage, centred under the stone.
 	local appraise = button(f, "Appraise", VOTE_WIDTH)
-	appraise:SetPoint("BOTTOMLEFT", PAD - 4, ROW_Y)
+	appraise:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -GAP / 2, VOTE_Y)
 	appraise:SetScript("OnClick", function() self:Vote(ns.Stones.APPRAISE) end)
 	tooltip(appraise, "Appraise", "Tell the author this stone helped. On someone else's stone its pin turns gold. "
 		.. "Your own stones start appraised. Click again to withdraw it.")
@@ -99,8 +106,16 @@ function ReadWindow:Build()
 		.. "calling you over. On your own stone it withdraws your appraisal (never below 0). Click again to withdraw it.")
 	self.disparageButton = disparage
 
+	-- A horizontal rule, then Edit (left) and the byline (right).
+	local rule = f:CreateTexture(nil, "ARTWORK")
+	rule:SetColorTexture(1, 1, 1, 0.15)
+	rule:SetHeight(1)
+	rule:SetPoint("BOTTOMLEFT", PAD - 4, RULE_Y)
+	rule:SetPoint("BOTTOMRIGHT", -(PAD - 4), RULE_Y)
+	self.rule = rule
+
 	local edit = button(f, "Edit", EDIT_WIDTH)
-	edit:SetPoint("LEFT", disparage, "RIGHT", GAP + 2, 0)
+	edit:SetPoint("BOTTOMLEFT", PAD - 4, ROW_Y)
 	edit:SetScript("OnClick", function()
 		if self.stone then ns.EditWindow:Open(self.stone) end
 	end)
@@ -161,11 +176,13 @@ function ReadWindow:UpdateEditButton()
 	end
 end
 
--- How wide the bottom row needs the window to be.
-function ReadWindow:RowWidth()
-	local buttons = (PAD - 4) + VOTE_WIDTH + GAP + VOTE_WIDTH
-	if self.editButton:IsShown() then buttons = buttons + GAP + 2 + EDIT_WIDTH end
-	return buttons + BYLINE_GAP + self.byline:GetStringWidth() + PAD
+-- The narrowest the window can be: wide enough for Appraise + Disparage, and
+-- for Edit (when shown) beside the byline.
+function ReadWindow:MinWidth()
+	local votes = PAD * 2 + VOTE_WIDTH * 2 + GAP
+	local footer = (PAD - 4) + self.byline:GetStringWidth() + PAD
+	if self.editButton:IsShown() then footer = footer + EDIT_WIDTH + BYLINE_GAP end
+	return math.max(votes, footer)
 end
 
 function ReadWindow:Show(stone)
@@ -193,7 +210,7 @@ function ReadWindow:Show(stone)
 	self:UpdateEditButton()
 	self:UpdateVotes()
 
-	self.frame:SetSize(math.max(width + PAD * 2, self:RowWidth()), height + TOP + FOOTER)
+	self.frame:SetSize(math.max(width + PAD * 2, self:MinWidth()), height + TOP + FOOTER)
 	self.frame:Show()
 	if not refreshing and SOUNDKIT and SOUNDKIT.IG_QUEST_LIST_OPEN then
 		PlaySound(SOUNDKIT.IG_QUEST_LIST_OPEN)

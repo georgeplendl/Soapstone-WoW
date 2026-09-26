@@ -22,8 +22,9 @@ for players: what changed in game, not how.
   written stones: "Edit Soapstone" opens the drawing editor with your
   drawing loaded.
 - **Appraise and Disparage**, as in Dark Souls: every stone's read window
-  has **Appraise** and **Disparage** in one row with Edit and the author's
-  name, and its **appraisals** at the right of the title bar. Your own
+  has **Appraise** and **Disparage** centred under the message or sketch,
+  with Edit and the author's name below a rule, and the stone's
+  **appraisals** at the right of the title bar. Your own
   stones start appraised (1 appraisal), and
   disparaging your own only withdraws that, down to 0. On other players'
   stones, appraise or disparage (press again to withdraw): appraised stones
