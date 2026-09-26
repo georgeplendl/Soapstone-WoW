@@ -2,6 +2,8 @@ local _, ns = ...
 
 -- Sound cues. Each cue lists SOUNDKIT names in order of preference; the first
 -- one this client knows is used, so the same code works on Classic and retail.
+-- A cue can instead name a sound kit `id` directly (one picked by ear in game
+-- with /run PlaySound(id)); a missing id just plays nothing.
 -- To use custom audio, drop an .ogg in the addon folder and add its path as a
 -- `file` (e.g. "Interface\\AddOns\\Soapstone\\Sounds\\near.ogg").
 
@@ -16,16 +18,19 @@ local CUES = {
 	-- you set a stone down: a crystal settling into place, else a gem clink,
 	-- else the thunk of dropping an ability on the action bar
 	drop = { kits = { "UI_70_ARTIFACT_FORGE_RELIC_PLACE", "PUT_DOWN_GEMS", "IG_ABILITY_ICON_DROP" } },
-	-- you delete one of your stones: something clearly erased (the keystone
-	-- lift-out tried first was too quiet), else abandoning a quest
-	delete = { kits = { "HOUSING_ERASE_OBJECT", "HOUSING_ROOM_DELETE", "IG_QUEST_LOG_ABANDON_QUEST" } },
+	-- you delete one of your stones: an aura fading away (chosen in game)
+	delete = { id = 165943, label = "UI_ADVENTURES_AURA_REMOVE" },
 }
 Cues.NAMES = { "near", "read", "appraise", "disparage", "drop", "delete" }
 
 local function resolveKit(cue)
 	if cue.kit == nil then
 		cue.kit = false
-		for _, name in ipairs(cue.kits) do
+		if cue.id then
+			cue.kit, cue.kitName = cue.id, format("%s (%d)", cue.label or "sound", cue.id)
+		end
+		for _, name in ipairs(cue.kits or {}) do
+			if cue.kit then break end
 			if SOUNDKIT and SOUNDKIT[name] then
 				cue.kit, cue.kitName = SOUNDKIT[name], name
 				break

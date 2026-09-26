@@ -2,6 +2,7 @@
 -- sound setting, and /soap sound <cue> previews one.
 dofile(TESTS .. "/lib/harness.lua")
 
+format = string.format
 local played = {}
 function PlaySound(kit, channel) played[#played + 1] = { kit = kit, channel = channel } end
 function PlaySoundFile() end
@@ -21,7 +22,8 @@ Cues:Play("drop")
 check(#played == 1, "no drop sound with sound cues off")
 
 check(Cues:Preview("drop") == "PUT_DOWN_GEMS" and #played == 2, "preview plays it anyway and names it")
-check(Cues:Preview("delete") == "IG_QUEST_LOG_ABANDON_QUEST" and played[3].kit == 846, "delete falls back to abandoning a quest")
+check(Cues:Preview("delete") == "UI_ADVENTURES_AURA_REMOVE (165943)" and played[3].kit == 165943,
+	"delete plays the sound picked in game, by id")
 check(Cues:Preview("nope") == false and #played == 3, "an unknown cue plays nothing")
 
 local known = true
