@@ -161,7 +161,7 @@ check(read.frame.w >= read:MinWidth(), ("the window (%.0f) fits the buttons and 
 check(read.rule ~= nil and read.frame.h >= 36 + 14 + 70, "a rule between the byline and the buttons, and room for both")
 -- Appraise/Disparage are centred (each 88 wide, 4 apart) in the same row as
 -- Edit (92 wide, 12 from the left): they must clear it.
-check(read.frame.w / 2 - (88 + 2) >= 12 + 92 + 8,
+check(read.frame.w / 2 - (88 + 2) >= 12 + 92 + 24,
 	("the centred buttons clear Edit (window %.0f wide)"):format(read.frame.w))
 click(disparage)
 check(disparage.text == "Disparaged" and disparage.locked, "Disparage on your own stone lights up and reads 'Disparaged'")

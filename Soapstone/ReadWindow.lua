@@ -29,14 +29,15 @@ local TITLE_BAR = 24   -- the window template's title bar
 local CONTENT_GAP = 18 -- space above the stone, and between the byline and the rule
 local TOP = TITLE_BAR + CONTENT_GAP
 local SKETCH_BORDER = 5 -- the sketch's border sits this far outside the canvas
-local TEXT_WIDTH = 320
+local TEXT_WIDTH = 400 -- written stones wrap at this width
+local TEXT_SIZE = 18   -- written stones' font size (GameFontHighlightLarge's face, a bit bigger)
 local TICK = 0.25
 local BUTTON_HEIGHT = 22
 local VOTE_WIDTH = 88      -- fits "Appraised" / "Disparaged"
 local EDIT_WIDTH = 92
 local CLOSE_BUTTON = 28    -- room left for the title bar's close button
 local GAP = 4
-local EDIT_CLEARANCE = 8   -- at least this much between Edit and the centred buttons
+local EDIT_CLEARANCE = 24  -- at least this much between Edit and the centred buttons
 local BYLINE_HEIGHT = 14   -- one line of small text
 -- Measured up from the window's bottom edge:
 local ROW_Y = 10                            -- Edit + Appraise / Disparage
@@ -86,6 +87,8 @@ function ReadWindow:Build()
 	self.appraisalsText = appraisals
 
 	local text = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+	local face, _, flags = GameFontHighlightLarge and GameFontHighlightLarge:GetFont()
+	if face then text:SetFont(face, TEXT_SIZE, flags) end
 	text:SetPoint("TOP", 0, -TOP)
 	text:SetWidth(TEXT_WIDTH)
 	text:SetJustifyH("CENTER")
