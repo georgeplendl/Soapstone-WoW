@@ -1,0 +1,12 @@
+{
+  "name": "soapstone-tests",
+  "private": true,
+  "description": "Runs Soapstone's Lua tests outside WoW (fengari) and syntax-checks the addon as Lua 5.1 (luaparse).",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "devDependencies": {
+    "fengari": "0.1.5",
+    "luaparse": "0.3.1"
+  }
+}
