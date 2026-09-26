@@ -26,7 +26,7 @@ local FRAME_NAME = "SoapstoneReadFrame"
 local READ_SCALE = 3 -- sketches: 160×60 cells at 3× = 480×180, as drawn
 local PAD = 16
 local TITLE_BAR = 24   -- the window template's title bar
-local CONTENT_GAP = 18 -- the same space above the stone and below it (to the buttons)
+local CONTENT_GAP = 18 -- space above the stone, and between the byline and the rule
 local TOP = TITLE_BAR + CONTENT_GAP
 local SKETCH_BORDER = 5 -- the sketch's border sits this far outside the canvas
 local TEXT_WIDTH = 320
@@ -41,8 +41,9 @@ local BYLINE_HEIGHT = 14   -- one line of small text
 -- Measured up from the window's bottom edge:
 local ROW_Y = 10                            -- Edit + Appraise / Disparage
 local RULE_Y = ROW_Y + BUTTON_HEIGHT + 8    -- the horizontal rule
-local BYLINE_Y = RULE_Y + 1 + 8             -- who left it
-local FOOTER = BYLINE_Y + BYLINE_HEIGHT + CONTENT_GAP -- everything below the stone itself
+local BYLINE_Y = RULE_Y + 1 + CONTENT_GAP   -- who left it, with room before the rule
+local BYLINE_TUCK = 2                       -- the byline sits right under the stone
+local FOOTER = BYLINE_Y + BYLINE_HEIGHT + BYLINE_TUCK -- everything below the stone itself
 
 local APPRAISED_COLOR = { 1, 0.82, 0 }     -- gold, like appraised pins
 local DISPARAGED_COLOR = { 0.6, 0.6, 0.6 } -- grey, like disparaged pins
