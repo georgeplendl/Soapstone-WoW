@@ -89,6 +89,10 @@ function DropWindow:Layout()
 end
 
 function DropWindow:Open()
+	-- Starting a new stone closes any stone you were reading or editing (an
+	-- open edit closes as if cancelled: its clock resumes).
+	if ns.EditWindow then ns.EditWindow:Hide() end
+	if ns.ReadWindow then ns.ReadWindow:Hide() end
 	if not self.frame then self:Build() end
 	self:Layout()
 	self.frame:Show()

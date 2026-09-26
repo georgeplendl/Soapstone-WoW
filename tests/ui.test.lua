@@ -230,4 +230,19 @@ StaticPopupDialogs.SOAPSTONE_DELETE.OnAccept(nil, drawing)
 check(Store:Get(drawing.id).deleted and not edit.frame.shown, "confirming deletes the sketch and closes the editor")
 check(not Stones:IsEditClockPaused(drawing), "no clock left paused")
 
+-- Opening "Leave a Soapstone" closes any stone being read or edited.
+read:Show(stranger)
+check(read.frame.shown, "(a stone is open)")
+drop:Open()
+check(drop.frame.shown and not read.frame.shown, "opening the drop window closes the open stone")
+drop.frame:Hide()
+local fresh = Store:Put({ id = "Mad-Decent-7-7", authorKey = "Mad-Decent", author = "Mad Decent", instance = 1,
+	wx = 9, wy = 9, mapID = 1413, t = NOW, text = "fresh" })
+read:Show(fresh)
+edit:Open(fresh)
+check(edit.frame.shown and read.frame.shown and Stones:IsEditClockPaused(fresh), "(reading and editing a stone)")
+drop:Open()
+check(drop.frame.shown and not edit.frame.shown and not read.frame.shown, "it closes the edit dialog and the stone too")
+check(not Stones:IsEditClockPaused(fresh), "and the edit clock resumes, as if cancelled")
+
 done()
