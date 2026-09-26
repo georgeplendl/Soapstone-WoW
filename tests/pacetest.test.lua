@@ -48,7 +48,7 @@ C_Timer = {
 local ns, printed = {}, {}
 ns.Print = function(msg) printed[#printed + 1] = msg end
 ns.Version = function() return "0.2.0" end
-ns.db = { net = true }
+ns.db = { network = true }
 assert(loadfile(ROOT .. "/Identity.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Net.lua"))("Soapstone", ns)
 local Net = ns.Net

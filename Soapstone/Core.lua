@@ -11,7 +11,7 @@ ns.DEFAULTS = {
 	nearYards = 150, -- "somewhere close" sound cue for unread stones
 	sound = true,
 	dropMode = "text", -- last tab used in the drop window: "text" or "sketch"
-	net = true, -- join the hidden Soapstone network channel at login
+	network = false, -- sharing with other players is opt-in: /soap net join
 	minimap = { angle = 210, hide = false },
 }
 
@@ -208,6 +208,7 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
 		SoapstoneDB = SoapstoneDB or {}
 		applyDefaults(SoapstoneDB, ns.DEFAULTS)
+		SoapstoneDB.net = nil -- 0.3.0 joined the network by default; since 0.3.1 it's opt-in (`network`)
 		ns.db = SoapstoneDB
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_LOGIN" then

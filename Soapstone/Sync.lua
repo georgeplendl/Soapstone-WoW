@@ -336,13 +336,15 @@ function Sync:Command(input)
 	if input == "now" then
 		if not self.zone then return ns.Print("No zone yet — try again in a moment.") end
 		if job then return ns.Print("A sync is already running.") end
-		if not Net():IsReady() then return ns.Print("Not connected to the Soapstone network (/soap net).") end
+		if not ns.db.network then return ns.Print("Networking is off. /soap net join turns it on.") end
+		if not Net():IsReady() then return ns.Print("Not connected to the Soapstone network yet (/soap net).") end
 		self:Start(self.zone, true)
 		return ns.Print(format("Asking who has stones for %s…", zoneName(self.zone)))
 	end
 	local digest, count = self.zone and Store():ZoneDigest(self.zone)
 	ns.Print(format("Zone: %s — %d shareable stones (fingerprint %s). Network: %s.",
-		zoneName(self.zone), count or 0, digest or "-", Net():IsReady() and "connected" or "not connected"))
+		zoneName(self.zone), count or 0, digest or "-",
+		not ns.db.network and "off (/soap net join)" or Net():IsReady() and "connected" or "not connected yet"))
 	if job then
 		ns.Print(format("Syncing now: %s%s.", job.stage, job.peer and (" with " .. job.peer) or ""))
 	end

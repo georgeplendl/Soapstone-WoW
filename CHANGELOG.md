@@ -10,6 +10,15 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-25
+
+### Changed
+- **Sharing with other players is now off by default.** Soapstone no longer
+  joins its hidden network channel unless you turn networking on with
+  `/soap net join` (`/soap net leave` turns it off again). This applies to
+  existing installs too: updating from 0.3.0 switches it off. Your stones,
+  appraisals and everything else work the same without it.
+
 ## [0.3.0] - 2026-09-25
 
 ### Added
@@ -99,7 +108,8 @@ for players: what changed in game, not how.
   (`/soap near`) and a chime when you can read one (`/soap sound`).
 - `/soap list`, `/soap test`, `/soap button` and `/soap clear`.
 
-[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/georgeplendl/Soapstone-WoW/releases/tag/v0.1.0

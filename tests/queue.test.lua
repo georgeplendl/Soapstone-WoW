@@ -40,7 +40,7 @@ C_Timer = {
 	After = function() end,
 }
 
-local ns = { db = { net = true } }
+local ns = { db = { network = true } }
 ns.Print = function() end
 ns.Version = function() return "0.2.0" end
 assert(loadfile(ROOT .. "/Identity.lua"))("Soapstone", ns)
