@@ -1,6 +1,6 @@
 -- Edit/delete rules in Stones.lua on top of Store.lua (schema 2), plus
-dofile(TESTS .. "/lib/harness.lua")
 -- ns.FormatCountdown. Characters: Mad Decent (author) and Osha Compliant.
+dofile(TESTS .. "/lib/harness.lua")
 local NOW = 1000000
 function time() return NOW end
 function strtrim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
@@ -25,6 +25,7 @@ local ns, printed = {}, {}
 assert(loadfile(ROOT .. "/Core.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Identity.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Store.lua"))("Soapstone", ns)
+assert(loadfile(ROOT .. "/Sketch.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Stones.lua"))("Soapstone", ns)
 ns.Print = function(msg) printed[#printed + 1] = msg end
 ns.db = { stones = {}, schema = 2, zones = {}, outbox = {} }
@@ -57,7 +58,7 @@ check(Stones:EditTimeLeft(mine) == 0, "0 at exactly 5:00")
 NOW = NOW - 300
 
 check(Stones:EditTimeLeft(put({ id = "Zug-Zug-1-1", authorKey = "Zug-Zug", text = "x" })) == 0, "strangers' stones can't be edited")
-check(Stones:EditTimeLeft(put({ id = "Mad-Decent-1-2", authorKey = "Mad-Decent", sketch = {} })) == 0, "sketches can't be edited")
+check(Stones:EditTimeLeft(put({ id = "Mad-Decent-1-2", authorKey = "Mad-Decent", sketch = {} })) == 300, "your sketches are editable too")
 check(Stones:EditTimeLeft(nil) == 0, "no stone -> 0")
 
 -- Account-wide "mine" no longer counts: Osha can't touch Mad's fresh stone.
@@ -95,5 +96,47 @@ NOW = NOW + 301
 check(Stones:Edit(keep, "Too late") == false and keep.text == "keep me", "edit after 5 min rejected")
 check(printed[#printed]:find("Too late") ~= nil, "player told it's too late")
 check(Stones:Delete(keep) == false and Store:Get("Mad-Decent-1-3") == keep, "delete after 5 min rejected")
+
+-- The edit clock ---------------------------------------------------------------
+-- Pauses while the editor is open, resumes on cancel, restarts on a save.
+
+local clock = put({ id = "Mad-Decent-2-1", authorKey = "Mad-Decent", text = "clock" })
+NOW = NOW + 60
+check(Stones:EditTimeLeft(clock) == 240, "4:00 left after a minute")
+Stones:PauseEditClock(clock)
+check(Stones:IsEditClockPaused(clock), "opening the editor pauses the clock")
+NOW = NOW + 1000
+check(Stones:EditTimeLeft(clock) == 240, "a long edit costs nothing (still 4:00)")
+Stones:ResumeEditClock(clock)
+check(not Stones:IsEditClockPaused(clock) and Stones:EditTimeLeft(clock) == 240, "cancel resumes at 4:00")
+NOW = NOW + 30
+check(Stones:EditTimeLeft(clock) == 210, "and it counts down again")
+
+Stones:PauseEditClock(clock)
+NOW = NOW + 600 -- far past where the window would have ended
+check(Stones:Edit(clock, { text = "clock, reworded" }) == true, "saving still works after a long pause")
+check(Stones:EditTimeLeft(clock) == 300 and clock.windowStart == NOW, "a saved edit restarts the full 5:00")
+check(not Stones:IsEditClockPaused(clock), "and unpauses")
+NOW = NOW + 100
+check(Stones:Edit(clock, "clock, reworded") == true and Stones:EditTimeLeft(clock) == 200,
+	"saving without a change doesn't restart the clock")
+
+-- Sketches ---------------------------------------------------------------------
+
+local Sketch = ns.Sketch
+local sun = Sketch.Pack(Sketch.Sun())
+local drawing = put({ id = "Mad-Decent-3-1", authorKey = "Mad-Decent", sketch = sun })
+local grid = Sketch.Sun()
+Sketch.Stamp(grid, 5, 5, 5, true)
+local changed = Sketch.Pack(grid)
+Stones:PauseEditClock(drawing)
+NOW = NOW + 400
+check(Stones:Edit(drawing, { sketch = changed }) == true, "a sketch can be redrawn")
+check(drawing.sketch.data == changed.data and drawing.v == 2, "new drawing saved, version bumped")
+check(Stones:EditTimeLeft(drawing) == 300, "and its clock restarted")
+check(Stones:Edit(drawing, { sketch = Sketch.Pack(Sketch.New()) }) == false, "an empty drawing is refused")
+check(Stones:Edit(drawing, { text = "words" }) == false and drawing.text == nil, "a sketch can't become text")
+check(Stones:Edit(clock, { sketch = changed }) == false and clock.sketch == nil, "and text can't become a sketch")
+check(Stones:Delete(drawing) == true and Store:Get(drawing.id).deleted, "a sketch can be deleted in its window")
 
 done()
