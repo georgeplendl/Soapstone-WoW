@@ -1,15 +1,14 @@
 local _, ns = ...
 
--- Network layer, step 1: a test harness for player-to-player messaging.
--- See docs/Sharing - Architecture.md. Nothing here syncs stones yet; it
--- answers the unknowns first:
---   * do hidden custom channels and addon messages work on this client, and
---     how far do they reach?
---   * what does the sender name look like when a message arrives?
---   * where does the client start throttling?
+-- Network layer: the hidden channel, the wire format, a paced send queue,
+-- multi-part payloads, and the /soap net test tools. See
+-- docs/Sharing - Architecture.md. Sync.lua builds zone sync on top.
 --
 -- Wire format: "S1;<flavor>;<TYPE>;field;field..." on prefix "Soapstone".
 -- Messages from another protocol version or game flavour are ignored.
+-- Payloads too big for one message go as parts:
+--   "S1;<flavor>;P;<xfer>;<i>;<n>;<KIND>;<chunk>"
+-- reassembled per sender and handed to whoever registered KIND.
 
 local Identity = ns.Identity
 
@@ -81,8 +80,15 @@ function Net:Join()
 		self:HideFromChat()
 		if not channelIndex() then
 			ns.Print("Couldn't join the Soapstone network channel. Try /soap net join.")
+		elseif ns.Sync then
+			ns.Sync:OnNetReady()
 		end
 	end)
+end
+
+-- In the channel, so broadcasts can go out.
+function Net:IsReady()
+	return channelIndex() ~= nil
 end
 
 function Net:Leave()
@@ -97,6 +103,8 @@ function Net:Send(dist, target, kind, ...)
 	if dist == "CHANNEL" then
 		target = channelIndex()
 		if not target then return "not in channel" end
+	elseif dist == "WHISPER" and target then
+		self:NoteWhisper(target)
 	end
 	local parts = { PROTOCOL, Identity.Flavor(), kind }
 	for i = 1, select("#", ...) do
@@ -159,6 +167,95 @@ end
 -- Receiving -----------------------------------------------------------------
 
 local handlers = {}
+
+-- Other modules handle message types: fn(net, sender, dist, field, ...).
+function Net:On(kind, fn)
+	handlers[kind] = fn
+end
+
+-- Payloads (multi-part) ---------------------------------------------------------
+
+local CHUNK = 200      -- payload bytes per message; the rest of 255 is header
+local MAX_PARTS = 48   -- ~9.6 KB, enough for a full sketch record
+local STALE = 60       -- seconds before a half-received payload is dropped
+
+local payloadHandlers = {}
+local incoming = {} -- sender .. "/" .. xfer -> { kind, n, parts, got, touched }
+local xferCounter = 0
+
+-- fn(net, sender, payload) runs once every part of a KIND payload is in.
+function Net:OnPayload(kind, fn)
+	payloadHandlers[kind] = fn
+end
+
+-- Queues `payload` (a string without ";") in as many parts as it needs.
+function Net:SendPayload(dist, target, kind, payload)
+	assert(not payload:find(";", 1, true), "payload must not contain ';'")
+	xferCounter = xferCounter % 9999 + 1
+	local n = math.max(1, math.ceil(#payload / CHUNK))
+	for i = 1, n do
+		self:Enqueue(dist, target, "P", xferCounter, i, n, kind, payload:sub((i - 1) * CHUNK + 1, i * CHUNK))
+	end
+	return n
+end
+
+function handlers.P(self, sender, dist, xfer, i, n, kind, chunk)
+	i, n = tonumber(i), tonumber(n)
+	if not (i and n and n >= 1 and n <= MAX_PARTS and i >= 1 and i <= n and kind) then return end
+	local t = now()
+	for key, x in pairs(incoming) do
+		if t - x.touched > STALE then incoming[key] = nil end
+	end
+	local key = sender .. "/" .. tostring(xfer)
+	local x = incoming[key]
+	if not x or x.n ~= n or x.kind ~= kind then
+		x = { kind = kind, n = n, parts = {}, got = 0 }
+		incoming[key] = x
+	end
+	x.touched = t
+	if not x.parts[i] then
+		x.parts[i] = chunk or ""
+		x.got = x.got + 1
+	end
+	if x.got == n then
+		incoming[key] = nil
+		local handler = payloadHandlers[kind]
+		if handler then handler(self, sender, table.concat(x.parts)) end
+	end
+end
+
+-- Offline peers -----------------------------------------------------------------
+-- Whispering someone who logged off prints "No player named 'X' is currently
+-- playing." For players we only messaged by addon, hide that line and tell
+-- whoever cares (Sync) that the peer is gone.
+
+local WHISPER_MEMORY = 30
+local recentWhispers = {} -- target -> time
+local goneListeners = {}
+
+function Net:NoteWhisper(target)
+	recentWhispers[target] = now()
+end
+
+function Net:OnPeerGone(fn)
+	goneListeners[#goneListeners + 1] = fn
+end
+
+local notFoundPattern
+local function peerGoneFilter(_, _, message)
+	if not notFoundPattern then
+		local template = ERR_CHAT_PLAYER_NOT_FOUND_S or "No player named '%s' is currently playing."
+		-- escape pattern characters, then turn the template's "%s" into a capture
+		local escaped = template:gsub("[%(%)%.%+%-%*%?%[%]%^%$]", "%%%0")
+		notFoundPattern = "^" .. escaped:gsub("%%s", "(.+)") .. "$"
+	end
+	local name = type(message) == "string" and message:match(notFoundPattern)
+	local seen = name and recentWhispers[name]
+	if not seen or now() - seen > WHISPER_MEMORY then return false end
+	recentWhispers[name] = nil
+	for _, fn in ipairs(goneListeners) do fn(name) end
+	return true
+end
 
 function handlers.PING(self, sender, dist, nonce, version)
 	local reply = self:Send("WHISPER", sender, "PONG", nonce, ns.Version(), dist)
@@ -432,6 +529,9 @@ function Net:Init()
 	frame:SetScript("OnEvent", function(_, _, prefix, text, dist, sender)
 		if prefix == PREFIX then self:OnMessage(text, dist, sender) end
 	end)
+	if ChatFrame_AddMessageEventFilter then
+		ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", peerGoneFilter)
+	end
 	if ns.db.net then
 		C_Timer.After(JOIN_DELAY, function() self:Join() end)
 	end

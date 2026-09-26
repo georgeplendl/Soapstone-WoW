@@ -249,6 +249,7 @@ function Stones:CheckProximity()
 		if zone ~= self.zone then
 			self.zone = zone
 			ns.Store:Visit(zone)
+			ns.Sync:OnZone(zone)
 		end
 		for _, stone in ipairs(ns.Store:Near(here, ns.db.nearYards + HYSTERESIS, nearby)) do
 			local dist = not ns.Store.IsMine(stone) and self:Distance(here, stone)

@@ -58,6 +58,8 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version |
 | `/soap stats` | How many stones are stored (yours, others', test), tombstones, pending changes, and the busiest zones |
+| Settle in a zone for a few seconds | Soapstone asks other players online for that zone's stones and fetches the ones you're missing ("12 new stones arrived for The Barrens") |
+| `/soap sync` / `/soap sync now` | Zone sync status and recent results / ask again right away |
 | `/soap net` | Network test tools: `selftest` and `pacetest` (one character), `status`, `ping [channel\|guild\|party\|yell\|whisper Name]`, `burst [n]`, `log` (see [Sharing — Architecture](docs/Sharing%20-%20Architecture.md)) |
 | `/soap help` | All commands |
 
@@ -83,7 +85,9 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `Store.lua`: all stone data: stored by id with version, game and zone; tombstones, outbox, storage caps, and a spatial index for "what's near me"
 - `Identity.lua`: game flavour (`forever` / `retail` / `classic`) and player identity (`Mad-Decent`, shown as "Mad Decent")
 - `Cues.lua`: sound cues; picks the first built-in sound your client has, or plays a custom `.ogg`
-- `Net.lua`: the hidden `SoapstoneNet` channel, addon-message wire format, and `/soap net` test tools
+- `Codec.lua`: stones as text for the wire, and validation of everything received
+- `Net.lua`: the hidden `SoapstoneNet` channel, wire format, paced send queue, multi-part payloads, offline-peer detection, and `/soap net` test tools
+- `Sync.lua`: zone sync, i.e. fetching the current zone's stones from other players
 - `SketchCanvas.lua`: draws a sketch as pooled row-run rectangles; mouse drawing and undo when editable
 - `DropWindow.lua`: "Leave a Soapstone" window with Write | Draw tabs and the Splatoon-style tool strip
 - `WritePanel.lua`: the message box shared by the drop and edit windows
@@ -94,6 +98,23 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `Media/`: icon textures with transparent backgrounds (`Soapstone.tga` 64×64 for the button and AddOns list, `SoapstonePin.tga` 32×32 for minimap pins)
 
 Icon source art is `art/soapstone.png`. After changing it, run `py tools/convert_icon.py` to rebuild `Media/`.
+
+## Tests
+
+The addon's logic is tested outside the game with Node:
+
+```
+cd tests
+npm install
+npm test            # everything;  node run.js sync -v  for one file, verbosely
+```
+
+`tests/run.js` syntax-checks every addon file as Lua 5.1 (what WoW runs) and
+runs each `tests/*.test.lua` under [fengari](https://github.com/fengari-lua/fengari).
+`tests/lib/wowsim.lua` simulates several WoW Forever players on one server
+(with the measured latency and send limits) for end-to-end sync tests. The
+**Tests** GitHub Action runs the suite on every push to `main` and every
+pull request.
 
 ## Releasing
 
@@ -115,10 +136,10 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
 
 ## Next steps
 
-1. **Sharing.** Stones are local-only right now. With nothing to install but
-   the addon, stones will sync player to player, zone by zone, over a hidden
-   channel. See [Sharing — Architecture](docs/Sharing%20-%20Architecture.md);
-   step 1, the network test build, is in.
+1. **Sharing.** Zone sync is in: settle in a zone and Soapstone fetches its
+   stones from other players online. Next are live drops (announcing new
+   stones as they're made). See [Sharing — Architecture](docs/Sharing%20-%20Architecture.md).
+   It still needs a real two-player test.
 2. **In-world presence.** An on-screen arrow toward the nearest sealed stone, a
    rune glow at your feet when on the spot, and the built-in waypoint marker
    (`C_SuperTrack`) if this client has it.
