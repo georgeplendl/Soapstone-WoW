@@ -10,6 +10,11 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+### Changed
+- "Leave a Soapstone" picks between a message and a drawing with **Write**
+  and **Draw** buttons at the top, in larger text, instead of small tabs
+  under the window. The chosen one stays lit.
+
 ## [0.3.1] - 2026-09-25
 
 ### Changed

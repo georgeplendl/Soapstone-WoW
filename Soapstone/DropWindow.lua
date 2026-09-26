@@ -1,10 +1,12 @@
 local _, ns = ...
 
--- "Leave a Soapstone": the drop window. Two Blizzard-style tabs along the
--- bottom switch between Write (a short message, WritePanel) and Draw (a
--- sketch, DrawPanel: Splatoon-style tools beside the canvas).
+-- "Leave a Soapstone": the drop window. Two buttons at the top, Write and
+-- Draw, pick between a short message (WritePanel) and a sketch (DrawPanel:
+-- Splatoon-style tools beside the canvas). The chosen one stays lit, like
+-- Appraise / Disparage in the stone window.
 --
 --  ┌ Leave a Soapstone ─────────────────────────────── x ┐
+--  │                [  Write  ][  Draw  ]                 │
 --  │ Pen  Eraser   ┌──────────────────────────────────┐   │
 --  │ [·]  [▫]      │                                  │   │
 --  │ [•]  [□]      │        160 × 60 canvas, 3×       │   │
@@ -13,7 +15,6 @@ local _, ns = ...
 --  │ [ Clear ]      Left-drag to draw · Right-drag erases │
 --  │                              [ Drop Stone ][Cancel]  │
 --  └──────────────────────────────────────────────────────┘
---    (Write)(Draw)
 
 local Sketch = ns.Sketch
 
@@ -22,36 +23,13 @@ ns.DropWindow = DropWindow
 
 local FRAME_NAME = "SoapstoneDropFrame"
 local PAD = 14
-local TOP = 34    -- clears the title bar
-local FOOTER = 62 -- hint line + action buttons
-
-local TAB_TEMPLATES = { "CharacterFrameTabButtonTemplate", "CharacterFrameTabTemplate", "PanelTabButtonTemplate" }
-
-local function templateExists(name)
-	if C_XMLUtil and C_XMLUtil.GetTemplateInfo then
-		return C_XMLUtil.GetTemplateInfo(name) ~= nil
-	end
-	return true -- can't check on this client; CreateFrame is wrapped in pcall
-end
-
--- A bottom tab in whichever style this client ships. Falls back to a plain
--- panel button if none of the known tab templates exist.
-local function createTab(parent, id)
-	local name = parent:GetName() .. "Tab" .. id
-	for _, template in ipairs(TAB_TEMPLATES) do
-		if templateExists(template) then
-			local ok, tab = pcall(CreateFrame, "Button", name, parent, template)
-			if ok and tab then
-				tab:SetID(id)
-				return tab, true
-			end
-		end
-	end
-	local tab = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-	tab:SetSize(80, 24)
-	tab:SetID(id)
-	return tab, false
-end
+local TOP = 34             -- clears the title bar
+local MODE_WIDTH = 110     -- Write / Draw buttons
+local MODE_HEIGHT = 26     -- a little taller than normal buttons, with larger text
+local MODE_ROW = MODE_HEIGHT + 10
+local CONTENT_TOP = TOP + MODE_ROW
+local FOOTER = 62          -- hint line + action buttons
+local MODES = { { key = "text", label = "Write" }, { key = "sketch", label = "Draw" } }
 
 local function createActionButton(parent, text, width)
 	local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
@@ -67,12 +45,33 @@ function DropWindow:Build()
 	f:SetPoint("CENTER", 0, 80)
 	self.frame = f
 
+	-- Write | Draw, centred under the title bar, in larger text.
+	self.modeButtons = {}
+	for i, mode in ipairs(MODES) do
+		local btn = createActionButton(f, mode.label, MODE_WIDTH)
+		btn:SetHeight(MODE_HEIGHT)
+		btn:SetNormalFontObject("GameFontNormalLarge")
+		btn:SetHighlightFontObject("GameFontHighlightLarge")
+		btn:SetDisabledFontObject("GameFontDisableLarge")
+		if i == 1 then
+			btn:SetPoint("TOPRIGHT", f, "TOP", -2, -TOP)
+		else
+			btn:SetPoint("LEFT", self.modeButtons[i - 1], "RIGHT", 4, 0)
+		end
+		btn:SetScript("OnClick", function()
+			self:SetMode(mode.key)
+			if SOUNDKIT and SOUNDKIT.IG_CHARACTER_INFO_TAB then PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB) end
+		end)
+		btn.mode = mode.key
+		self.modeButtons[i] = btn
+	end
+
 	local drawer = ns.DrawPanel.Create(f, function() self:UpdateButtons() end)
-	drawer.frame:SetPoint("TOPLEFT", 0, -TOP)
+	drawer.frame:SetPoint("TOPLEFT", 0, -CONTENT_TOP)
 	self.drawer = drawer
 
 	local writer = ns.WritePanel.Create(f, function() self:Submit() end, function() self:UpdateButtons() end)
-	writer.frame:SetPoint("TOPLEFT", PAD, -TOP)
+	writer.frame:SetPoint("TOPLEFT", PAD, -CONTENT_TOP)
 	writer.frame:SetPoint("BOTTOMRIGHT", drawer.canvas.frame, "BOTTOMRIGHT", 6, -6)
 	self.writer = writer
 
@@ -83,32 +82,13 @@ function DropWindow:Build()
 	drop:SetPoint("RIGHT", cancel, "LEFT", -4, 0)
 	drop:SetScript("OnClick", function() self:Submit() end)
 	self.dropButton = drop
-
-	self.tabs = {}
-	for i, label in ipairs({ "Write", "Draw" }) do
-		local tab, blizzard = createTab(f, i)
-		tab:SetText(label)
-		if blizzard and PanelTemplates_TabResize then PanelTemplates_TabResize(tab, 0) end
-		tab:SetScript("OnClick", function()
-			self:SetMode(i == 1 and "text" or "sketch")
-			if SOUNDKIT and SOUNDKIT.IG_CHARACTER_INFO_TAB then PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB) end
-		end)
-		self.tabs[i] = tab
-		self.blizzardTabs = blizzard
-	end
-	self.tabs[1]:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 12, 2)
-	self.tabs[2]:SetPoint("LEFT", self.tabs[1], "RIGHT", self.blizzardTabs and -14 or 4, 0)
-	if self.blizzardTabs then
-		f.Tabs = self.tabs
-		PanelTemplates_SetNumTabs(f, #self.tabs)
-	end
 end
 
 -- Behaviour -----------------------------------------------------------------
 
 function DropWindow:Layout()
 	local width, height = self.drawer:Layout()
-	self.frame:SetSize(width + PAD, TOP + height + FOOTER)
+	self.frame:SetSize(width + PAD, CONTENT_TOP + height + FOOTER)
 end
 
 function DropWindow:Open()
@@ -125,12 +105,8 @@ function DropWindow:SetMode(mode)
 	self.drawer.frame:SetShown(sketch)
 	self.writer.frame:SetShown(not sketch)
 
-	if self.blizzardTabs then
-		PanelTemplates_SetTab(self.frame, sketch and 2 or 1)
-	else
-		for i, tab in ipairs(self.tabs) do
-			if (i == 2) == sketch then tab:LockHighlight() else tab:UnlockHighlight() end
-		end
+	for _, btn in ipairs(self.modeButtons) do
+		if btn.mode == mode then btn:LockHighlight() else btn:UnlockHighlight() end
 	end
 
 	if sketch then self.writer:ClearFocus() else self.writer:Focus() end

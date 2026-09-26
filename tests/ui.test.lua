@@ -111,10 +111,13 @@ function ns.Stones:GetPlayerLocation()
 end
 local Stones, Store, Sketch = ns.Stones, ns.Store, ns.Sketch
 
--- Drop window: both tabs, drop a text stone and a sketch.
+-- Drop window: the Write / Draw buttons, drop a text stone and a sketch.
 local drop = ns.DropWindow
 local ok, err = pcall(function() drop:Open() end)
 check(ok, "drop window opens (" .. tostring(err) .. ")")
+local write, draw = drop.modeButtons[1], drop.modeButtons[2]
+check(write.text == "Write" and draw.text == "Draw", "Write and Draw buttons")
+check(write.locked and not draw.locked, "Write is lit (the last mode used)")
 check(drop.frame.w > 400 and drop.frame.h > 200, ("drop window sized %.0fx%.0f from the draw panel"):format(drop.frame.w, drop.frame.h))
 drop.writer.edit:SetText("Try jumping")
 drop.writer.edit.scripts.OnTextChanged(drop.writer.edit)
@@ -125,8 +128,10 @@ for _, s in Store:Each() do if s.text == "Try jumping" then text = s end end
 check(text ~= nil and not drop.frame.shown, "a written stone is dropped and the window closes")
 
 drop:Open()
-drop:SetMode("sketch")
-check(drop.drawer.frame.shown and not drop.writer.frame.shown, "the Draw tab shows the drawing editor")
+click(draw)
+check(drop.drawer.frame.shown and not drop.writer.frame.shown, "pressing Draw shows the drawing editor")
+check(draw.locked and not write.locked, "and lights Draw instead of Write")
+check(ns.db.dropMode == "sketch", "and remembers it")
 check(drop.dropButton.enabled == false, "Drop Stone is off for an empty canvas")
 drop.drawer:SetGrid(Sketch.Sun())
 drop:UpdateButtons()
@@ -138,7 +143,7 @@ local drawing
 for _, s in Store:Each() do if s.sketch then drawing = s end end
 check(drawing ~= nil and drop.drawer:IsEmpty(), "a sketch is dropped and the canvas cleared for next time")
 
--- Read window: one bottom row of Appraise · score · Disparage · Edit · byline.
+-- Read window: Appraise / Disparage under the stone, then Edit and the byline.
 local read = ns.ReadWindow
 ok, err = pcall(function() read:Show(text) end)
 check(ok, "read window opens on your own stone (" .. tostring(err) .. ")")
