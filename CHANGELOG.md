@@ -12,7 +12,7 @@ for players: what changed in game, not how.
 
 ### Added
 - A sound as you set a stone down (a crystal settling into place) and
-  another as you delete one (a keystone lifted from its socket), or the
+  another as you delete one (something being erased), or the
   nearest sounds your client has. `/soap sound drop` / `delete` previews
   them, and any cue can be previewed the same way (`near`, `read`,
   `appraise`, `disparage`, `drop`, `delete`).
