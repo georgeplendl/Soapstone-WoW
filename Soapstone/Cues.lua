@@ -13,14 +13,18 @@ local CUES = {
 	read = { kits = { "IG_QUEST_LIST_COMPLETE", "READY_CHECK", "MAP_PING" } }, -- you can read it from here
 	appraise = { kits = { "IG_QUEST_LIST_SELECT", "IG_QUEST_LIST_OPEN", "IG_MAINMENU_OPTION_CHECKBOX_ON" } },
 	disparage = { kits = { "IG_QUEST_LOG_ABANDON_QUEST", "IG_MAINMENU_OPTION_CHECKBOX_OFF", "IG_MAINMENU_CLOSE" } },
+	-- you set a stone down: a crystal settling into place, else a gem clink,
+	-- else the thunk of dropping an ability on the action bar
+	drop = { kits = { "UI_70_ARTIFACT_FORGE_RELIC_PLACE", "PUT_DOWN_GEMS", "IG_ABILITY_ICON_DROP" } },
 }
+Cues.NAMES = { "near", "read", "appraise", "disparage", "drop" }
 
 local function resolveKit(cue)
 	if cue.kit == nil then
 		cue.kit = false
 		for _, name in ipairs(cue.kits) do
 			if SOUNDKIT and SOUNDKIT[name] then
-				cue.kit = SOUNDKIT[name]
+				cue.kit, cue.kitName = SOUNDKIT[name], name
 				break
 			end
 		end
@@ -38,4 +42,15 @@ function Cues:Play(name, force)
 	end
 	local kit = resolveKit(cue)
 	if kit then PlaySound(kit, "SFX") end
+end
+
+-- Plays a cue even with sounds off; returns what it played (a SOUNDKIT name
+-- or file), nil if the client has none of its sounds, or false for no such cue.
+function Cues:Preview(name)
+	local cue = CUES[name]
+	if not cue then return false end
+	self:Play(name, true)
+	if cue.file then return cue.file end
+	resolveKit(cue)
+	return cue.kitName
 end

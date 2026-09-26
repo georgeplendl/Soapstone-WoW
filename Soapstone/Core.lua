@@ -101,7 +101,7 @@ local HELP = {
 	"/soap test [yards] — plant a stranger's stone or sketch north of you (default 200)",
 	"/soap radius <yards> — how close you must be to read (now %d)",
 	"/soap near <yards> — range of the \"somewhere close\" cue (now %d)",
-	"/soap sound [on||off||test] — toggle or preview the sound cues", -- "||" shows as "|"
+	"/soap sound [on||off||test||<cue>] —toggle or preview the sound cues", -- "||" shows as "|"
 	"/soap button — show/hide the minimap button",
 	"/soap version — show the installed version",
 	"/soap net — network test tools (selftest, pacetest, status, ping, burst, log)",
@@ -169,6 +169,10 @@ SlashCmdList.SOAPSTONE = function(input)
 			ns.Print("Playing: somewhere close… then: readable.")
 			ns.Cues:Play("near", true)
 			C_Timer.After(1.5, function() ns.Cues:Play("read", true) end)
+			return
+		elseif tContains(ns.Cues.NAMES, rest) then
+			local played = ns.Cues:Preview(rest)
+			ns.Print(format("Playing %s: %s", rest, played or "none of its sounds exist on this client"))
 			return
 		elseif rest == "on" or rest == "off" then
 			ns.db.sound = rest == "on"

@@ -67,7 +67,7 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | Walk within 40 yd of a stone | Readable chime on every approach, button glows while in range; the first time also prints the message |
 | Hover a minimap pin | Message if you're in range; "sealed" + distance if not |
 | **Appraise** / **Disparage** on any stone | Under the message or sketch: the author (right), a rule, then Edit (left) and Appraise / Disparage (centred); the stone's appraisals show at the right of the title bar. Your own stones start appraised (score 1); Disparage withdraws that to 0, never below. On others' stones, Appraise (+1) or Disparage (−1), press again to withdraw; appraised pins turn gold, disparaged pins fade and stop triggering sound cues. The score counts the author's appraisal plus your characters' judgements (personal until there's a server) |
-| `/soap sound test` | Preview both cues; `/soap sound on\|off` toggles them |
+| `/soap sound test` | Preview the two proximity cues; `/soap sound <cue>` plays one (`near`, `read`, `appraise`, `disparage`, `drop`) and names the sound; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version and which build it is: `0.2.0 (branch ratings @ 16dd7e0, 2026-09-25 18:02)` in a dev checkout, `(release v0.3.0 @ …)` from a release zip |
 | `/soap stats` | How many stones are stored (yours, others', test), tombstones, pending changes, and the busiest zones |
