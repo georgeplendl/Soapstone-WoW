@@ -320,7 +320,8 @@ function Net:Status()
 		Identity.PlayerDisplay() or "?", Identity.PlayerKey() or "?", Identity.Flavor(), ns.VersionString()))
 	local id = channelIndex()
 	ns.Print(id and format("Network channel %s joined as /%d, hidden from chat.", CHANNEL, id)
-		or format("Network channel %s not joined.", CHANNEL))
+		or ns.db.network and format("Network channel %s not joined yet.", CHANNEL)
+		or "Networking is off. /soap net join turns it on (sharing stones with other Soapstone players).")
 	local registered = C_ChatInfo.IsAddonMessagePrefixRegistered and C_ChatInfo.IsAddonMessagePrefixRegistered(PREFIX)
 	ns.Print(format("Addon prefix \"%s\" registered: %s. Logging: %s.", PREFIX, tostring(registered), logging and "on" or "off"))
 end
@@ -509,12 +510,13 @@ function Net:Command(input)
 		logging = not logging
 		ns.Print("Network logging " .. (logging and "on." or "off."))
 	elseif cmd == "join" then
-		ns.db.net = true
+		ns.db.network = true
 		self:Join()
+		ns.Print("Networking on: sharing stones with other Soapstone players. /soap net leave turns it off.")
 	elseif cmd == "leave" then
-		ns.db.net = false
+		ns.db.network = false
 		self:Leave()
-		ns.Print("Left the network channel. /soap net join to rejoin.")
+		ns.Print("Networking off. /soap net join turns it back on.")
 	else
 		for _, line in ipairs(HELP) do ns.Print(line) end
 	end
@@ -532,7 +534,11 @@ function Net:Init()
 	if ChatFrame_AddMessageEventFilter then
 		ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", peerGoneFilter)
 	end
-	if ns.db.net then
+	-- Networking is opt-in (/soap net join). If it's off but the channel is
+	-- still joined from before (channels survive /reload), leave it.
+	if ns.db.network then
 		C_Timer.After(JOIN_DELAY, function() self:Join() end)
+	elseif channelIndex() then
+		self:Leave()
 	end
 end

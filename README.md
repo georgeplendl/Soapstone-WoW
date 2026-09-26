@@ -71,8 +71,9 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version and which build it is: `0.2.0 (branch ratings @ 16dd7e0, 2026-09-25 18:02)` in a dev checkout, `(release v0.3.0 @ …)` from a release zip |
 | `/soap stats` | How many stones are stored (yours, others', test), tombstones, pending changes, and the busiest zones |
-| Settle in a zone for a few seconds | Soapstone asks other players online for that zone's stones and fetches the ones you're missing ("12 new stones arrived for The Barrens") |
+| Settle in a zone for a few seconds (networking on) | Soapstone asks other players online for that zone's stones and fetches the ones you're missing ("12 new stones arrived for The Barrens") |
 | `/soap sync` / `/soap sync now` | Zone sync status and recent results / ask again right away |
+| `/soap net join` / `leave` | Turn sharing with other Soapstone players on or off. **Off by default** since 0.3.1 |
 | `/soap net` | Network test tools: `selftest` and `pacetest` (one character), `status`, `ping [channel\|guild\|party\|yell\|whisper Name]`, `burst [n]`, `log` (see [Sharing — Architecture](docs/Sharing%20-%20Architecture.md)) |
 | `/soap help` | All commands |
 

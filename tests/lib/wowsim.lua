@@ -251,7 +251,7 @@ function Sim.client(first, last, opts)
 	end
 	ns.Print = function(msg) c.printed[#c.printed + 1] = msg end
 	ns.Version = function() return "0.3.0" end
-	ns.db = { stones = {}, zones = {}, outbox = {}, schema = 2, net = true, gateYards = 40, nearYards = 150 }
+	ns.db = { stones = {}, zones = {}, outbox = {}, schema = 2, network = true, gateYards = 40, nearYards = 150 }
 	ns.Store:Init()
 	ns.Net:Init()
 	ns.Sync:Init()

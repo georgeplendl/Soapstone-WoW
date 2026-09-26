@@ -24,7 +24,7 @@ local ns, printed, timers, loop = {}, {}, {}, {}
 ns.Print = function(msg) printed[#printed + 1] = msg end
 ns.Version = function() return "0.2.0" end
 ns.VersionString = ns.Version -- Core.lua provides both in the addon
-ns.db = { net = true }
+ns.db = { network = true }
 local bursts = 0
 C_ChatInfo = {
 	SendAddonMessage = function(_, msg, dist, target)
