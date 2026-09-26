@@ -10,19 +10,22 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-25
+
 ### Changed
-- "Leave a Soapstone" picks between a message and a drawing with **Write**
-  and **Draw** buttons at the top instead of small tabs
-  under the window. The chosen one stays lit, and it always opens on
-  **Write**.
-- Written stones are shown in quotes when you read them.
-- Opening "Leave a Soapstone" closes any stone you had open, and any edit
-  in progress (as if cancelled).
-- In the stone window, who left it now sits just under the stone, with
-  Appraise and Disparage on the bottom row beside Edit.
+- **"Leave a Soapstone"** picks between a message and a drawing with
+  **Write** and **Draw** buttons at the top, instead of small tabs under the
+  window. The chosen one stays lit, and it always opens on **Write**.
+  Opening it closes any stone you had open, and any edit in progress (as if
+  cancelled).
+- **The stone window:**
+  - written stones are shown in quotes, in larger text, and wrap wider;
+  - who left it sits just under the stone;
+  - Appraise and Disparage share the bottom row with Edit, with more room
+    between them.
 - Your own stones are signed with your name and "(You)", e.g. "— Mad
-  Decent (You), 24 mins ago", and ages read naturally ("1 min ago",
-  "3 hrs ago", "5 days ago").
+  Decent (You), 24 mins ago", and ages read naturally everywhere ("1 min
+  ago", "3 hrs ago", "5 days ago").
 
 ## [0.3.1] - 2026-09-25
 
@@ -122,7 +125,8 @@ for players: what changed in game, not how.
   (`/soap near`) and a chime when you can read one (`/soap sound`).
 - `/soap list`, `/soap test`, `/soap button` and `/soap clear`.
 
-[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.1.0...v0.2.0
