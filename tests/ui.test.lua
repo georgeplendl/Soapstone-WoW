@@ -115,7 +115,8 @@ local printed = {}
 ns.Print = function(msg) printed[#printed + 1] = msg end
 ns.db = { stones = {}, zones = {}, outbox = {}, ratings = {}, schema = 2, dropMode = "text", gateYards = 40, nearYards = 150 }
 ns.MinimapPins = { Update = function() end }
-ns.Cues = { Play = function() end }
+local cues = {}
+ns.Cues = { Play = function(_, name) cues[#cues + 1] = name end }
 ns.Store:Init()
 function ns.Stones:GetPlayerLocation()
 	return { mapID = 1413, x = 0.5, y = 0.5, instance = 1, wx = 0, wy = 0 }
@@ -151,6 +152,7 @@ click(drop.dropButton)
 local text
 for _, s in Store:Each() do if s.text == "Try jumping" then text = s end end
 check(text ~= nil and not drop.frame.shown, "a written stone is dropped and the window closes")
+check(cues[#cues] == "drop", "with the drop sound")
 
 drop:Open()
 click(draw)

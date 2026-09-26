@@ -252,6 +252,7 @@ function Stones:Delete(stone)
 	ns.Store:Tombstone(stone)
 	if ns.ReadWindow:Current() == stone then ns.ReadWindow:Hide() end
 	ns.MinimapPins:Update()
+	ns.Cues:Play("delete")
 	ns.Print("Stone deleted.")
 	return true
 end
@@ -324,6 +325,7 @@ function Stones:Drop(content)
 	here.heard = true
 	self:Add(here)
 	ns.Store:MarkChanged(here.id)
+	ns.Cues:Play("drop")
 	ns.Print(format("%s left in %s (%.1f, %.1f).", here.sketch and "Sketch" or "Stone",
 		zoneName(here.mapID), here.x * 100, here.y * 100))
 	return here

@@ -10,6 +10,13 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+### Added
+- A sound as you set a stone down (a crystal settling into place, or the
+  nearest sound your client has) and another as you delete one (an aura
+  fading away). `/soap sound drop` / `delete` previews them, and any cue can
+  be previewed the same way (`near`, `read`, `appraise`, `disparage`,
+  `drop`, `delete`).
+
 ### Changed
 - Writing a stone ("Leave a Soapstone" → Write) and editing one ("Edit
   Soapstone") use the same message box, which shows your message exactly as
