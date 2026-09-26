@@ -371,8 +371,9 @@ function Stones:StartProximity()
 end
 
 -- Each nearby stone sits in a band relative to the player: "far", "near"
--- (within nearYards) or "read" (within gateYards). Crossing inward fires a
--- cue; HYSTERESIS yards of slack keep a boundary from flickering. Stones not
+-- (within nearYards) or "read" (within gateYards). Crossing into "near" plays
+-- the "somewhere close" cue (reaching "read" is silent: the minimap button
+-- glows instead); HYSTERESIS yards of slack keep a boundary from flickering. Stones not
 -- looked at this tick drop out, so coming back counts as arriving again.
 local HYSTERESIS = 8
 local bands = {} -- stone.id -> band, rebuilt every tick
@@ -387,7 +388,7 @@ end
 
 function Stones:CheckProximity()
 	local here = self:GetPlayerLocation()
-	local anyInRange, cueNear, cueRead = false, false, false
+	local anyInRange, cueNear = false, false
 	local nextBands = {}
 	if here then
 		local zone = ns.Store.ZoneKey(here.mapID)
@@ -405,7 +406,6 @@ function Stones:CheckProximity()
 				nextBands[stone.id] = band
 				if band == "read" then
 					anyInRange = true
-					if prev ~= "read" then cueRead = true end
 					if not stone.heard then
 						stone.heard = true
 						self:OnUnlock(stone)
@@ -417,10 +417,7 @@ function Stones:CheckProximity()
 		end
 	end
 	bands = nextBands
-	-- One sound per tick; being able to read outranks being close.
-	if cueRead then
-		ns.Cues:Play("read")
-	elseif cueNear then
+	if cueNear then
 		ns.Cues:Play("near")
 		UIErrorsFrame:AddMessage("You sense a soapstone somewhere close.", 0.62, 0.83, 0.78)
 	end

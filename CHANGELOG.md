@@ -10,6 +10,11 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+### Removed
+- The chime when you reach a stone you can read. The "somewhere close" cue
+  still plays as you approach, and the minimap button still glows while
+  you're in range.
+
 ## [0.4.0] - 2026-09-25
 
 ### Added
