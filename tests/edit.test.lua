@@ -66,7 +66,20 @@ who = { "Osha", "Compliant" }
 check(Stones:EditTimeLeft(mine) == 0, "another character on the account can't edit it")
 check(Stones:Byline(mine):find("Mad Decent") ~= nil, "and sees Mad's name, not 'You'")
 who = { "Mad", "Decent" }
-check(Stones:Byline(mine):find("You") ~= nil, "the author sees 'You'")
+check(Stones:Byline(mine) == "— Mad Decent(You), just now", "the author sees 'Mad Decent(You)': " .. Stones:Byline(mine))
+who = { "Osha", "Compliant" }
+check(Stones:Byline(mine) == "— Mad Decent, just now", "anyone else sees just the name")
+who = { "Mad", "Decent" }
+NOW = NOW + 24 * 60
+check(Stones:Byline(mine) == "— Mad Decent(You), 24 mins ago", "'24 mins ago': " .. Stones:Byline(mine))
+NOW = NOW - 24 * 60
+
+-- Friendly times
+local ago = Stones.TimeAgo
+check(ago(0) == "just now" and ago(59) == "just now", "under a minute: just now")
+check(ago(60) == "1 min ago" and ago(119) == "1 min ago" and ago(1440) == "24 mins ago", "minutes, singular and plural")
+check(ago(3600) == "1 hr ago" and ago(3 * 3600 + 59) == "3 hrs ago", "hours")
+check(ago(86400) == "1 day ago" and ago(5 * 86400) == "5 days ago", "days")
 
 ns._open = mine
 check(Stones:Edit(mine, "  Try rolling  ") == true, "edit within window succeeds")

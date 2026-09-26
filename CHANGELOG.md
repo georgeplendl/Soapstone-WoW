@@ -16,6 +16,9 @@ for players: what changed in game, not how.
   under the window. The chosen one stays lit, and it always opens on
   **Write**.
 - Written stones are shown in quotes when you read them.
+- Your own stones are signed with your name and "(You)", e.g. "— Mad
+  Decent(You), 24 mins ago", and ages read naturally ("1 min ago",
+  "3 hrs ago", "5 days ago").
 
 ## [0.3.1] - 2026-09-25
 

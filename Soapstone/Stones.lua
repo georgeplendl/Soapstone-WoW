@@ -142,12 +142,29 @@ function Stones:IsReadable(stone, dist)
 	return ns.Store.IsMine(stone) or (dist ~= nil and dist <= ns.db.gateYards)
 end
 
--- "— Author, 3 hr ago" (or "just now" for the first minute), plus "(edited)".
+-- "just now", "1 min ago", "24 mins ago", "3 hrs ago", "5 days ago".
+function Stones.TimeAgo(seconds)
+	if seconds < 60 then return "just now" end
+	local n, unit
+	if seconds < 3600 then
+		n, unit = math.floor(seconds / 60), "min"
+	elseif seconds < 86400 then
+		n, unit = math.floor(seconds / 3600), "hr"
+	else
+		n, unit = math.floor(seconds / 86400), "day"
+	end
+	return format("%d %s%s ago", n, unit, n == 1 and "" or "s")
+end
+
+-- "— Zug Zug, 3 hrs ago", or for your own "— Mad Decent(You), 24 mins ago",
+-- plus " (edited)".
 function Stones:Byline(stone)
 	local age = time() - (stone.t or time())
-	local who = ns.Store.IsMine(stone) and "You" or (stone.author or "A stranger")
-	local when = age < 60 and "just now" or (SecondsToTime(age, true) .. " ago")
-	return format("— %s, %s%s", who, when, stone.edited and " (edited)" or "")
+	local who = stone.author or "A stranger"
+	if ns.Store.IsMine(stone) then
+		who = (stone.author or ns.Identity.PlayerDisplay() or "You") .. "(You)"
+	end
+	return format("— %s, %s%s", who, self.TimeAgo(age), stone.edited and " (edited)" or "")
 end
 
 -- Editing -------------------------------------------------------------------
