@@ -10,6 +10,8 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-25
+
 ### Removed
 - The chime when you reach a stone you can read. The "somewhere close" cue
   still plays as you approach, and the minimap button still glows while
@@ -149,7 +151,8 @@ for players: what changed in game, not how.
   (`/soap near`) and a chime when you can read one (`/soap sound`).
 - `/soap list`, `/soap test`, `/soap button` and `/soap clear`.
 
-[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.0...v0.3.1
