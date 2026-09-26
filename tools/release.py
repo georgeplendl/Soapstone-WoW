@@ -19,6 +19,7 @@ import argparse
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -75,11 +76,29 @@ def check(ref, tag):
     return version, notes
 
 
+def add_build_info(zip_path, ref, label):
+    """Adds Soapstone/BuildInfo.lua naming the release, for /soap version.
+
+    In a dev checkout the git hooks write this file (tools/buildinfo.sh);
+    it's git-ignored, so git archive never includes it.
+    """
+    commit = git("rev-parse", "--short", ref).strip()
+    date = git("log", "-1", "--format=%cd", "--date=format:%Y-%m-%d %H:%M", ref).strip()
+    lua = (
+        "-- Written by tools/release.py for this release. Shown by /soap version.\n"
+        "local _, ns = ...\n"
+        f'ns.BUILD = {{ branch = "{label}", commit = "{commit}", date = "{date}", release = true }}\n'
+    )
+    with zipfile.ZipFile(zip_path, "a") as archive:
+        archive.writestr(f"{ADDON}/BuildInfo.lua", lua)
+
+
 def build(ref, tag):
     version, notes = check(ref, tag)
     DIST.mkdir(exist_ok=True)
     zip_path = DIST / f"{ADDON}-v{version}.zip"
     git("archive", "--format=zip", "-o", str(zip_path), ref, f"{ADDON}/")
+    add_build_info(zip_path, ref, tag or f"v{version}")
     notes_path = DIST / "release-notes.md"
     install = (
         "\n\n---\n\n"

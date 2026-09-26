@@ -31,6 +31,18 @@ function ns.Version()
 	return lookup and lookup(ADDON_NAME, "Version") or "unknown"
 end
 
+-- "0.2.0 (branch ratings @ 16dd7e0, 2026-09-25 18:02)". ns.BUILD comes from
+-- BuildInfo.lua: written by git hooks in a dev checkout (tools/buildinfo.sh)
+-- or by the release script; without it, just the version.
+function ns.VersionString()
+	local build = ns.BUILD
+	if not build or not build.branch or build.branch == "" then return ns.Version() end
+	local details = { build.release and ("release " .. build.branch) or ("branch " .. build.branch) }
+	if build.commit and build.commit ~= "" then details[1] = details[1] .. " @ " .. build.commit end
+	if build.date and build.date ~= "" then details[#details + 1] = build.date end
+	return format("%s (%s)", ns.Version(), table.concat(details, ", "))
+end
+
 function ns.Print(msg)
 	print("|cff9fd3c7Soapstone|r: " .. msg)
 end
@@ -168,7 +180,7 @@ SlashCmdList.SOAPSTONE = function(input)
 	elseif cmd == "net" then
 		ns.Net:Command(rest)
 	elseif cmd == "version" then
-		ns.Print("version " .. ns.Version())
+		ns.Print("version " .. ns.VersionString())
 	elseif cmd == "button" then
 		ns.db.minimap.hide = not ns.db.minimap.hide
 		ns.MinimapButton:UpdateVisibility()

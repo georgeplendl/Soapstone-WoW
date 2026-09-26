@@ -6,6 +6,7 @@
 ## SavedVariables: SoapstoneDB
 ## IconTexture: Interface\AddOns\Soapstone\Media\Soapstone
 
+BuildInfo.lua
 Core.lua
 Identity.lua
 Store.lua
