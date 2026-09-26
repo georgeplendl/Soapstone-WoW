@@ -10,6 +10,10 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+### Changed
+- "Edit Soapstone" shows your message exactly as it will read: the same
+  text size as the stone window, centred, and wrapping at the same width.
+
 ## [0.3.2] - 2026-09-25
 
 ### Changed

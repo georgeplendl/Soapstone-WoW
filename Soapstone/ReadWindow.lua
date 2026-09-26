@@ -31,6 +31,15 @@ local TOP = TITLE_BAR + CONTENT_GAP
 local SKETCH_BORDER = 5 -- the sketch's border sits this far outside the canvas
 local TEXT_WIDTH = 400 -- written stones wrap at this width
 local TEXT_SIZE = 18   -- written stones' font size (GameFontHighlightLarge's face, a bit bigger)
+
+-- The edit window types in the same font, size and width, so what you type
+-- wraps exactly as it will read.
+ReadWindow.TEXT_WIDTH, ReadWindow.TEXT_SIZE = TEXT_WIDTH, TEXT_SIZE
+
+function ReadWindow.ApplyStoneFont(fontInstance)
+	local face, _, flags = GameFontHighlightLarge and GameFontHighlightLarge:GetFont()
+	if face then fontInstance:SetFont(face, TEXT_SIZE, flags) end
+end
 local TICK = 0.25
 local BUTTON_HEIGHT = 22
 local VOTE_WIDTH = 88      -- fits "Appraised" / "Disparaged"
@@ -87,8 +96,7 @@ function ReadWindow:Build()
 	self.appraisalsText = appraisals
 
 	local text = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-	local face, _, flags = GameFontHighlightLarge and GameFontHighlightLarge:GetFont()
-	if face then text:SetFont(face, TEXT_SIZE, flags) end
+	ReadWindow.ApplyStoneFont(text)
 	text:SetPoint("TOP", 0, -TOP)
 	text:SetWidth(TEXT_WIDTH)
 	text:SetJustifyH("CENTER")

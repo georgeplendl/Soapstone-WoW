@@ -36,7 +36,9 @@ StaticPopupDialogs["SOAPSTONE_DELETE"] = {
 local FRAME_NAME = "SoapstoneEditFrame"
 local PAD = 14
 local TOP = 34
-local TEXT_WIDTH = 520
+-- The message box is exactly as wide as the stone window's text, so it wraps
+-- the same way (see WritePanel:UseStoneStyle).
+local TEXT_WIDTH = ns.ReadWindow.TEXT_WIDTH + 2 * ns.WritePanel.INSET + 2 * PAD
 local TEXT_HEIGHT = 130
 local FOOTER = 46        -- action buttons
 local SKETCH_FOOTER = 62 -- hint line + action buttons
@@ -58,6 +60,7 @@ function EditWindow:Build()
 	writer.frame:SetPoint("TOPLEFT", PAD, -TOP)
 	writer.frame:SetPoint("TOPRIGHT", -PAD, -TOP)
 	writer.frame:SetHeight(TEXT_HEIGHT)
+	writer:UseStoneStyle() -- same font, size, centring and width as the stone window
 	self.writer = writer
 
 	local drawer = ns.DrawPanel.Create(f, function() self:OnDrawingChanged() end)
