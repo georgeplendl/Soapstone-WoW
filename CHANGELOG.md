@@ -16,6 +16,8 @@ for players: what changed in game, not how.
   it will read: the same text size as the stone window, centred, and wrapping
   at the same width. On Write the window is snug around the box; Draw grows
   it for the drawing editor.
+- "Edit Soapstone" no longer shows an "Editable for …" countdown; the
+  clock is paused while you edit, and the Edit button shows the time left.
 
 ## [0.3.2] - 2026-09-25
 

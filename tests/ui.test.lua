@@ -224,7 +224,7 @@ check(box.justify == "CENTER" and edit.writer.placeholder.justify == "CENTER", "
 check(edit.frame.w - 2 * 14 - 2 * ns.WritePanel.INSET == ns.ReadWindow.TEXT_WIDTH,
 	("the typing area is %.0f wide, like the stone window's text (%d)"):format(edit.frame.w - 28 - 24, ns.ReadWindow.TEXT_WIDTH))
 check(Stones:IsEditClockPaused(text), "the clock pauses while it's open")
-check(edit.countdown.text:find("4:00") and edit.countdown.text:find("paused"), "countdown: " .. edit.countdown.text)
+check(edit.countdown == nil, "no 'Editable for' countdown in the editor")
 check(edit.saveButton.enabled == false, "Save waits for a change")
 NOW = NOW + 900
 edit.frame:Hide() -- Cancel

@@ -11,7 +11,7 @@ local _, ns = ...
 --  │ ┌──────────────────────────────────────────────┐  │
 --  │ │ message (or the drawing editor)      42 / 140│  │
 --  │ └──────────────────────────────────────────────┘  │
---  │ [Delete] Editable for 4:32 · paused   [Save][Cancel]
+--  │ [Delete]                           [Save][Cancel] │
 --  └───────────────────────────────────────────────────┘
 
 local Sketch = ns.Sketch
@@ -83,10 +83,6 @@ function EditWindow:Build()
 	end)
 	self.deleteButton = delete
 
-	local countdown = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	countdown:SetPoint("LEFT", delete, "RIGHT", 10, 0)
-	self.countdown = countdown
-
 	local elapsed = 0
 	f:SetScript("OnUpdate", function(_, dt)
 		elapsed = elapsed + dt
@@ -139,17 +135,10 @@ function EditWindow:OnDrawingChanged()
 	self:UpdateButtons()
 end
 
+-- No countdown here: the clock is paused while the editor is open (the stone
+-- window's Edit button shows the time left).
 function EditWindow:Tick()
-	local stone = self.stone
-	if not stone then return end
-	local left = ns.Stones:EditTimeLeft(stone)
-	if left > 0 then
-		local paused = ns.Stones:IsEditClockPaused(stone) and "  ·  paused while you edit" or ""
-		self.countdown:SetText(format("Editable for %s%s", ns.FormatCountdown(left), paused))
-	else
-		self.countdown:SetText("|cffff6060The stone has set and can't be edited.|r")
-	end
-	self:UpdateButtons()
+	if self.stone then self:UpdateButtons() end
 end
 
 -- Delete is live while there's time left; Save also needs a real change.
