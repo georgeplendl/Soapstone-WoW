@@ -142,27 +142,28 @@ check(drawing ~= nil and drop.drawer:IsEmpty(), "a sketch is dropped and the can
 local read = ns.ReadWindow
 ok, err = pcall(function() read:Show(text) end)
 check(ok, "read window opens on your own stone (" .. tostring(err) .. ")")
-local appraise, disparage, score = read.appraiseButton, read.disparageButton, read.scoreText
+local appraise, disparage, score = read.appraiseButton, read.disparageButton, read.appraisalsText
+check(read.frame.title.text == "Soapstone", "the title bar still says Soapstone")
 check(appraise.shown and disparage.shown, "Appraise and Disparage show on your own stone")
 check(appraise.text == "Appraised" and appraise.locked, "it reads 'Appraised': you've appraised it already")
-check(tostring(score.text) == "1" and disparage.text == "Disparage", "score 1")
+check(score.text == "Appraisals: 1" and disparage.text == "Disparage", "score 1")
 check(read.editButton.shown, "Edit sits in the same row")
 check(read.frame.w >= read:RowWidth(), ("the window (%.0f) fits the whole row (%.0f)"):format(read.frame.w, read:RowWidth()))
 click(disparage)
-check(tostring(score.text) == "0" and appraise.text == "Appraise", "Disparage on your own stone withdraws it: 0")
+check(score.text == "Appraisals: 0" and appraise.text == "Appraise", "Disparage on your own stone withdraws it: 0")
 click(disparage)
-check(tostring(score.text) == "0" and disparage.text == "Disparage", "and goes no lower")
+check(score.text == "Appraisals: 0" and disparage.text == "Disparage", "and goes no lower")
 click(appraise)
-check(tostring(score.text) == "1" and appraise.text == "Appraised", "Appraise restores it: 1")
+check(score.text == "Appraisals: 1" and appraise.text == "Appraised", "Appraise restores it: 1")
 local stranger = Store:Put({ id = "Zug-Zug-9-9", authorKey = "Zug-Zug", author = "Zug Zug", instance = 1,
 	wx = 5, wy = 5, mapID = 1413, t = NOW, text = "from a stranger" })
 read:Show(stranger)
-check(tostring(score.text) == "1" and not read.editButton.shown, "a stranger's stone: score 1, no Edit")
+check(score.text == "Appraisals: 1" and not read.editButton.shown, "a stranger's stone: score 1, no Edit")
 check(appraise.text == "Appraise" and not appraise.locked, "not yet appraised")
 click(appraise)
-check(tostring(score.text) == "2" and appraise.text == "Appraised", "Appraise: 2, 'Appraised'")
+check(score.text == "Appraisals: 2" and appraise.text == "Appraised", "Appraise: 2, 'Appraised'")
 click(disparage)
-check(tostring(score.text) == "0" and disparage.text == "Disparaged" and appraise.text == "Appraise",
+check(score.text == "Appraisals: 0" and disparage.text == "Disparaged" and appraise.text == "Appraise",
 	"switching to Disparage: 0, 'Disparaged'")
 read:Hide()
 
