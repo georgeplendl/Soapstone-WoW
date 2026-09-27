@@ -1,228 +1,380 @@
 #idea, #soapstone, #wow, #sharing, #companion
 
 > **WoW-specific.** This idea is for the Soapstone-WoW addon: a small desktop
-> app that sits beside World of Warcraft and connects the addon to a real
-> server. It doesn't apply to the phone app.
+> app that sits beside World of Warcraft and connects the addon to a shared
+> database. It doesn't apply to the phone app.
 
-## Companion App: A Server Behind the Stones
+## Companion App: A Database Behind the Stones
 
 Today every stone lives on players' machines and travels player to player
-(`docs/Sharing - Architecture.md`). That works with nothing to install but
-the addon. It has three hard limits:
+(`docs/Sharing - Architecture.md`). That needs nothing but the addon, but:
 
-- **Stones only exist while someone online holds them.** Early on, with few
-  players, a zone looks empty unless its authors are logged in.
+- **Stones only exist while someone online holds them.** Early on, a zone
+  looks empty unless its authors happen to be logged in.
 - **Ratings can't add up.** A stone's score is only what your client has
-  seen, and relayed votes can be forged (see
-  [[Idea - Zone Leaderboard (WoW)]]).
-- **Bandwidth.** About 1 addon message per second per sender. A first visit
-  to a busy zone takes a minute or more.
+  seen (see [[Idea - Zone Leaderboard (WoW)]]).
+- **Bandwidth.** About 1 addon message per second per sender, so a first
+  visit to a busy zone takes a minute or more.
 
-A companion app is a small desktop program (macOS and Windows) that runs
-next to the game, uploads your stones and votes to a server, and brings back
-everyone else's. The CHANGELOG already hints at it (0.3.0: "sharing may move
-to a companion app with a proper database").
+The companion is a small Windows app that runs next to the game. It uploads
+the stones you leave and brings back everyone else's from a shared database.
 
-**Optional, always.** The addon keeps working without the companion, and the
-player-to-player network stays. The companion makes stones last and makes
-scores real. The network keeps things live.
+---
+
+### Decisions (v1)
+
+| | Decision |
+|---|---|
+| **Platform** | **Windows first.** Built so a macOS version is a second build of the same code, not a rewrite |
+| **Accounts** | **None.** No sign-in, no email. The app registers itself anonymously on first run |
+| **Game types** | Detected automatically. Forever, Classic and Retail stones **never mix** |
+| **Realms** | **Ignored.** Stones are shared across every realm of a game type, so the world doesn't feel empty |
+| **Region** | Stones are split by **WoW region** (US, EU, KR, TW). Players can't message across regions anyway, and it keeps each sync small and fast |
+| **Offline drops** | The addon always records your drops. They upload the next time the companion runs |
+| **Local cache** | The last-synced **written** stones stay on disk and show up even when the companion is closed |
+| **Drawings** | Only shown while the companion is running. They're never kept in the long-lived cache |
+| **Abuse** | Limits in the addon for honest players, and hard limits on the server for everyone else |
+
+"Region" here means the WoW region your account plays in, not the map
+region. Within a region, the companion still fetches stones zone by zone
+(below).
 
 ---
 
 ### The hard constraint: addons can't talk to the outside world
 
-WoW addons have no network access and no file access. The only thing an
-addon writes to disk is its **SavedVariables** file, and the only things it
-reads are files that were there when the client loaded it.
+WoW addons have no network or file access. The only file an addon writes is
+its **SavedVariables**. The only files it reads are ones that were there
+when it loaded.
 
 | Direction | How | When |
 |---|---|---|
-| **Game → companion** | The companion watches `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.lua` | WoW writes this file on **logout, `/reload`, and disconnect**, not while you play |
-| **Companion → game** | The companion rewrites a data file inside a small helper addon, `Interface\AddOns\SoapstoneData\Data.lua` | The game reads it on **login and `/reload`** |
+| **Game → companion** | The companion watches `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.lua` | WoW writes it on **logout, `/reload` and disconnect**, not during play |
+| **Companion → game** | The companion writes files in a helper addon, `Interface\AddOns\SoapstoneData\` | The game reads them on **login and `/reload`** |
 
-So the companion is **not live**. New stones reach the server when you
-reload or log out, and other players' stones reach you at your next login or
-reload. This is the same pattern WeakAuras Companion, TradeSkillMaster's
-desktop app and addon managers use, so it's a well-trodden path.
+So the companion **isn't live**. Your drops reach the database when you
+reload or log out, and other players' stones reach you on your next login or
+reload. WeakAuras Companion and TradeSkillMaster's desktop app work the same
+way.
 
-**Why a separate `SoapstoneData` addon** rather than writing into
-`Soapstone.lua`:
-- WoW overwrites SavedVariables on logout, so anything the companion writes
-  there while the game runs is lost.
-- `Interface\AddOns\Soapstone\` is replaced on every addon update.
-- WoW only discovers **new** files and addon folders when the client
-  starts, but picks up **changed** files on `/reload`. The companion
-  installs `SoapstoneData\` once (with a `.toc` and an empty `Data.lua`),
-  then only ever rewrites `Data.lua`.
+To make this painless, the addon gets a **Sync** button that simply calls
+`ReloadUI()`, and the companion refreshes its files every couple of minutes
+so any reload picks up the latest.
 
-The addon lists `SoapstoneData` as an optional dependency, checks for its
-global on load, and merges what it finds through the same
-`Store:Merge` path zone sync uses.
-
-**Ruled out:** faster tricks like reading pixels off the screen or sending
-keystrokes into the game. They're how bots work, they'd put players'
-accounts at risk, and Soapstone doesn't need them.
-
-**A small quality-of-life fix:** a "Sync now" button in the addon that just
-calls `ReloadUI()`. On a small addon setup a reload takes a second or two.
+**Ruled out:** reading pixels off the screen, sending keystrokes into the
+game, or reading game memory. That's how bots work, and it would put
+players' accounts at risk.
 
 ---
 
-### What moves each way
+### Working together: who does what
 
-**Up (from `Soapstone.lua`):**
-- Your new stones, edits and deletes. The `outbox` table in `Store.lua`
-  (schema 2) already tracks "your changes not yet announced". The companion
-  reads it, uploads, and the addon clears entries it sees acknowledged in
-  `Data.lua`.
-- Your votes: `ratings[id][characterKey]` for your characters.
-- "I read this stone" (the `heard` flag), for read counts and a future
-  [[Idea - First Discovery Bonus]].
+**The addon** (source of truth for what's happening in game):
+- Detects the game type and region and writes them into SavedVariables, so
+  the companion never has to guess from folder names.
+- Records every drop, edit, delete and vote in SavedVariables, whether or
+  not the companion is running. Nothing is lost if the companion is closed
+  for a week.
+- Loads the companion's files on login, checks every record before
+  accepting it, and shows "Companion: synced 2 min ago" or "Companion: not
+  running (last synced 3 days ago)".
+- Keeps its own gentle limits (drop cooldown, stones per zone) so honest
+  players never hit the server's.
 
-**Down (into `Data.lua`):**
-- Stones for zones you've visited and their neighbours, capped like today
-  (200 others' per zone, ~5,000 total). Nearest and top-rated first.
-- **Shared scores**: one number per stone, counted on the server.
-- Acknowledgements for your uploads, and author notifications ("Your stone
-  in The Barrens was appraised 12 times since you last played").
-- Flavour-separated: a `forever` install only ever gets `forever` stones.
+**The companion** (the only thing that talks to the internet):
+- Finds WoW installs and their SavedVariables.
+- Uploads pending changes, downloads stones for your game type and region,
+  writes the helper addon's files.
+- Sits in the system tray. No window unless you open it.
 
-`Data.lua` is plain Lua generated by the companion, e.g.
-`SoapstoneData = { v = 1, flavor = "forever", generated = 1790000000, stones = {…}, scores = {…}, acks = {…} }`.
-A few thousand stones is about 1–2 MB, which loads fine at login.
+#### Detecting the game type and region
 
-**Reading `Soapstone.lua` safely:** the companion parses it as a Lua table
-literal with a small parser. It never runs it.
+The addon already works out the game type (`Identity.Flavor()`: `forever`,
+`retail`, `classic`, `classic-<id>`). It adds the region:
 
----
+```lua
+SoapstoneDB.meta = {
+  flavor = "forever",        -- Identity.Flavor()
+  region = "us",             -- from GetCurrentRegion(): 1 us, 2 kr, 3 eu, 4 tw, 5 cn
+  build  = "1.60.1.70009",
+  addon  = "0.5.0",
+}
+```
 
-### Identity and trust
+The companion reads `meta` from each install's SavedVariables and keeps a
+separate cache for each (game type, region) pair. If `GetCurrentRegion`
+doesn't exist on a client, the companion falls back to the `portal` line in
+that install's `WTF\Config.wtf`. **To verify on WoW Forever:** that
+`GetCurrentRegion()` exists and returns a sensible value.
 
-Today, trust comes from WoW itself: the game server stamps the sender on
-every addon message. A companion uploading a file has no such stamp, so
-anyone could upload stones "by" someone else, or stuff votes.
-
-Options:
-
-| Approach | How | Notes |
-|---|---|---|
-| **Battle.net sign-in** *(best if available)* | The companion signs in with Battle.net (OAuth). The server asks Blizzard's API which characters belong to that account | Proves character ownership. Needs a Blizzard developer client (free). **To verify:** whether the profile API covers WoW Forever / Classic characters, or only Retail |
-| **Claim codes** | The companion shows a one-time code; you type `/soap claim 4F7Q` in game; another online Soapstone player's client sees it arrive first-hand over the network and vouches for it | Works without Blizzard's API, but needs another player online and is more complex |
-| **Trust the upload** | Accept what the file says | Fine for a private test, not for launch |
-
-With sign-in, the server enforces one vote per character per stone, and the
-leaderboard problem ("relayed votes can be forged") goes away.
-
-**Privacy:** the companion only reads `Soapstone.lua`, never other addons'
-files. The server stores character keys, not Battle.net emails. Players can
-delete their data from the companion.
+Each WoW install folder (`_retail_`, `_classic_`, `_classic_era_`,
+WoW Forever's own) has its own SavedVariables and its own `SoapstoneData`,
+so two game types on one PC never see each other's stones.
 
 ---
 
-### How it fits with the player-to-player network
+### Files on disk
 
-| | P2P network (today) | Companion + server |
-|---|---|---|
-| New stones nearby | **Live** (`NS` announce) | At next reload |
-| Stones whose authors are offline | Only if someone online has them | **Always** |
-| Scores | What you've seen | **Everyone's** |
-| Needs an install | No | Yes |
+Inside each install:
 
-Both run together. Stones from either path merge by id and version, as
-today. Companion users also help everyone else: after a login they hold a
-full copy of the zone, so they can serve it over the P2P network to players
-who don't have the companion.
+```
+Interface\AddOns\SoapstoneData\
+  SoapstoneData.toc     installed once by the companion
+  Stones.lua            written stones, scores, acknowledgements   (kept)
+  Sketches.lua          drawings                                    (companion running only)
+```
+
+**Why a separate addon** instead of writing into `Soapstone.lua` or the
+`Soapstone` folder: WoW overwrites SavedVariables on logout, and addon
+updates replace the `Soapstone` folder. WoW only discovers **new** files
+when the client starts but re-reads **changed** files on `/reload`, so the
+companion creates both files once (empty if need be) and then only rewrites
+them.
+
+**`Stones.lua`: the local cache.** Written stones, tombstones, shared scores,
+and acknowledgements of your uploads. It stays on disk when the companion
+closes, so the last-synced stones still show up the next time you play
+without it. Capped like today: newest 200 others' stones per zone, about
+5,000 in total, so it stays around 1–2 MB.
+
+**`Sketches.lua`: drawings, only while the companion runs.** The companion
+writes it with a `writtenAt` time and refreshes it every few minutes. When
+the companion closes normally, it empties the file. If it crashes, the addon
+ignores a `Sketches.lua` older than about 15 minutes (the addon and the
+companion share the same PC clock). Sketch stones still appear on the
+minimap from `Stones.lua`; opening one without the companion says "Start
+the Soapstone companion to see this drawing." Your **own** drawings always
+show, since they're in your SavedVariables.
+
+**Writing Lua safely.** Stone text is typed by strangers. The companion must
+write every string with full Lua escaping (quotes, backslashes, newlines,
+`]]`) so a message can never break out of its string and run as code in
+other players' games. The addon still runs every record through the same
+validation as zone sync (`Codec.DecodeStone` rules) before using it.
 
 ---
 
-### The server (sketch)
+### Sync loop
 
-- A small API with a Postgres database: stones, tombstones, votes,
-  characters, accounts. Supabase or a single small VM is plenty to start.
-- Endpoints: `sync` (upload outbox + votes, get changes since a cursor for a
-  list of zones), `auth`, `delete-my-data`.
-- Same abuse limits as the addon: text ≤ 140 characters, sketch format
-  checks, per-author caps per zone, rate limits per account.
-- Moderation becomes possible for the first time: reports, hiding stones,
-  banning accounts.
+1. **Start:** the companion reads each install's SavedVariables, uploads
+   anything pending, then downloads changes since its last sync.
+2. **While running:** it watches SavedVariables for changes (each reload or
+   logout) and uploads right away. It asks the server for changes every
+   ~2 minutes and rewrites `Stones.lua` and `Sketches.lua`.
+3. **Acknowledgements:** uploaded ids go into `Stones.lua` as `acks`. On the
+   next load, the addon marks those stones as uploaded, so nothing is sent
+   twice.
+4. **Exit:** it empties `Sketches.lua`.
+
+**Which zones:** every zone you've visited in that game type (the addon
+already records visits in `SoapstoneDB.zones`), plus the zones next to them.
+Nearest and highest-rated first. New zones join the list after you visit
+them.
+
+**Keeping it fast:** each request asks for changes since a cursor, per zone,
+compressed. An up-to-date zone costs almost nothing. The first sync of a
+busy zone is a few hundred KB at most.
+
+#### What goes up
+
+- New stones, edits and deletes. The addon keeps a `pending` list in
+  SavedVariables (next to the existing `outbox`, which the P2P network
+  uses).
+- Votes (`ratings[id][characterKey]` for your characters).
+- Reports (a new **Report** button on the stone window).
+
+#### What comes down
+
+- Stones and tombstones for your zones, and shared scores.
+- Drawings for sketch stones in those zones (to `Sketches.lua`).
+- Acknowledgements for your uploads.
 
 ---
 
-### Delivering to macOS and Windows
+### Identity without sign-in
 
-**Framework: Tauri** *(recommended)*. A Rust core with the system webview
-for the UI. One codebase builds a macOS `.app` / `.dmg` (universal: Apple
-Silicon and Intel) and a Windows installer. Downloads are small (~5–15 MB),
-it idles with little memory (it'll sit in the tray for hours), and it has a
-built-in auto-updater and file-watching.
+On first run, the companion **registers an install**: it generates a random
+install id and a secret, solves a small proof-of-work puzzle (a second or
+two of CPU on one PC, expensive for a script registering thousands), and
+gets back a token. All uploads use that token.
 
-*Alternative: Electron.* WeakAuras Companion and WoWUp both use it, so it's
-proven in exactly this niche, but downloads are ~100 MB and it uses more
-memory while idle.
+**Owning a character name:** the first install to upload a stone by a
+character (say `Mad-Decent`) owns that name for that game type and region.
+After that, only that install can post, edit or delete as `Mad-Decent`.
+It's not proof, but it stops anyone else from impersonating an existing
+author or editing their stones. A player who reinstalls gets a "Move my
+characters to this install" option using a recovery code shown at first
+run.
 
-**What the app is:** a tray / menu-bar icon with a small window:
-sign-in, detected WoW installs, last sync, "stones waiting to upload", and a
-"Start at login" toggle. Nothing else.
+---
 
-**Finding WoW:**
+### Stopping mass submissions and abuse
 
-| | Default install | Also check |
-|---|---|---|
-| Windows | `C:\Program Files (x86)\World of Warcraft\` | Blizzard's registry key for the install path; Battle.net's `C:\ProgramData\Battle.net\Agent\product.db`; custom drives (like `D:\Games\World of Warcraft\`) |
-| macOS | `/Applications/World of Warcraft/` | `/Users/Shared/Battle.net/Agent/product.db` |
+SavedVariables is a plain text file, so anyone can hand-edit it or write a
+script that pretends to be the companion. **The server is the real gate.**
+The addon's and companion's limits are there so honest players never hit
+the server's.
 
-Inside each: `_retail_`, `_classic_`, `_classic_era_`, `_classic_beta_`,
-PTRs, and whatever WoW Forever uses. Each maps to a flavour. Always offer
-"Choose folder…" as a fallback. Handle several `WTF\Account\` folders (more
-than one WoW account).
+| Layer | Limits |
+|---|---|
+| **Addon** | 1 drop per 30 s; at most 10 live stones per character per zone; text ≤ 140 characters; sketch format checked; one vote per stone per character |
+| **Companion** | Re-checks everything before upload; never sends more than the server allows; backs off when told to |
+| **Server** | Everything below, whatever the client claims |
 
-**Signing: the part that costs money.** Without it, both systems scare
-players away with warnings.
+Server rules:
+- **Registration:** proof-of-work, plus a cap on new installs per IP per day.
+- **Rate limits:** per install and per IP. For example: 30 new stones per day
+  per install, 10 per character, 200 votes per day per install. Requests
+  over the limit get `429` and the companion waits.
+- **Density:** at most 10 live stones per character per zone, and at most N
+  stones from anyone within ~10 yards of each other, so no one can carpet a
+  spot.
+- **Validation:** same rules as the addon (text length and characters,
+  sketch size and alphabet, known zone ids, sane coordinates). Duplicate
+  text from the same install within a day is refused.
+- **Votes:** one per character per stone, only from characters the install
+  owns. An install can't vote on its own characters' stones.
+- **Reports:** a stone reported by 3 different installs is hidden until
+  reviewed.
+- **Shadow limits:** an install caught abusing keeps working from its own
+  point of view, but its stones are only shown back to itself.
+- **Word filter:** a short blocklist on upload, adjustable without an app
+  update.
 
-| | What's needed | Cost | Without it |
-|---|---|---|---|
-| **macOS** | Apple Developer Program, a *Developer ID* certificate, hardened runtime, **notarization** (Apple scans the build), stapled to the `.dmg` | $99 / year | "Apple could not verify…". Since macOS 15, players must go into System Settings to allow it: most won't |
-| **Windows** | A code-signing certificate. Cheapest route: Azure Trusted Signing (~$10 / month; check it's open to individuals in your country). Otherwise an OV certificate (a few hundred $ / year, now on a hardware token) | ~$120–400 / year | SmartScreen "Windows protected your PC" with the run option hidden under "More info" |
+---
 
-Even signed, a new Windows app can show SmartScreen warnings until it has
-built up download reputation. This fades with downloads.
+### The database
 
-**Distribution:**
-- **GitHub Releases**, next to the addon zip, from the same release process
-  (`tools/release.py`). `Soapstone-Companion-vX.Y.Z.dmg` and
-  `Soapstone-Companion-vX.Y.Z-setup.exe`.
-- **Auto-update**: Tauri's updater checks a signed manifest on the latest
-  GitHub release. Players install once and stay current.
-- **Package managers** later: a Homebrew cask (`brew install --cask
-  soapstone-companion`) and `winget`.
-- **From the game**: `/soap companion` prints the download link and whether
-  `SoapstoneData` was found.
+**Recommended: Cloudflare Workers with D1 (SQLite).** One small API,
+serverless, fast from anywhere, and free or a few dollars a month at this
+size. Postgres (Supabase, Neon) would work just as well and can replace it
+later if needed.
 
-**Build pipeline:** a GitHub Actions workflow with a macOS runner and a
-Windows runner. Each builds, signs (and notarizes on macOS) and uploads to
-the draft release. Signing secrets live in the repo's Actions secrets.
+**Tables:**
 
-**Install details:**
-- Windows: per-user install, no admin prompt. WoW's folder is normally
-  writable by the user (addon managers rely on this).
-- macOS: `/Applications/World of Warcraft/` is readable and writable
-  without extra permissions. "Start at login" uses the standard login-item
-  API.
+```
+installs   id, secret_hash, created_at, ip_hash, status (ok | limited | banned)
+characters flavor, region, char_key, install_id                  -- who owns a name
+stones     id, flavor, region, zone, instance, wx, wy, map_id, x, y,
+           author, author_key, kind (text | sketch), text, sketch_id,
+           v, t, edited_at, deleted_at, install_id, status (live | hidden),
+           score, updated_seq
+sketches   id, w, h, data, created_at                             -- data = packed string
+votes      stone_id, char_key, value, install_id, updated_at
+reports    stone_id, install_id, reason, created_at
+```
+
+- **Partitioning:** every query filters on `(flavor, region, zone)`, with an
+  index on `(flavor, region, zone, updated_seq)` for "changes since".
+  Nothing is split by realm.
+- **Stone ids** stay as the addon makes them today:
+  `<CharacterKey>-<unix time>-<n>`. They're unique without coordination and
+  the server checks the author part matches `author_key`.
+- **`score`** is kept up to date on each vote, so downloads don't have to
+  count votes.
+- **`updated_seq`** is a counter bumped on every change. The companion's
+  cursor is just the highest one it has seen.
+
+**Drawings: stored and named by content.** A sketch is the addon's existing
+packed string (160×60, base-32 varints in a base64 alphabet, a few hundred
+characters). It's small enough to live directly in the database:
+
+- **Name:** `sk_` + the first 16 hex characters of the SHA-256 of the packed
+  string, e.g. `sk_9f2c41e07ab35d18`. The same drawing always gets the same
+  name, so duplicates are stored once and a spam drawing can be blocked by
+  name.
+- **Never changed in place.** Editing a drawing makes a new sketch; the
+  stone points at the new name and its version goes up.
+- The stone record carries `sketch_id`, so `Stones.lua` can show the pin and
+  "sketch by Osha Compliant" without the drawing itself.
+- If drawings ever grow (colour, bigger canvas), move them to object storage
+  (Cloudflare R2) under the same names, `sketches/sk_9f2c41e07ab35d18.bin`.
+  Nothing else has to change.
+
+**API:**
+
+```
+POST /v1/register                 proof-of-work → install id + token
+POST /v1/push                     stones, deletes, votes, reports  → acks, rejections
+GET  /v1/pull?flavor&region&zones&since   stones, tombstones, scores, sketch ids
+POST /v1/sketches                 list of sketch ids → packed drawings
+POST /v1/characters/move          recovery code → move ownership
+```
+
+Every endpoint is versioned (`/v1/`) so old companions keep working after
+changes.
+
+---
+
+### The P2P network
+
+The P2P network is already built. With a database behind the stones, it's
+no longer the main way to share. Options:
+
+1. **Keep it for live drops only** *(recommended)*: a stone dropped near you
+   appears right away through the channel, without waiting for a reload.
+   Drop P2P zone sync, since the database does that job.
+2. Keep all of it, as a fallback for players without the companion.
+3. Remove it and rely on the companion entirely. Simplest, but players
+   without it see nothing new.
+
+If drawings are to be companion-only, P2P should carry text stones only.
+
+---
+
+### The Windows app
+
+- **Framework: Tauri.** Rust core, system webview for the small UI window.
+  Around 10 MB. The same code builds for macOS later.
+- **Tray icon** with: detected installs (game type, region, account), last
+  sync, drops waiting to upload, "Start with Windows" (on by default), open
+  logs, quit.
+- **Install:** per-user installer (NSIS), no admin prompt. "Start with
+  Windows" uses the per-user startup registry key.
+- **Finding WoW:** Blizzard's install-path registry key, then Battle.net's
+  `C:\ProgramData\Battle.net\Agent\product.db`, then common locations on
+  every drive (`D:\Games\World of Warcraft\`), then "Choose folder…".
+  Inside, each game-type folder (`_retail_`, `_classic_`, `_classic_era_`,
+  WoW Forever's folder) and each `WTF\Account\<ACCOUNT>`.
+- **Reading SavedVariables:** a small parser for Lua table literals. It
+  never runs the file. It waits for the file to stop changing (WoW writes it
+  in one go at logout) before reading.
+- **Updates:** Tauri's updater checks the latest GitHub release.
+- **Signing:** a Windows code-signing certificate (Azure Trusted Signing is
+  about $10 a month; check it's available to individuals in your country).
+  Without one, Windows SmartScreen shows "Windows protected your PC".
+  Unsigned builds are fine for a private beta.
+- **Distribution:** GitHub Releases next to the addon zip, from the same
+  release process (`tools/release.py`). `Soapstone-Companion-vX.Y.Z-setup.exe`.
+  A GitHub Actions job on a Windows runner builds and signs it.
+
+#### Later: macOS
+
+Kept in mind from the start:
+- All file paths go through one "find WoW installs" module with a Windows
+  and a macOS implementation (`/Applications/World of Warcraft/`,
+  `/Users/Shared/Battle.net/Agent/product.db`).
+- No Windows-only APIs outside that module and the startup setting.
+- macOS needs the Apple Developer Program ($99 a year) and notarization,
+  a universal build (Apple Silicon and Intel), and a login item instead of
+  the startup registry key.
 
 ---
 
 ### Build order
 
-1. **File bridge, no server.** The companion finds installs, parses
-   `Soapstone.lua`, installs `SoapstoneData`, and writes a `Data.lua`. Test
-   end to end with a local JSON file standing in for the server. Proves the
-   reload-based loop on both platforms.
-2. **Server and sign-in.** Stones, tombstones and votes upload and come
-   back. Settle the identity question first.
-3. **Shared scores in the addon**, then [[Idea - Zone Leaderboard (WoW)]] on
-   top.
-4. **Signing, auto-update, release pipeline**, then a public beta.
-5. **Moderation tools**, once there's a server to put them on.
+1. **Addon groundwork:** `meta` (game type, region, build), a `pending`
+   upload list, loading `SoapstoneData` with validation, the "Companion:"
+   status line, the Sync (reload) button, drop cooldown and per-zone cap.
+2. **Server:** register, push, pull, sketches, with the rate limits and
+   validation from day one. Test it with a script before any app exists.
+3. **Companion core (Windows):** find installs, parse SavedVariables, push
+   and pull, write `Stones.lua` and `Sketches.lua` safely. A plain tray app,
+   unsigned, for a private beta.
+4. **Private beta** with a handful of players on WoW Forever. Tune limits.
+5. **Reports, word filter, shared scores in the addon**, then
+   [[Idea - Zone Leaderboard (WoW)]].
+6. **Signing, auto-update, public release.** macOS after that.
 
 ---
 
@@ -230,30 +382,30 @@ the draft release. Signing secrets live in the repo's Actions secrets.
 
 | Item | Rough cost |
 |---|---|
-| Apple Developer Program | $99 / year |
-| Windows code signing | ~$120–400 / year |
-| Server + database (small) | $0–25 / month to start |
-| Blizzard API client | Free |
+| Cloudflare Workers + D1 | Free to ~$5 / month at first |
+| Windows code signing | ~$10 / month (Azure Trusted Signing) or a few hundred $ / year |
+| Apple Developer Program (later, for macOS) | $99 / year |
 
 ---
 
 ### Open questions
 
-- Does WoW Forever allow companion apps and the Battle.net profile API the
-  same way Retail does? Check Blizzard's policy for that client.
-- Battle.net sign-in or claim codes?
-- Should companion users automatically serve full zones to players without
-  it over the P2P network, or is that too much traffic?
-- How often should the companion refresh `Data.lua` while the game runs
-  (every few minutes, so any reload gets fresh stones)?
-- Keep the phone app's backend completely separate, or share hosting?
+- Does WoW Forever allow companion apps reading and writing addon files, as
+  Retail and Classic do? Check Blizzard's policy for that client.
+- Does `GetCurrentRegion()` exist on WoW Forever?
+- P2P: keep for live drops only (recommended), keep all, or remove?
+- Classic has several kinds of realm (Era, Hardcore, Season of Discovery,
+  Anniversary, progression). Pool them all under one game type, or keep
+  some apart because their worlds differ?
+- The exact limits (drops per day, stones per spot) are guesses until the
+  private beta.
 
 ---
 
 ### Related
 
-- `docs/Sharing - Architecture.md`: the P2P network this sits beside.
-- [[Idea - Zone Leaderboard (WoW)]]: the feature that most needs shared,
-  trusted votes.
+- `docs/Sharing - Architecture.md`: the P2P network, message budget,
+  identity, zone keys.
+- [[Idea - Zone Leaderboard (WoW)]]: needs shared, trustworthy votes.
 - [[Idea - First Discovery Bonus]]: needs a server to know who read a stone
   first.
