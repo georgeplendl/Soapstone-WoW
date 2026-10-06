@@ -656,6 +656,18 @@ Kept in mind from the start:
 
 ### Build order
 
+**Status (2026-10-06):**
+
+| Step | Where it stands |
+|---|---|
+| 1. Addon groundwork | Done (addon 0.5.0). The drop cooldown and per-zone cap are enforced by the server, not the addon |
+| 2. Server | Done and deployed, except the admin page |
+| 3. Companion core | Done (companion 0.2.x), without the scrambling: data files hold plain base64 records |
+| 4. Trim P2P | Not started. The network is opt-in (off by default since addon 0.3.1) |
+| 5. Beta | Under way, with public beta releases on GitHub; CurseForge is waiting on API access |
+| 6. Reports, filter, shared scores | Server side done (reports, word filter, one vote and find per install). The addon has no Report button and still shows local scores |
+| 7. Signing, auto-update, release | SignPath signing being set up. The companion updates the addon, but not itself yet |
+
 1. **Addon groundwork:** `meta` (game type, region, build), a `pending`
    upload list (drops, votes, unlocks with their time and character),
    loading `SoapstoneData` with validation and unscrambling, the
