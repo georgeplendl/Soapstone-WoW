@@ -34,7 +34,14 @@ use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent, Wry};
 use crate::installs::{AddonFolder, GameFolder};
 use crate::savedvars::{Read, Summary};
 
-const SCAN_EVERY: Duration = Duration::from_secs(120);
+/// How often to sync without being asked: often enough while WoW runs that
+/// a /reload finds fresh stones, rarely when it doesn't. (Each sync is a few
+/// requests; the server's free plan has a daily request budget shared by
+/// every player.) A /reload or logout still syncs within seconds.
+const SCAN_WHILE_PLAYING: Duration = Duration::from_secs(180);
+const SCAN_OTHERWISE: Duration = Duration::from_secs(1800);
+/// How often to look for a running WoW.
+const LOOK_FOR_WOW_EVERY: Duration = Duration::from_secs(60);
 /// How often SavedVariables files are checked for a /reload or logout.
 const WATCH_EVERY: Duration = Duration::from_secs(5);
 
@@ -105,6 +112,15 @@ fn status(state: tauri::State<'_, Shared>) -> Status {
     state.status.lock().unwrap().clone()
 }
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn looking_for_wow_works() {
+        // Whatever the answer on this machine, it mustn't panic or hang.
+        let _ = super::wow_running();
+    }
+}
+
 #[tauri::command]
 fn rescan(state: tauri::State<'_, Shared>) {
     let _ = state.wake.lock().unwrap().send(());
@@ -131,9 +147,37 @@ pub(crate) fn folder_status(folder: GameFolder) -> FolderStatus {
     FolderStatus { name: folder.name, path: folder.path, addon: folder.addon, build: folder.build, accounts, sync: None }
 }
 
+/// The token was checked this session (or a sync used it): no need to ask
+/// the server again every cycle. Cleared when the server stops knowing it.
+static VERIFIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether WoW is running (any `Wow*.exe`, or the macOS app). Only process
+/// names are read, nothing inside the game.
+fn wow_running() -> bool {
+    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
+    let mut sys = System::new();
+    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+    sys.processes().values().any(|p| {
+        let name = p.name().to_string_lossy().to_lowercase();
+        (name.starts_with("wow") && name.ends_with(".exe")) || name == "world of warcraft"
+    })
+}
+
 /// Makes sure this install is registered with the server and its token
-/// still works. Returns (connected, one line for the tray).
+/// still works. Returns (connected, one line for the details).
 fn check_in(config: &mut config::Config) -> (bool, String) {
+    use std::sync::atomic::Ordering;
+    if let Some(reg) = config.registration() {
+        if VERIFIED.load(Ordering::Relaxed) {
+            return (true, format!("Connected (install {})", &reg.install_id[..reg.install_id.len().min(8)]));
+        }
+    }
+    let result = check_in_now(config);
+    VERIFIED.store(result.0, Ordering::Relaxed);
+    result
+}
+
+fn check_in_now(config: &mut config::Config) -> (bool, String) {
     if let Some(reg) = config.registration().cloned() {
         // The cheapest authenticated call: a pull for no zones.
         let client = api::Client::new(&config.server, Some(&reg));
@@ -191,6 +235,12 @@ pub fn gather(config: &mut config::Config) -> Status {
     let client = config.registration().map(|r| api::Client::new(&config.server, Some(r)));
     let server: Option<&dyn sync::Server> = if connected { client.as_ref().map(|c| c as &dyn sync::Server) } else { None };
     engine::sync_all(server, &config.server, &mut folders, &config::dir(), unix_now(), config.manage_addon);
+    // The server no longer knows the token (an admin reset, a wiped test
+    // database): check in, and register again if need be, next cycle.
+    let unknown_token = folders.iter().filter_map(|f| f.sync.as_ref()?.report.as_ref()?.error.as_deref()).any(|e| e.contains("server said 401"));
+    if unknown_token {
+        VERIFIED.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
     Status {
         server: config.server.clone(),
         connected,
@@ -229,6 +279,8 @@ fn work(app: AppHandle, wake: mpsc::Receiver<()>, headline: MenuItem<Wry>, conne
     let mut status = cycle(&app, &mut config, &headline, &connection);
     let mut known = stamps(&status.folders);
     let mut last = Instant::now();
+    let mut playing = wow_running();
+    let mut looked = Instant::now();
     loop {
         let asked = match wake.recv_timeout(WATCH_EVERY) {
             Ok(()) => {
@@ -239,8 +291,13 @@ fn work(app: AppHandle, wake: mpsc::Receiver<()>, headline: MenuItem<Wry>, conne
             Err(RecvTimeoutError::Timeout) => false,
             Err(RecvTimeoutError::Disconnected) => return,
         };
+        if looked.elapsed() >= LOOK_FOR_WOW_EVERY {
+            playing = wow_running();
+            looked = Instant::now();
+        }
+        let every = if playing { SCAN_WHILE_PLAYING } else { SCAN_OTHERWISE };
         let settling = status.folders.iter().flat_map(|f| &f.accounts).any(|a| a.state == "settling");
-        if asked || last.elapsed() >= SCAN_EVERY || saved_since(&known) || (settling && last.elapsed() >= savedvars::SETTLE * 2) {
+        if asked || last.elapsed() >= every || saved_since(&known) || (settling && last.elapsed() >= savedvars::SETTLE * 2) {
             status = cycle(&app, &mut config, &headline, &connection);
             known = stamps(&status.folders);
             last = Instant::now();

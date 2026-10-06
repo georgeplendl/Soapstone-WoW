@@ -22,6 +22,7 @@ UIErrorsFrame = { AddMessage = function(_, msg) messages[#messages + 1] = msg en
 local ns = {}
 assert(loadfile(ROOT .. "/Identity.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Store.lua"))("Soapstone", ns)
+assert(loadfile(ROOT .. "/Codec.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Stones.lua"))("Soapstone", ns)
 ns.Print = function() end
 ns.db = { stones = {}, zones = {}, outbox = {}, gateYards = 40, nearYards = 150 }

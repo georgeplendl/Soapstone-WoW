@@ -13,6 +13,13 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Request limits, counted per Cloudflare location (see src/index.ts):
+  // RL_IP for the unauthenticated puzzle and sign-up, per IP (an IPv6 /64
+  // counts as one); RL_INSTALL for everything else, per install.
+  "ratelimits": [
+    { "name": "RL_IP", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } },
+    { "name": "RL_INSTALL", "namespace_id": "1002", "simple": { "limit": 30, "period": 60 } }
+  ],
   "vars": {
     "POW_BITS": "18"
   }

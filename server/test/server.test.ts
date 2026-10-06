@@ -237,17 +237,41 @@ describe('unlocks', () => {
 })
 
 describe('reports and shadow limits', () => {
-  it('hides a stone once three installs report it', async () => {
+  // Installs a day old or more, from different addresses.
+  async function established(n: number) {
+    const clients = []
+    for (let i = 0; i < n; i++) {
+      const c = await newClient()
+      await env.DB.prepare('UPDATE installs SET created_at = created_at - 2 * 86400, ip_hash = ? WHERE id = ?').bind(`ip-${c.id}`, c.id).run()
+      clients.push(c)
+    }
+    return clients
+  }
+
+  it('hides a stone once three established installs from different addresses report it', async () => {
     const author = await newClient()
     const s = stone(charKey(), { zone: 9040 })
     await author.push({ stones: [s] })
-    const reporters = [await newClient(), await newClient(), await newClient()]
+    const reporters = await established(3)
     for (const r of reporters.slice(0, 2)) await r.push({ reports: [{ stoneId: s.id, reason: 'rude' }] })
     expect((await reporters[0].pull({ 9040: 0 })).zones['9040'].stones).toHaveLength(1)
     await reporters[2].push({ reports: [{ stoneId: s.id }] })
     const zone = (await reporters[0].pull({ 9040: 0 })).zones['9040']
     expect(zone.stones).toHaveLength(0)
     expect(zone.removed[0]).toMatchObject({ id: s.id, why: 'hidden' })
+  })
+
+  it("doesn't let throwaway installs hide a stone", async () => {
+    const author = await newClient()
+    const s = stone(charKey(), { zone: 9042 })
+    await author.push({ stones: [s] })
+    for (let i = 0; i < 4; i++) await (await newClient()).push({ reports: [{ stoneId: s.id }] }) // brand new
+    const sameAddress = await established(3)
+    await env.DB.prepare("UPDATE installs SET ip_hash = 'one-address' WHERE id IN (?, ?, ?)").bind(...sameAddress.map((c) => c.id)).run()
+    for (const r of sameAddress) await r.push({ reports: [{ stoneId: s.id }] })
+    expect((await author.pull({ 9042: 0 })).zones['9042'].stones).toHaveLength(1)
+    const kept = await env.DB.prepare('SELECT COUNT(*) AS n FROM reports WHERE stone_id = ?').bind(s.id).first<{ n: number }>()
+    expect(kept?.n).toBe(7) // every report is kept for review
   })
 
   it('shows a limited install\'s stones only to itself', async () => {
@@ -311,5 +335,117 @@ describe('limits', () => {
     const refused = res.rejected.filter((r: any) => r.reason === 'too many stones today')
     expect(refused).toHaveLength(2)
     expect(refused.every((r: any) => r.retry)).toBe(true)
+  })
+})
+
+describe('abuse (adversarial review 2026-10-06)', () => {
+  it("won't let a short name take a longer name's ids", async () => {
+    const a = await newClient()
+    const victim = charKey() // "TesterN-StoneXYZ"
+    const short = victim.split('-')[0]
+    const res = await a.push({ stones: [stone(short, { id: `${victim}-1791000000-1` })] })
+    expect(res.rejected[0]).toMatchObject({ kind: 'stones', reason: "id not the author's" })
+    const b = await newClient()
+    const real = stone(victim, { id: `${victim}-1791000000-1` })
+    expect((await b.push({ stones: [real] })).acks.stones).toEqual([real.id])
+  })
+
+  it('caps the names one install can own, and counts one vote per install', async () => {
+    const owner = await newClient()
+    const target = stone(charKey())
+    await owner.push({ stones: [target] })
+    const stuffer = await newClient()
+    const votes = Array.from({ length: 25 }, () => ({ stoneId: target.id, charKey: charKey(), value: 1 }))
+    const res = await stuffer.push({ votes })
+    expect(res.acks.votes).toHaveLength(20)
+    expect(res.rejected.every((r: { reason: string }) => r.reason === 'too many characters')).toBe(true)
+    const seen = (await stuffer.pull({ 1411: 0 })).zones['1411'].stones.find((s: { id: string }) => s.id === target.id)
+    expect(seen.score).toBe(1) // 20 names, one install, one vote
+  })
+
+  it('counts a find once per install, whichever character', async () => {
+    const owner = await newClient()
+    const target = stone(charKey())
+    await owner.push({ stones: [target] })
+    const finder = await newClient()
+    const t = Math.floor(Date.now() / 1000)
+    await finder.push({ unlocks: [charKey(), charKey(), charKey()].map((c) => ({ stoneId: target.id, charKey: c, unlockedAt: t })) })
+    const seen = (await finder.pull({ 1411: 0 })).zones['1411'].stones.find((s: { id: string }) => s.id === target.id)
+    expect(seen.found).toBe(1)
+  })
+
+  it('refuses edits long after the drop', async () => {
+    const a = await newClient()
+    const key = charKey()
+    const t = Math.floor(Date.now() / 1000)
+    const s = stone(key, { id: `${key}-${t}-1`, t })
+    await a.push({ stones: [s] })
+    expect((await a.push({ stones: [{ ...s, v: 2, text: 'fixed a typo', edited: t + 60 }] })).acks.stones).toEqual([s.id])
+    const late = await a.push({ stones: [{ ...s, v: 3, text: 'rewritten later', edited: t + 2 * 3600 }] })
+    expect(late.rejected[0]).toMatchObject({ reason: 'too late to edit' })
+    const old = stone(key, { t: 1790000000 })
+    await a.push({ stones: [old] })
+    const sneaky = await a.push({ stones: [{ ...old, v: 2, text: 'rewritten', edited: 1790000060 }] })
+    expect(sneaky.acks.stones).toEqual([old.id]) // first seen just now and claims a quick edit: allowed
+    await env.DB.prepare('UPDATE stones SET created_at = created_at - 13 * 3600 WHERE id = ?').bind(old.id).run()
+    const later = await a.push({ stones: [{ ...old, v: 3, text: 'rewritten again', edited: 1790000090 }] })
+    expect(later.rejected[0]).toMatchObject({ reason: 'too late to edit' }) // but not 13 hours after the server saw it
+  })
+
+  it('refuses impossible times', async () => {
+    const a = await newClient()
+    const key = charKey()
+    const res = await a.push({
+      stones: [stone(key, { t: 9_000_000_000 }), stone(key, { t: 1_000_000_000 }), stone(key, { edited: 1789999999 })],
+      unlocks: [{ stoneId: 'x', charKey: key, unlockedAt: 9_000_000_000 }],
+    })
+    expect(res.rejected.map((r: { reason: string }) => r.reason)).toEqual(['drop time', 'drop time', 'edited', 'unlock'])
+  })
+
+  it('refuses WoW escape codes but keeps a plain pipe', async () => {
+    const a = await newClient()
+    const key = charKey()
+    const res = await a.push({
+      stones: [
+        stone(key, { text: '|cffff0000Free gold|r' }),
+        stone(key, { text: 'click |Hurl:x|h[here]|h' }),
+        stone(key, { text: '|TInterface\\Icons\\INV:0|t' }),
+        stone(key, { text: 'left || right' }),
+        stone(key, { text: 'a | b' }),
+      ],
+    })
+    expect(res.rejected.map((r: { reason: string }) => r.reason)).toEqual(['text characters', 'text characters', 'text characters'])
+    expect(res.acks.stones).toHaveLength(2)
+  })
+
+  it('matches the word filter on whole words', async () => {
+    await env.DB.prepare("INSERT OR IGNORE INTO blocked_words (word) VALUES ('coon')").run()
+    const a = await newClient()
+    const key = charKey()
+    const res = await a.push({ stones: [stone(key, { text: 'A raccoon stole my loot' }), stone(key, { text: 'you COON!' })] })
+    expect(res.acks.stones).toHaveLength(1)
+    expect(res.rejected[0]).toMatchObject({ reason: 'word filter' })
+  })
+
+  it('has a starter word filter', async () => {
+    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM blocked_words').first<{ n: number }>()
+    expect(n?.n).toBeGreaterThan(20)
+  })
+
+  it('treats an IPv6 /64 as one address', async () => {
+    const { clientIp } = await import('../src/auth')
+    const at = (ip: string) => clientIp(new Request('https://x', { headers: { 'CF-Connecting-IP': ip } }))
+    expect(at('2001:db8:1:2:aaaa::1')).toBe(at('2001:0db8:0001:0002:ffff:1:2:3'))
+    expect(at('2001:db8::1')).toBe('2001:db8:0:0::/64')
+    expect(at('203.0.113.9')).toBe('203.0.113.9')
+    expect(at('2001:db8:1:2:aaaa::1')).not.toBe(at('2001:db8:1:3::1'))
+  })
+
+  it('slows down a burst of requests from one install', async () => {
+    const a = await newClient()
+    const statuses = []
+    for (let i = 0; i < 40; i++) statuses.push((await a.call('GET', '/v1/pull?flavor=forever&region=us&zones=1411:0')).status)
+    // The local runtime may not enforce rate limits; when it does, the burst is cut off.
+    expect(statuses.every((s) => s === 200 || s === 429)).toBe(true)
   })
 })

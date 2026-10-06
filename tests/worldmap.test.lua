@@ -74,6 +74,7 @@ end
 local ns = {}
 assert(loadfile(ROOT .. "/Identity.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Store.lua"))("Soapstone", ns)
+assert(loadfile(ROOT .. "/Codec.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Stones.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/WorldMapPins.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Guide.lua"))("Soapstone", ns)

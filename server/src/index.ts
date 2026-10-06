@@ -9,7 +9,7 @@
 //
 // Everything but challenge and register needs "Authorization: Bearer <id>.<token>".
 
-import { authenticate, challenge, register } from './auth'
+import { authenticate, challenge, clientIp, register, sha256 } from './auth'
 import type { Env } from './env'
 import { pull, sketches } from './pull'
 import { push } from './push'
@@ -27,20 +27,42 @@ async function readJson(request: Request): Promise<unknown> {
   }
 }
 
+// Per-minute request limits, before any database work. A refused request
+// is cheap, but on Workers it still counts toward the daily request quota;
+// only a firewall rule in front of the Worker can stop those (see README).
+async function throttle(limiter: RateLimit | undefined, key: string): Promise<void> {
+  if (limiter && !(await limiter.limit({ key })).success) {
+    throw new HttpError(429, 'slow_down', 'Too many requests; try again in a minute', 60)
+  }
+}
+
+async function byIp(request: Request, env: Env): Promise<void> {
+  const ip = clientIp(request)
+  if (ip !== 'local') await throttle(env.RL_IP, await sha256(`ip:${ip}`))
+}
+
+async function signedIn(request: Request, env: Env) {
+  const install = await authenticate(request, env)
+  await throttle(env.RL_INSTALL, install.id)
+  return install
+}
+
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url)
   const at = `${request.method} ${url.pathname}`
   switch (at) {
     case 'GET /v1/challenge':
+      await byIp(request, env)
       return json(await challenge(env))
     case 'POST /v1/register':
+      await byIp(request, env)
       return json(await register(request, env, await readJson(request)))
     case 'POST /v1/push':
-      return json(await push(env, await authenticate(request, env), await readJson(request)))
+      return json(await push(env, await signedIn(request, env), await readJson(request)))
     case 'GET /v1/pull':
-      return json(await pull(env, await authenticate(request, env), url))
+      return json(await pull(env, await signedIn(request, env), url))
     case 'POST /v1/sketches':
-      await authenticate(request, env)
+      await signedIn(request, env)
       return json(await sketches(env, await readJson(request)))
     default:
       throw new HttpError(404, 'not_found', `No route for ${at}`)

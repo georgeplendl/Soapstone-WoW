@@ -330,8 +330,7 @@ end
 -- author ("Mad-Decent-<time>-<n>"), which the server insists on. Stones from
 -- before ids carried the name stay local.
 function Store.IsUploadable(stone)
-	local author = stone.authorKey
-	return Store.IsShareable(stone) and stone.id:sub(1, #author + 1) == author .. "-"
+	return Store.IsShareable(stone) and ns.Codec.IdBelongsTo(stone.id, stone.authorKey)
 end
 
 -- One of the characters seen logging in on this account (meta.characters).
@@ -466,6 +465,8 @@ function Store:Merge(rec, viaKey)
 	if rec.authorKey == ns.Identity.PlayerKey() then return nil, "own stone" end
 	local firstHand = viaKey ~= nil and viaKey == rec.authorKey
 	local have = db().stones[rec.id]
+	-- Ids belong to their author; one by someone else is a forgery.
+	if have and have.authorKey and have.authorKey ~= rec.authorKey then return nil, "id belongs to another author" end
 	if have then
 		if (have.v or 1) >= rec.v then return nil, "not newer" end
 		if not firstHand then return nil, "change not from the author" end
@@ -497,6 +498,8 @@ end
 -- restored. Returns "added" | "updated" | "restored" | nil.
 function Store:MergeRemote(rec, score, found)
 	local have = db().stones[rec.id]
+	-- Ids belong to their author: never let one replace another author's stone.
+	if have and have.authorKey and have.authorKey ~= rec.authorKey then return nil end
 	local function stats(stone)
 		stone.inDatabase = true
 		stone.score, stone.found = score, found

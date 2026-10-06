@@ -92,10 +92,9 @@ pub fn parse(source: &str) -> Result<Account, String> {
     let characters = a.characters.clone();
     let ours = |key: &str| characters.iter().any(|c| c == key);
     let author_of = |rec: &Table| rec.get("authorKey").and_then(Value::as_str).map(str::to_owned);
-    // Ids the server takes: "<author>-<time>-<n>".
+    // Ids the server takes: exactly "<author>-<time>-<n>".
     let shareable = |id: &str, rec: &Table| {
-        author_of(rec).is_some_and(|author| id.starts_with(&format!("{author}-")))
-            && rec.get("localOnly").and_then(Value::as_bool) != Some(true)
+        author_of(rec).is_some_and(|author| id_belongs_to(id, &author)) && rec.get("localOnly").and_then(Value::as_bool) != Some(true)
     };
     let mut catch_up_stones = Vec::new();
     let mut catch_up_unlocks = Vec::new();
@@ -137,6 +136,14 @@ pub fn parse(source: &str) -> Result<Account, String> {
     a.catch_up_votes = catch_up_votes;
     a.catch_up_unlocks = catch_up_unlocks;
     Ok(a)
+}
+
+/// Exactly "<authorKey>-<unix time>-<n>", as the server and addon insist.
+pub fn id_belongs_to(id: &str, author: &str) -> bool {
+    let Some(rest) = id.strip_prefix(author).and_then(|r| r.strip_prefix('-')) else { return false };
+    let mut parts = rest.split('-');
+    let digits = |p: Option<&str>| p.is_some_and(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
+    digits(parts.next()) && digits(parts.next()) && parts.next().is_none()
 }
 
 /// A pending stone as `/v1/push` takes it: `stones` for live ones, `deletes`
@@ -260,6 +267,14 @@ SoapstoneDB = {
         assert!(a.stones.contains_key("Mad-Decent-1-1"), "with their records");
         assert_eq!(a.catch_up_votes, [("Zug-Zug-1-1".to_string(), "Mad-Decent".to_string(), 1)], "own characters' votes on others' stones");
         assert_eq!(a.catch_up_unlocks, [("Zug-Zug-1-1".to_string(), "Mad-Decent".to_string(), 1791000000)], "own characters' unlocks of others' stones");
+    }
+
+    #[test]
+    fn ids_belong_to_their_author_exactly() {
+        assert!(id_belongs_to("Mad-Decent-1791000000-1", "Mad-Decent"));
+        assert!(!id_belongs_to("Mad-Decent-1791000000-1", "Mad"), "a short name can't take a longer name's ids");
+        assert!(!id_belongs_to("Mad-Decent-1-x", "Mad-Decent") && !id_belongs_to("Mad-Decent-1", "Mad-Decent"));
+        assert!(!id_belongs_to("1790363195-7862", "Mad-Decent"));
     }
 
     #[test]

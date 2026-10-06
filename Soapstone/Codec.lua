@@ -31,6 +31,31 @@ function Codec.Unescape(s)
 	return (s:gsub("%%(%x%x)", function(hex) return string.char(tonumber(hex, 16)) end))
 end
 
+-- WoW reads "|" as the start of an escape code (|c colour, |H link, |T
+-- texture...) wherever text is drawn; "||" is a plain pipe. Doubling every
+-- odd run of pipes turns any escape code into plain text, and leaves text
+-- that's already safe alone. Used on everything shown from other players.
+function Codec.Neutralize(s)
+	if type(s) ~= "string" then return s end
+	return (s:gsub("|+", function(run)
+		if #run % 2 == 1 then return run .. "|" end
+	end))
+end
+
+-- Text with a live escape code in it (a "|" left over after removing "||",
+-- followed by something). The server refuses these; so does the addon.
+function Codec.HasEscapeCodes(s)
+	return s:gsub("||", ""):find("|%S") ~= nil
+end
+
+-- Exactly "<authorKey>-<unix time>-<n>". A looser prefix check lets a short
+-- name take a longer name's ids ("Mad" posting "Mad-Decent-1791000000-1").
+function Codec.IdBelongsTo(id, authorKey)
+	if type(id) ~= "string" or type(authorKey) ~= "string" or authorKey == "" then return false end
+	if id:sub(1, #authorKey + 1) ~= authorKey .. "-" then return false end
+	return id:sub(#authorKey + 2):match("^%d+%-%d+$") ~= nil
+end
+
 -- djb2, kept to 24 bits so it's exact in Lua numbers.
 function Codec.Hash(s)
 	local h = 5381
@@ -83,7 +108,8 @@ function Codec.DecodeStone(str)
 		x = tonumber(f[10]), y = tonumber(f[11]), edited = int(f[12]),
 	}
 	if s.id == "" or #s.id > 100 or s.authorKey == "" or #s.authorKey > 60 then return nil, "id" end
-	if s.id:sub(1, #s.authorKey + 1) ~= s.authorKey .. "-" then return nil, "id not the author's" end
+	if s.authorKey:find("[%s~;|%%]") then return nil, "name" end
+	if not Codec.IdBelongsTo(s.id, s.authorKey) then return nil, "id not the author's" end
 	if not s.v or s.v < 1 or s.v > 1000000 or not s.zone then return nil, "numbers" end
 
 	local kind = f[13]
@@ -98,6 +124,7 @@ function Codec.DecodeStone(str)
 		local text = f[14]
 		local length = strlenutf8 and strlenutf8(text) or #text
 		if text == "" or #text > MAX_TEXT_BYTES or length > MAX_LETTERS then return nil, "text" end
+		if Codec.HasEscapeCodes(text) then return nil, "text characters" end
 		s.text = text
 	elseif kind == "S" then
 		local w, h, data = int(f[14]), int(f[15]), f[16]
