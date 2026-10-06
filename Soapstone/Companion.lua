@@ -24,6 +24,14 @@ local _, ns = ...
 -- Rules: a stone from the database replaces an older copy, never one of
 -- yours; a stone is removed only when a record says so, never because the
 -- file doesn't mention it.
+--
+-- Drawings come separately, in Sketches.lua, and only while the companion
+-- runs: it refreshes the file every few minutes and empties it when it
+-- quits, and a file older than STALE is ignored (the companion may have
+-- crashed). They're kept in memory only, never in SavedVariables:
+--
+--   SoapstoneData_Sketches = { format = 1, writtenAt = ..., scope = ...,
+--     records = { "<base64 of sk_<16 hex>~w~h~data>", ... } }
 
 local Companion = {}
 ns.Companion = Companion
@@ -31,6 +39,9 @@ ns.Companion = Companion
 Companion.FORMAT = 1
 Companion.MAX_RECORDS = 20000
 Companion.STALE = 15 * 60 -- older than this, the companion isn't running
+
+-- Drawings by sketch id, from the last LoadSketches.
+Companion.sketches = {}
 
 -- What the last Load found, for the status line.
 Companion.state = "none" -- none | ok | outdated | unreadable | elsewhere
@@ -159,6 +170,15 @@ end
 
 -- Loading -----------------------------------------------------------------------
 
+-- For this game type and region ("scope" is base64 "flavor~region").
+local function inScope(data)
+	local scope = ns.Codec.Base64Decode(data.scope)
+	local flavor, region = (scope or ""):match("^([^~]+)~([^~]+)$")
+	local myRegion = ns.Identity.Region()
+	return flavor == ns.Identity.Flavor() and (not myRegion or region == myRegion)
+end
+
+
 -- Reads `data` (SoapstoneData_Stones by default) into the store. Returns
 -- counts of what changed: added, updated, removed, acked, refused, unlocks,
 -- skipped (records that failed their checks).
@@ -179,10 +199,7 @@ function Companion:Load(data)
 		self.state = "outdated"
 		return out
 	end
-	local scope = ns.Codec.Base64Decode(data.scope)
-	local flavor, region = (scope or ""):match("^([^~]+)~([^~]+)$")
-	local myRegion = ns.Identity.Region()
-	if flavor ~= ns.Identity.Flavor() or (myRegion and region ~= myRegion) then
+	if not inScope(data) then
 		-- Stones for another game type or region: none of them belong here.
 		self.state = "elsewhere"
 		return out
@@ -201,6 +218,28 @@ function Companion:Load(data)
 	ns.Store:Enforce()
 	ns.Store:Touch()
 	return out
+end
+
+-- Reads SoapstoneData_Sketches (or `data`). Returns how many drawings were
+-- loaded and how many records were skipped.
+function Companion:LoadSketches(data, now)
+	if data == nil then data = _G.SoapstoneData_Sketches end
+	wipe(self.sketches)
+	if type(data) ~= "table" or data.format ~= self.FORMAT or type(data.records) ~= "table" then return 0, 0 end
+	if type(data.writtenAt) ~= "number" or (now or time()) - data.writtenAt > self.STALE then return 0, 0 end
+	if not inScope(data) then return 0, 0 end
+	local loaded, skipped = 0, 0
+	for i, blob in ipairs(data.records) do
+		if i > self.MAX_RECORDS then break end
+		local id, sketch = ns.Codec.DecodeSketchRecord(ns.Codec.Base64Decode(blob))
+		if id then
+			self.sketches[id] = sketch
+			loaded = loaded + 1
+		else
+			skipped = skipped + 1
+		end
+	end
+	return loaded, skipped
 end
 
 -- Tells you about stones of yours the server refused, once each.

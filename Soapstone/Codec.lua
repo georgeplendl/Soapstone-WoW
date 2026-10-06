@@ -223,3 +223,17 @@ function Codec.DecodeRemoteStone(str)
 	end
 	return nil, "kind"
 end
+
+-- A drawing from SoapstoneData\Sketches.lua: "sk_<16 hex>~w~h~data", checked
+-- like a drawing from another player. Returns id and sketch, or nil and a reason.
+function Codec.DecodeSketchRecord(str)
+	if type(str) ~= "string" or #str > MAX_SKETCH_CHARS + 100 then return nil, "size" end
+	local id, w, h, data = str:match("^(sk_%x+)~(%d+)~(%d+)~([A-Za-z0-9+/]+)$")
+	if not id or #id ~= 19 then return nil, "sketch id" end
+	local Sketch = ns.Sketch
+	if tonumber(w) ~= Sketch.WIDTH or tonumber(h) ~= Sketch.HEIGHT then return nil, "sketch size" end
+	if #data > MAX_SKETCH_CHARS then return nil, "sketch data" end
+	local sketch = { v = 1, w = Sketch.WIDTH, h = Sketch.HEIGHT, data = data }
+	if not Sketch.Unpack(sketch) then return nil, "sketch decode" end
+	return id, sketch
+end

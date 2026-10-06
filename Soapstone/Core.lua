@@ -228,6 +228,7 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 			ns.Print(format("Upgraded %d stones to the new storage format.", upgraded))
 		end
 		ns.Companion:Load()
+		ns.Companion:LoadSketches()
 		ns.Companion:AnnounceRefusals()
 		ns.MinimapButton:Init()
 		ns.MinimapPins:Init()

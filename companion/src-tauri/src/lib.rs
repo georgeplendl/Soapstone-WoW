@@ -304,10 +304,16 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while starting the Soapstone companion");
 
-    app.run(|_app, event| {
+    app.run(|app, event| match event {
         // Only Quit (an explicit exit code) ends the app, not closing its window.
-        if let RunEvent::ExitRequested { api, code: None, .. } = event {
-            api.prevent_exit();
+        RunEvent::ExitRequested { api, code: None, .. } => api.prevent_exit(),
+        // Drawings are only shown while the companion runs.
+        RunEvent::Exit => {
+            let status = app.state::<Shared>().status.lock().unwrap().clone();
+            for folder in status.folders.iter().filter(|f| f.sync.as_ref().is_some_and(|s| s.wrote)) {
+                let _ = datafiles::clear_sketches(&folder.path);
+            }
         }
+        _ => {}
     });
 }

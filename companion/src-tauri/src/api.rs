@@ -77,6 +77,15 @@ impl Client {
         self.send(self.http.post(format!("{}/v1/register", self.base)).json(&body))
     }
 
+    pub fn sketches(&self, ids: &[String]) -> Result<Vec<crate::soapdata::Sketch>, ApiError> {
+        #[derive(Deserialize)]
+        struct Out {
+            sketches: Vec<crate::soapdata::Sketch>,
+        }
+        let out: Out = self.post("/v1/sketches", &serde_json::json!({ "ids": ids }))?;
+        Ok(out.sketches)
+    }
+
     pub fn get<T: DeserializeOwned>(&self, path_and_query: &str) -> Result<T, ApiError> {
         self.send(self.authed(self.http.get(format!("{}{path_and_query}", self.base))))
     }

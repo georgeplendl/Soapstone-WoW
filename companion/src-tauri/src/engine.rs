@@ -132,8 +132,22 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
             continue;
         };
         let accounts = &by_scope[&scope];
-        let file = sync::data_file(&scope.0, &scope.1, accounts, &caches[&scope], now);
-        match soapdata::stones_lua(&file).and_then(|text| datafiles::write(&folder.path, &interface, &text).map_err(|e| e.to_string())) {
+        let cache = &caches[&scope];
+        let file = sync::data_file(&scope.0, &scope.1, accounts, cache, now);
+        // The drawings for the sketch stones in this file.
+        let drawings: Vec<soapdata::Sketch> = file
+            .records
+            .iter()
+            .filter_map(|r| match r {
+                soapdata::Record::Stone { stone: soapdata::Stone { content: soapdata::Content::Sketch(id), .. }, .. } => cache.sketches.get(id).cloned(),
+                _ => None,
+            })
+            .collect();
+        let written = soapdata::stones_lua(&file).and_then(|stones| {
+            let sketches = soapdata::sketches_lua(&scope.0, &scope.1, now, &drawings)?;
+            datafiles::write(&folder.path, &interface, &stones, &sketches).map_err(|e| e.to_string())
+        });
+        match written {
             Ok(installed) => {
                 sync.wrote = true;
                 sync.installed = installed;

@@ -4,7 +4,7 @@
 //! Interface\AddOns\SoapstoneData\
 //!   SoapstoneData.toc   written once (again if the game's Interface number changes)
 //!   Stones.lua          rewritten every sync (soapdata.rs)
-//!   Sketches.lua        drawings; a placeholder until the companion sends them
+//!   Sketches.lua        drawings, rewritten every sync and emptied when the companion quits
 //! ```
 //!
 //! WoW only notices new files when it starts, so both .lua files are created
@@ -40,9 +40,10 @@ fn toc(interface: &str) -> String {
     )
 }
 
-/// Writes `Stones.lua`, installing the folder first if it's missing.
-/// Returns true if the folder was new (the game must restart to see it).
-pub fn write(game: &Path, interface: &str, stones_lua: &str) -> io::Result<bool> {
+/// Writes `Stones.lua` and `Sketches.lua`, installing the folder first if
+/// it's missing. Returns true if the folder was new (the game must restart
+/// to see it).
+pub fn write(game: &Path, interface: &str, stones_lua: &str, sketches_lua: &str) -> io::Result<bool> {
     let dir = folder(game);
     let toc_path = dir.join(format!("{FOLDER}.toc"));
     let new = !toc_path.exists();
@@ -50,12 +51,18 @@ pub fn write(game: &Path, interface: &str, stones_lua: &str) -> io::Result<bool>
     if fs::read_to_string(&toc_path).ok().as_deref() != Some(wanted.as_str()) {
         files::write_atomic(&toc_path, wanted.as_bytes())?;
     }
-    let sketches = dir.join("Sketches.lua");
-    if !sketches.exists() {
-        files::write_atomic(&sketches, SKETCHES_PLACEHOLDER.as_bytes())?;
-    }
+    files::write_atomic(&dir.join("Sketches.lua"), sketches_lua.as_bytes())?;
     files::write_atomic(&dir.join("Stones.lua"), stones_lua.as_bytes())?;
     Ok(new)
+}
+
+/// Empties `Sketches.lua` (the companion is quitting), if the folder exists.
+pub fn clear_sketches(game: &Path) -> io::Result<()> {
+    let path = folder(game).join("Sketches.lua");
+    if path.exists() {
+        files::write_atomic(&path, SKETCHES_PLACEHOLDER.as_bytes())?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -75,14 +82,15 @@ mod tests {
         let (_tmp, game) = game();
         let interface = interface_of(&game).unwrap();
         assert_eq!(interface, "16001");
-        assert!(write(&game, &interface, "SoapstoneData_Stones = nil\n").unwrap(), "first write installs the folder");
+        assert!(write(&game, &interface, "SoapstoneData_Stones = nil\n", "SoapstoneData_Sketches = nil\n").unwrap(), "first write installs the folder");
         let dir = folder(&game);
         assert!(fs::read_to_string(dir.join("SoapstoneData.toc")).unwrap().starts_with("## Interface: 16001\n"));
-        assert!(crate::lua::parse(&fs::read_to_string(dir.join("Sketches.lua")).unwrap()).is_ok());
-        fs::write(dir.join("Sketches.lua"), "SoapstoneData_Sketches = { format = 1, }\n").unwrap();
-        assert!(!write(&game, &interface, "SoapstoneData_Stones = { format = 1, }\n").unwrap(), "later writes aren't new");
+        assert!(!write(&game, &interface, "SoapstoneData_Stones = { format = 1, }\n", "SoapstoneData_Sketches = { format = 1, }\n").unwrap(), "later writes aren't new");
         assert_eq!(fs::read_to_string(dir.join("Stones.lua")).unwrap(), "SoapstoneData_Stones = { format = 1, }\n");
-        assert_eq!(fs::read_to_string(dir.join("Sketches.lua")).unwrap(), "SoapstoneData_Sketches = { format = 1, }\n", "an existing Sketches.lua is left alone");
+        assert_eq!(fs::read_to_string(dir.join("Sketches.lua")).unwrap(), "SoapstoneData_Sketches = { format = 1, }\n");
+        clear_sketches(&game).unwrap();
+        let cleared = fs::read_to_string(dir.join("Sketches.lua")).unwrap();
+        assert!(cleared.contains("writtenAt = 0") && crate::lua::parse(&cleared).is_ok(), "quitting empties the drawings");
     }
 
     #[test]

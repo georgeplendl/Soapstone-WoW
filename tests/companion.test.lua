@@ -134,6 +134,30 @@ check(Companion:Status() == "Companion: synced 2 mins ago", "status: synced 2 mi
 check(Companion:Status(1791234567 + 3 * 86400) == "Companion: not running (last synced 3 days ago)",
 	"status: not running, once the file is older than 15 minutes")
 
+-- Drawings (Sketches.lua, also written by the companion's test).
+check(Stones.SketchOf(sketch) == nil, "without Sketches.lua a drawing from the database can't be shown")
+assert(load(readFile(FIXTURES .. "/companion/Sketches.lua")))()
+local loaded, skipped = Companion:LoadSketches(nil, 1791234567 + 60)
+check(loaded == 1 and skipped == 0, "the companion's drawings load (it leaves invalid ones out itself)")
+local drawing = Stones.SketchOf(sketch)
+check(drawing and drawing.w == 160 and drawing.h == 60 and ns.Sketch.Unpack(drawing) ~= nil,
+	"and the sketch stone now has its drawing")
+check(not next(ns.db.stones[sketch.id].sketch or {}), "drawings stay out of SavedVariables")
+check(Companion:LoadSketches(nil, 1791234567 + Companion.STALE + 1) == 0 and Stones.SketchOf(sketch) == nil,
+	"a Sketches.lua older than 15 minutes is ignored (the companion isn't running)")
+local scope = Codec.Base64Encode("forever~test")
+local function sketches(records) return { format = 1, writtenAt = NOW, scope = scope, records = records } end
+local good = SoapstoneData_Sketches.records[1]
+check(select(2, Companion:LoadSketches(sketches({
+	Codec.Base64Encode("sk_9f2c41e07ab35d18~160~60~***"),
+	Codec.Base64Encode("sk_9f2c~160~60~k0DD"),
+	Codec.Base64Encode("sk_9f2c41e07ab35d18~10~60~k0DD"),
+	Codec.Base64Encode("sk_9f2c41e07ab35d18~160~60~" .. ("/"):rep(50)),
+	"not base64",
+}), NOW)) == 5, "bad ids, sizes and data are skipped")
+check(Companion:LoadSketches({ format = 1, writtenAt = NOW, scope = Codec.Base64Encode("classic~us"), records = { good } }, NOW) == 0,
+	"another game's drawings are ignored")
+
 -- Files that aren't for us, or aren't right.
 local function load(data)
 	Companion:Load(data)
