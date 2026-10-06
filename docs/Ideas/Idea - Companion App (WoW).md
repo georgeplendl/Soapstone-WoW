@@ -217,7 +217,11 @@ SoapstoneData_Stones = {
 - The companion writes only numbers and base64 strings, whose alphabet
   (`A–Z a–z 0–9 + / =`) can't close a Lua string. That's checked again
   just before writing.
-- Each blob decodes to one stone in a simple field format. The addon decodes
+- Each blob decodes to one record in a simple field format: a stone, a
+  removal, an acknowledgement, a refusal or an unlock. The format is
+  documented at the top of `Soapstone/Companion.lua`; the companion writes
+  it in `companion/src-tauri/src/soapdata.rs`, and both sides test against
+  the same file, `tests/fixtures/companion/Stones.lua`. The addon decodes
   it and runs it through the same validation as today
   (`Codec.DecodeStone` rules: lengths, characters, zone ids, coordinates)
   before using it. Anything that fails is skipped.

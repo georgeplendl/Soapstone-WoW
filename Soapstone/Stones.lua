@@ -257,10 +257,22 @@ function Stones:Delete(stone)
 	return true
 end
 
+-- A written stone's words. Stones from the database keep theirs scrambled
+-- (Codec.Scramble) and are only unscrambled here, to be shown.
+function Stones.TextOf(stone)
+	if stone.text then return stone.text end
+	return stone.scrambled and ns.Codec.Unscramble(stone.id, stone.scrambled) or nil
+end
+
+-- A drawing: carried here, or (from the database) only named by its sketch id.
+function Stones.IsSketch(stone)
+	return stone.sketch ~= nil or stone.sketchId ~= nil
+end
+
 -- One-line description for chat and tooltips.
 function Stones:Summary(stone)
-	if stone.sketch then return "a sketch" end
-	return format("\"%s\"", stone.text or "")
+	if Stones.IsSketch(stone) then return "a sketch" end
+	return format("\"%s\"", Stones.TextOf(stone) or "")
 end
 
 local function zoneName(mapID)
@@ -434,10 +446,10 @@ end
 
 function Stones:OnUnlock(stone)
 	UIErrorsFrame:AddMessage("A soapstone glows nearby.", 0.62, 0.83, 0.78)
-	if stone.sketch then
+	if Stones.IsSketch(stone) then
 		ns.Print(format("%s left a sketch here. Click its minimap pin or type /soap read to see it.", stone.author or "Someone"))
 	else
-		ns.Print(format("|cffffffff\"%s\"|r — %s", stone.text or "", stone.author or "?"))
+		ns.Print(format("|cffffffff\"%s\"|r — %s", Stones.TextOf(stone) or "", stone.author or "?"))
 	end
 end
 
