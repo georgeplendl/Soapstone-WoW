@@ -446,6 +446,8 @@ What could go wrong, ranked by how much it matters.
 | **Unlock privacy** | Someone tracks where a player has been and when | Unlocks go only to the owning install; others see totals |
 | **Stolen token** | Malware on a player's PC posts as their characters | Low value; the token stays in the user's app data folder. Admin can reset it |
 | **Blizzard's rules** | A companion that touches addon files is against the rules on Forever | Same file-only approach as WeakAuras Companion and the Raider.IO client. Confirm for Forever before release (open questions) |
+| **Where a player has been** (accepted risk) | A stone carries its author's name, exact spot and drop time, so on a PvP realm someone could watch for fresh stones by a player and hunt them | Not handled for now (decided 2026-10-06). Later options: hold new stones back from others for a while, or show rough times only. Listed in SECURITY.md |
+| **Request budget** | Floods use up the server plan's daily requests, even when refused | Per-minute limits per IP and per install, and a quieter companion; a firewall rule on a custom domain, or a paid plan, for the rest (SECURITY.md) |
 
 **Stability:**
 

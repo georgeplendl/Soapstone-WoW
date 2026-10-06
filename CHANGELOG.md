@@ -10,6 +10,16 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+### Fixed
+- **Stones can't carry WoW formatting codes any more.** A stone's words, or
+  a player's name, could include codes for colours, links or pictures, and
+  the game drew them in tooltips, chat and the stone window, so a stone
+  could pass itself off as a system message. They now always show as
+  plain text.
+- **A stone can't take over another player's stone.** A stone claiming the
+  same id as one by someone else is refused, so nobody can replace your
+  stones in other players' games.
+
 ## [0.5.0] - 2026-10-06
 
 ### Added

@@ -27,6 +27,7 @@ local ns = { db = SoapstoneDB }
 ns.Print = function() end
 assert(loadfile(ROOT .. "/Identity.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Store.lua"))("Soapstone", ns)
+assert(loadfile(ROOT .. "/Codec.lua"))("Soapstone", ns)
 local Store = ns.Store
 
 local function count(iter) local n = 0 for _ in iter do n = n + 1 end return n end

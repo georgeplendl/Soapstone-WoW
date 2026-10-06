@@ -68,8 +68,19 @@ export async function solve(challengeText: string, bits: number): Promise<string
   }
 }
 
-function clientIp(request: Request): string {
-  return request.headers.get('CF-Connecting-IP') ?? 'local'
+// The caller's address for limits. An IPv6 user typically controls a whole
+// /64, so only its first four groups count; otherwise one person could make
+// unlimited installs by rotating addresses. "local" without Cloudflare's
+// header (tests, wrangler dev).
+export function clientIp(request: Request): string {
+  const ip = request.headers.get('CF-Connecting-IP')
+  if (!ip) return 'local'
+  if (!ip.includes(':')) return ip
+  const [head, tail = ''] = ip.toLowerCase().split('::')
+  const left = head ? head.split(':') : []
+  const right = tail ? tail.split(':') : []
+  const groups = ip.includes('::') ? [...left, ...Array(8 - left.length - right.length).fill('0'), ...right] : left
+  return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':') + '::/64'
 }
 
 export async function register(request: Request, env: Env, body: unknown): Promise<{ installId: string; token: string }> {

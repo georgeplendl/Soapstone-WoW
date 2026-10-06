@@ -82,7 +82,7 @@ check(Companion.state == "ok" and out.skipped == 0, "the companion's file loads,
 local zug = Store:Get("Zug-Zug-1791200000-1")
 check(zug and zug.text == nil and zug.scrambled and not zug.scrambled:find("Praise"),
 	"a stranger's stone arrives with its words scrambled (also in SavedVariables)")
-check(Stones.TextOf(zug) == "Praise the sun! ~;|% \"quotes\" café", "and shows them unscrambled, escapes and UTF-8 intact")
+check(Stones.TextOf(zug) == "Praise the sun! ~;||% \"quotes\" café", "and shows them unscrambled, escapes and UTF-8 intact")
 check(zug.author == "Zug Zug" and zug.score == 3 and zug.found == 14 and zug.inDatabase, "with its author, score and found count")
 check(zug.wx == -1450.2 and zug.x == 0.5123 and zug.zone == 1413 and zug.flavor == "forever", "and its position")
 check(#Store:Near({ instance = 1, wx = -1450, wy = -3750 }, 10) >= 1, "it's on the map")
@@ -189,5 +189,39 @@ local evil = {
 out = Companion:Load({ format = 1, scope = Codec.Base64Encode("forever~test"), writtenAt = NOW, records = evil })
 check(out.skipped == #evil, "malformed, unknown, forged and over-long records are all skipped")
 check(Store:Get("Zug-Zug-9-9") == nil and Store:Get("Fake-1-1") == nil, "and add nothing")
+
+-- Abuse (adversarial review 2026-10-06).
+check(Codec.IdBelongsTo("Mad-Decent-1791000000-1", "Mad-Decent"), "an id is <author>-<time>-<n>")
+check(not Codec.IdBelongsTo("Mad-Decent-1791000000-1", "Mad"), "a short name can't take a longer name's ids")
+check(not Codec.IdBelongsTo("Mad-Decent-x-1", "Mad-Decent") and not Codec.IdBelongsTo("Mad-Decent-1", "Mad-Decent"),
+	"and nothing looser passes")
+check(Codec.Neutralize("|cffff0000Free gold|r") == "||cffff0000Free gold||r", "escape codes become plain text")
+check(Codec.Neutralize("left || right") == "left || right" and Codec.Neutralize("plain") == "plain", "safe text is left alone")
+check(Codec.Neutralize("|||Hx") == "||||Hx", "an odd run of pipes is evened up")
+check(Codec.HasEscapeCodes("|Hurl:x|h[click]|h") and not Codec.HasEscapeCodes("a || b") and not Codec.HasEscapeCodes("a | b"),
+	"live escape codes are spotted; plain pipes aren't")
+local function record(fields)
+	return "S~1~1~" .. table.concat(fields, "~")
+end
+local forged = {
+	Codec.Base64Encode(record({ "Mad-Decent-1791000000-1", "1", "Mad", "1791000000", "1413", "1", "0", "0", "1413", "0.5", "0.5", "",
+		"T", Codec.Scramble("Mad-Decent-1791000000-1", "hijacked"), "", "" })),
+	Codec.Base64Encode(record({ "Zug-Zug-1791000000-77", "1", "Zug-Zug", "1791000000", "1413", "1", "0", "0", "1413", "0.5", "0.5", "",
+		"T", Codec.Scramble("Zug-Zug-1791000000-77", "|cffff0000Blizzard:|r your account is banned"), "", "" })),
+	Codec.Base64Encode(record({ "Zug%7CZug-1791000000-1", "1", "Zug%7CZug", "1791000000", "1413", "1", "0", "0", "1413", "0.5", "0.5", "",
+		"T", Codec.Scramble("Zug|Zug-1791000000-1", "a name with a pipe"), "", "" })),
+}
+out = Companion:Load({ format = 1, scope = Codec.Base64Encode("forever~test"), writtenAt = NOW, records = forged })
+check(out.skipped == 3, "a hijacked id, escape codes in the words and a pipe in a name are all refused")
+
+-- Even a stone that got in some other way can't replace another author's.
+local mine = Store:Get("Mad-Decent-1791000000-1")
+check(Store:MergeRemote({ id = "Mad-Decent-1791000000-1", v = 99, authorKey = "Someone-Else", t = 1, zone = 1413, instance = 1, wx = 0, wy = 0 }) == nil
+	and Store:Get("Mad-Decent-1791000000-1") == mine, "a stone never replaces one by a different author")
+check(Store:Merge({ id = "Mad-Decent-1791000000-1", v = 99, authorKey = "Someone-Else", t = 1, zone = 1413, instance = 1, wx = 0, wy = 0 }, "Someone-Else") == nil,
+	"not from another player either")
+local shown = Stones.TextOf({ id = "x", text = "|TInterface\\Icons\\INV:500|t" })
+check(shown == "||TInterface\\Icons\\INV:500||t", "any text is shown as plain text, whatever got stored")
+check(ns.Identity.Display("Zug|cff00ff00-Zug") == "Zug||cff00ff00 Zug", "names too")
 
 done()

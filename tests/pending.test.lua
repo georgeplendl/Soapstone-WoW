@@ -33,6 +33,7 @@ UIErrorsFrame = { AddMessage = function() end }
 local ns = {}
 assert(loadfile(ROOT .. "/Identity.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Store.lua"))("Soapstone", ns)
+assert(loadfile(ROOT .. "/Codec.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Sketch.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Stones.lua"))("Soapstone", ns)
 ns.Print = function() end

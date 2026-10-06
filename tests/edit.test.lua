@@ -25,6 +25,7 @@ local ns, printed = {}, {}
 assert(loadfile(ROOT .. "/Core.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Identity.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Store.lua"))("Soapstone", ns)
+assert(loadfile(ROOT .. "/Codec.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Sketch.lua"))("Soapstone", ns)
 assert(loadfile(ROOT .. "/Stones.lua"))("Soapstone", ns)
 ns.Print = function(msg) printed[#printed + 1] = msg end

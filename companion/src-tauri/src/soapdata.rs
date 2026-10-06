@@ -315,7 +315,7 @@ mod tests {
             region: "test".into(),
             written_at: 1791234567,
             records: vec![
-                Record::Stone { stone: stone("Zug-Zug-1791200000-1", "Zug-Zug", Content::Text("Praise the sun! ~;|% \"quotes\" café".into())), score: 3, found: 14 },
+                Record::Stone { stone: stone("Zug-Zug-1791200000-1", "Zug-Zug", Content::Text("Praise the sun! ~;||% \"quotes\" café".into())), score: 3, found: 14 },
                 Record::Stone {
                     stone: Stone { v: 2, edited: Some(1791200100), ..stone("Zug-Zug-1791200000-2", "Zug-Zug", Content::Sketch("sk_9f2c41e07ab35d18".into())) },
                     score: 1,

@@ -20,7 +20,7 @@
 import type { Install } from './auth'
 import { sha256 } from './auth'
 import type { Env } from './env'
-import { checkDelete, checkStone, isCharKey, isFlavor, isRegion, type StoneIn } from './validate'
+import { checkDelete, checkStone, idBelongsTo, isCharKey, isFlavor, isRegion, isTime, type StoneIn } from './validate'
 import { allow, HttpError, nextSeq, now } from './util'
 
 const MAX = { stones: 100, deletes: 100, votes: 500, unlocks: 500, reports: 50 }
@@ -33,6 +33,8 @@ type StoneRow = {
   id: string
   author_key: string
   install_id: string
+  created_at: number
+  t: number | null
   v: number
   status: string
   deleted_at: number | null
@@ -61,12 +63,31 @@ export async function push(env: Env, install: Install, body: unknown) {
   const reject = (kind: Kind, id: unknown, reason: string, retry = false) =>
     rejected.push({ kind, id: typeof id === 'string' ? id : '', reason, ...(retry ? { retry } : {}) })
 
-  // Name ownership: the first install to write as a character owns it.
+  // Name ownership: the first install to write as a character owns it, up to
+  // LIMIT_CHARS_PER_INSTALL names (WoW accounts have only so many
+  // characters); without a cap one install could claim thousands of names
+  // and vote or "find" as all of them.
   const owned = new Map<string, boolean>()
+  let claimed: number | null = null
+  let tooMany = false
   async function owns(charKey: string): Promise<boolean> {
     const known = owned.get(charKey)
     if (known !== undefined) return known
     const t = now()
+    const existing = await env.DB.prepare('SELECT install_id FROM characters WHERE flavor = ? AND region = ? AND char_key = ?')
+      .bind(flavor, region, charKey).first<{ install_id: string }>()
+    if (!existing) {
+      if (claimed === null) {
+        claimed = (await env.DB.prepare('SELECT COUNT(*) AS n FROM characters WHERE flavor = ? AND region = ? AND install_id = ?')
+          .bind(flavor, region, install.id).first<{ n: number }>())?.n ?? 0
+      }
+      if (claimed >= setting(env, 'LIMIT_CHARS_PER_INSTALL', 20)) {
+        tooMany = true
+        owned.set(charKey, false)
+        return false
+      }
+      claimed++
+    }
     await env.DB.prepare(
       `INSERT INTO characters (flavor, region, char_key, install_id, claimed_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT (flavor, region, char_key) DO UPDATE SET last_seen = excluded.last_seen
@@ -79,11 +100,21 @@ export async function push(env: Env, install: Install, body: unknown) {
     return mine
   }
 
+  // Why `owns` said no, for the rejection.
+  const notOwned = (charKey: string) => (tooMany && !owned.get(charKey) ? 'too many characters' : 'name belongs to another install')
+
   const getStone = (id: string) =>
-    env.DB.prepare('SELECT id, author_key, install_id, v, status, deleted_at, zone, score, text FROM stones WHERE flavor = ? AND region = ? AND id = ?')
+    env.DB.prepare('SELECT id, author_key, install_id, created_at, t, v, status, deleted_at, zone, score, text FROM stones WHERE flavor = ? AND region = ? AND id = ?')
       .bind(flavor, region, id).first<StoneRow>()
 
   const blocked = (await env.DB.prepare('SELECT word FROM blocked_words').all<{ word: string }>()).results.map((r) => r.word.toLowerCase())
+  // Whole words (or phrases), so "Scunthorpe" doesn't trip a blocked word
+  // inside it. Letters and digits only; everything else separates words.
+  const words = (text: string) => ` ${text.toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `
+  const isBlocked = (text: string) => {
+    const w = words(text)
+    return blocked.some((word) => w.includes(words(word)))
+  }
 
   // Why a new (or re-tried) stone can't go live, or null if it can.
   async function refusal(stone: StoneIn): Promise<{ reason: string; retry?: boolean } | null> {
@@ -92,8 +123,7 @@ export async function push(env: Env, install: Install, body: unknown) {
       return { reason: 'too many stones today', retry: true }
     }
     if (stone.text !== undefined) {
-      const lower = stone.text.toLowerCase()
-      if (blocked.some((word) => lower.includes(word))) return { reason: 'word filter' }
+      if (isBlocked(stone.text)) return { reason: 'word filter' }
       const dup = await env.DB.prepare(
         `SELECT 1 FROM stones WHERE install_id = ? AND text = ? AND created_at > ? AND id != ? AND status = 'live' AND deleted_at IS NULL LIMIT 1`,
       ).bind(install.id, stone.text, now() - 86400, stone.id).first()
@@ -160,7 +190,7 @@ export async function push(env: Env, install: Install, body: unknown) {
     const checked = checkStone(raw)
     if (!checked.ok) { reject('stones', (raw as { id?: unknown })?.id, checked.reason); continue }
     const stone = checked.value
-    if (!(await owns(stone.authorKey))) { reject('stones', stone.id, 'name belongs to another install'); continue }
+    if (!(await owns(stone.authorKey))) { reject('stones', stone.id, notOwned(stone.authorKey)); continue }
 
     const existing = await getStone(stone.id)
     if (existing && existing.install_id !== install.id) { reject('stones', stone.id, 'not yours'); continue }
@@ -169,7 +199,14 @@ export async function push(env: Env, install: Install, body: unknown) {
     if (existing && existing.status !== 'rejected') {
       if (stone.v <= existing.v) { acks.stones.push(stone.id); continue } // already have it
       if (existing.status === 'hidden') { reject('stones', stone.id, 'hidden'); continue }
-      if (stone.text !== undefined && blocked.some((word) => stone.text!.toLowerCase().includes(word))) {
+      // The addon allows edits for 5 minutes. The server can't see that clock,
+      // so it allows them for EDIT_HOURS after it first saw the stone, and
+      // only if the edit claims to be within an hour of the drop: enough for
+      // honest players, and it stops a liked stone being rewritten later.
+      const editedAt = stone.edited ?? now()
+      const fresh = now() - existing.created_at <= setting(env, 'EDIT_HOURS', 12) * 3600
+      if (!fresh || editedAt - (existing.t ?? stone.t) > 3600) { reject('stones', stone.id, 'too late to edit'); continue }
+      if (stone.text !== undefined && isBlocked(stone.text)) {
         reject('stones', stone.id, 'word filter'); continue
       }
       if (!(await allow(env, install.id, 'edits', setting(env, 'LIMIT_EDITS_PER_INSTALL', 60)))) {
@@ -212,10 +249,10 @@ export async function push(env: Env, install: Install, body: unknown) {
     // it from the live channel: leave a tombstone so their copies go too.
     const authorKey = r.authorKey
     const zone = r.zone
-    if (!isCharKey(authorKey) || !del.id.startsWith(authorKey + '-') || !Number.isInteger(zone) || (zone as number) <= 0) {
+    if (!isCharKey(authorKey) || !idBelongsTo(del.id, authorKey) || !Number.isInteger(zone) || (zone as number) <= 0) {
       reject('deletes', del.id, 'unknown stone; authorKey and zone needed'); continue
     }
-    if (!(await owns(authorKey))) { reject('deletes', del.id, 'name belongs to another install'); continue }
+    if (!(await owns(authorKey))) { reject('deletes', del.id, notOwned(authorKey)); continue }
     await env.DB.prepare(
       `INSERT INTO stones (flavor, region, id, author_key, zone, v, deleted_at, install_id, created_at, updated_seq)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -228,19 +265,20 @@ export async function push(env: Env, install: Install, body: unknown) {
     const { stoneId, charKey, value } = (raw ?? {}) as Record<string, unknown>
     const key = `${String(stoneId)}|${String(charKey)}`
     if (typeof stoneId !== 'string' || !isCharKey(charKey) || ![1, -1, 0].includes(value as number)) { reject('votes', key, 'vote'); continue }
-    if (!(await owns(charKey))) { reject('votes', key, 'name belongs to another install'); continue }
+    if (!(await owns(charKey))) { reject('votes', key, notOwned(charKey)); continue }
     const stone = await getStone(stoneId)
     if (!stone || stone.deleted_at || stone.status !== 'live') { acks.votes.push(key); continue } // nothing to vote on any more
     if (stone.install_id === install.id) { reject('votes', key, 'own stone'); continue }
-    const prev = await env.DB.prepare('SELECT value FROM votes WHERE flavor = ? AND region = ? AND stone_id = ? AND char_key = ?')
-      .bind(flavor, region, stoneId, charKey).first<{ value: number }>()
-    const delta = (value as number) - (prev?.value ?? 0)
+    // One vote per install per stone, whichever of its characters cast it
+    // last: otherwise one person with many names could stuff the score.
+    const prev = await env.DB.prepare('SELECT COALESCE(SUM(value), 0) AS v FROM votes WHERE flavor = ? AND region = ? AND stone_id = ? AND install_id = ?')
+      .bind(flavor, region, stoneId, install.id).first<{ v: number }>()
+    const delta = (value as number) - (prev?.v ?? 0)
     if (delta === 0) { acks.votes.push(key); continue }
     if (!(await allow(env, install.id, 'votes', setting(env, 'LIMIT_VOTES_PER_INSTALL', 200)))) { reject('votes', key, 'too many votes today', true); continue }
-    if (value === 0) {
-      await env.DB.prepare('DELETE FROM votes WHERE flavor = ? AND region = ? AND stone_id = ? AND char_key = ?')
-        .bind(flavor, region, stoneId, charKey).run()
-    } else {
+    await env.DB.prepare('DELETE FROM votes WHERE flavor = ? AND region = ? AND stone_id = ? AND install_id = ?')
+      .bind(flavor, region, stoneId, install.id).run()
+    if (value !== 0) {
       await env.DB.prepare(
         `INSERT INTO votes (flavor, region, stone_id, char_key, value, install_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (flavor, region, stone_id, char_key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
@@ -256,10 +294,10 @@ export async function push(env: Env, install: Install, body: unknown) {
   for (const raw of input.unlocks) {
     const { stoneId, charKey, unlockedAt } = (raw ?? {}) as Record<string, unknown>
     const key = `${String(stoneId)}|${String(charKey)}`
-    if (typeof stoneId !== 'string' || !isCharKey(charKey) || !Number.isInteger(unlockedAt) || (unlockedAt as number) <= 0) {
+    if (typeof stoneId !== 'string' || !isCharKey(charKey) || !isTime(unlockedAt, now())) {
       reject('unlocks', key, 'unlock'); continue
     }
-    if (!(await owns(charKey))) { reject('unlocks', key, 'name belongs to another install'); continue }
+    if (!(await owns(charKey))) { reject('unlocks', key, notOwned(charKey)); continue }
     const stone = await getStone(stoneId)
     if (!stone || stone.status === 'rejected') { reject('unlocks', key, 'unknown stone'); continue }
     const prev = await env.DB.prepare('SELECT unlocked_at FROM unlocks WHERE flavor = ? AND region = ? AND char_key = ? AND stone_id = ?')
@@ -277,8 +315,11 @@ export async function push(env: Env, install: Install, body: unknown) {
     await env.DB.prepare(
       'INSERT INTO unlocks (flavor, region, char_key, stone_id, unlocked_at, install_id, updated_seq) VALUES (?, ?, ?, ?, ?, ?, ?)',
     ).bind(flavor, region, charKey, stoneId, unlockedAt, install.id, await nextSeq(env)).run()
-    // Finding your own stones (any of this install's characters) doesn't count.
-    if (stone.install_id !== install.id) await bump(stoneId, 'found_count = found_count + 1')
+    // A stone is found once per install, however many of its characters
+    // walk up to it, and finding this install's own stones doesn't count.
+    const foundBefore = await env.DB.prepare('SELECT 1 FROM unlocks WHERE flavor = ? AND region = ? AND stone_id = ? AND install_id = ? AND char_key != ? LIMIT 1')
+      .bind(flavor, region, stoneId, install.id, charKey).first()
+    if (stone.install_id !== install.id && !foundBefore) await bump(stoneId, 'found_count = found_count + 1')
     acks.unlocks.push(key)
   }
 
@@ -294,8 +335,14 @@ export async function push(env: Env, install: Install, body: unknown) {
     if (!(await allow(env, install.id, 'reports', setting(env, 'LIMIT_REPORTS_PER_INSTALL', 20)))) { reject('reports', stoneId, 'too many reports today', true); continue }
     await env.DB.prepare('INSERT OR IGNORE INTO reports (flavor, region, stone_id, install_id, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .bind(flavor, region, stoneId, install.id, reason ?? null, now()).run()
-    const reporters = await env.DB.prepare('SELECT COUNT(*) AS n FROM reports WHERE flavor = ? AND region = ? AND stone_id = ?')
-      .bind(flavor, region, stoneId).first<{ n: number }>()
+    // Every report is kept for review, but only reports from installs at
+    // least a day old, in good standing, from different addresses count
+    // toward hiding a stone: otherwise a few throwaway installs could hide
+    // anything.
+    const reporters = await env.DB.prepare(
+      `SELECT COUNT(DISTINCT i.ip_hash) AS n FROM reports r JOIN installs i ON i.id = r.install_id
+       WHERE r.flavor = ? AND r.region = ? AND r.stone_id = ? AND i.status = 'ok' AND i.created_at <= ?`,
+    ).bind(flavor, region, stoneId, now() - 86400).first<{ n: number }>()
     if ((reporters?.n ?? 0) >= setting(env, 'REPORTS_TO_HIDE', 3)) await bump(stoneId, "status = 'hidden'")
     acks.reports.push(stoneId)
   }

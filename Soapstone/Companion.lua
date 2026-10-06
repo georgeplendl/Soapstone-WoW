@@ -54,6 +54,10 @@ local REASONS = {
 	["word filter"] = "it contains a word that isn't allowed",
 	["duplicate"] = "you left the same words already today",
 	["name belongs to another install"] = "your name is linked to another computer",
+	["too many characters"] = "this computer already shares as many characters as it can",
+	["too late to edit"] = "it was changed after the 5 minutes for edits were up",
+	["text characters"] = "it contains characters that can't be shared",
+	["drop time"] = "your computer's clock looks wrong",
 }
 
 local function split(s)

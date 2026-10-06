@@ -23,22 +23,40 @@ The request and response shapes are documented at the top of
 
 **Rules the server enforces, whatever the client says:**
 
+- **Requests:** 20 a minute per IP for the puzzle and sign-up (an IPv6 /64
+  counts as one address), 30 a minute per install for everything else
+  (`ratelimits` in `wrangler.jsonc`, counted per Cloudflare location).
 - **Names:** the first install to write as a character (`Mad-Decent`) owns
-  it; nobody else can post, edit, delete, vote or unlock as it.
-- **Validation:** the addon's own rules (`Soapstone/Codec.lua`): ids belong
-  to their author, text 1–140 letters, sketches 160×60 that decode cleanly,
-  sane positions.
+  it; nobody else can post, edit, delete, vote or unlock as it. One install
+  owns at most 20 names (`LIMIT_CHARS_PER_INSTALL`).
+- **Validation:** the addon's own rules (`Soapstone/Codec.lua`): ids are
+  exactly `<author>-<time>-<n>`, text 1–140 letters with no WoW escape
+  codes (`|c`, `|H`, `|T`...; `||` is a plain pipe), sketches 160×60 that
+  decode cleanly, sane positions, and times from 2025 to a day ahead.
+- **Edits:** only within 12 hours of the server first seeing a stone
+  (`EDIT_HOURS`), and only if the edit claims to be within an hour of the
+  drop (the addon allows 5 minutes).
 - **Limits per day:** 30 new stones per install and 10 per character, 60
   edits, 200 votes, 2,000 unlocks, 20 reports, 5 new installs per IP.
+- **One vote and one find per install** per stone, whichever character.
 - **Density:** 10 live stones per character per zone; 3 stones within 10
   yards of each other.
-- **Word filter** (`blocked_words` table) and duplicate text within a day.
-- **Reports:** 3 installs reporting a stone hide it.
+- **Word filter** (`blocked_words`, whole words; a starter list of slurs
+  in `migrations/0002_word_filter.sql`) and duplicate text within a day.
+- **Reports:** every report is kept; reports from 3 installs that are at
+  least a day old, in good standing and on different addresses hide a
+  stone.
 - **Shadow limits:** a `limited` install's stones are shown only to itself.
 - **Unlocks are private:** only the owning install downloads them; others see
   a stone's found count.
 
 Limits can be changed with the `LIMIT_*` settings in [`src/env.ts`](src/env.ts).
+
+**What the code can't stop:** a refused request still counts toward the
+Workers plan's daily request budget (100,000 on the free plan), so a flood
+can use it up and stop sharing until midnight UTC. Blocking floods before
+they reach the Worker needs a Cloudflare firewall rate-limiting rule, which
+needs the server on a custom domain. See [SECURITY.md](../SECURITY.md).
 
 ## Working on it
 

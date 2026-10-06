@@ -57,9 +57,19 @@ export function isCharKey(s: unknown): s is string {
   return isStr(s) && s.length <= MAX_KEY && /^[^\s~;|%-]+(-[^\s~;|%-]+)?$/u.test(s)
 }
 
-// The addon's ids are "<authorKey>-<unix time>-<n>".
-function idBelongsTo(id: string, authorKey: string): boolean {
-  return id.length <= MAX_ID && id.startsWith(authorKey + '-') && id.length > authorKey.length + 1
+// The addon's ids are exactly "<authorKey>-<unix time>-<n>". Anything looser
+// lets a short name take a longer name's ids: "Mad" could post
+// "Mad-Decent-1791000000-1" and lock the real Mad-Decent out of it.
+export function idBelongsTo(id: string, authorKey: string): boolean {
+  return id.length <= MAX_ID && id.startsWith(authorKey + '-') && /^\d{1,12}-\d{1,6}$/.test(id.slice(authorKey.length + 1))
+}
+
+// Times a client sends must be plausible: not before 2025, not more than a
+// day ahead. A far-future drop time would make a stone look newest forever
+// and push real stones out of every zone's cap.
+export const EARLIEST = 1_735_689_600 // 2025-01-01
+export function isTime(n: unknown, now: number): n is number {
+  return isInt(n) && n >= EARLIEST && n <= now + 86400
 }
 
 // Letters, not bytes: the message box counts what you see.
@@ -75,6 +85,9 @@ export function checkText(text: unknown): Result<string> {
   // Control characters have no place in a one-box message (and \n is the
   // only one WoW's edit box could produce).
   if (/[\u0000-\u0009\u000b-\u001f\u007f]/.test(text)) return { ok: false, reason: 'text characters' }
+  // WoW escape codes (|c colour, |H links, |T textures...) would be drawn
+  // as such in other players' tooltips and chat. A doubled || is a plain pipe.
+  if (/\|\S/.test(text.replace(/\|\|/g, ''))) return { ok: false, reason: 'text characters' }
   return { ok: true, value: text }
 }
 
@@ -108,7 +121,7 @@ export function checkSketch(sketch: unknown): Result<Sketch> {
   return { ok: true, value: { w, h, data } }
 }
 
-export function checkStone(raw: unknown): Result<StoneIn> {
+export function checkStone(raw: unknown, now: number = Math.floor(Date.now() / 1000)): Result<StoneIn> {
   if (typeof raw !== 'object' || raw === null) return { ok: false, reason: 'stone' }
   const s = raw as Record<string, unknown>
   if (!isStr(s.id) || !isCharKey(s.authorKey) || !idBelongsTo(s.id, s.authorKey)) {
@@ -116,7 +129,7 @@ export function checkStone(raw: unknown): Result<StoneIn> {
   }
   if (!isInt(s.v) || s.v < 1 || s.v > 1_000_000) return { ok: false, reason: 'version' }
   if (!isInt(s.zone) || s.zone <= 0) return { ok: false, reason: 'zone' }
-  if (!isInt(s.t) || s.t <= 0) return { ok: false, reason: 'drop time' }
+  if (!isTime(s.t, now)) return { ok: false, reason: 'drop time' }
   if (!isInt(s.instance) || !isNum(s.wx) || !isNum(s.wy)) return { ok: false, reason: 'position' }
   if (Math.abs(s.wx) > MAX_COORD || Math.abs(s.wy) > MAX_COORD) return { ok: false, reason: 'position' }
   if (s.mapID !== undefined && !isInt(s.mapID)) return { ok: false, reason: 'map' }
@@ -125,7 +138,7 @@ export function checkStone(raw: unknown): Result<StoneIn> {
       return { ok: false, reason: 'map position' }
     }
   }
-  if (s.edited !== undefined && !isInt(s.edited)) return { ok: false, reason: 'edited' }
+  if (s.edited !== undefined && (!isTime(s.edited, now) || (s.edited as number) < (s.t as number))) return { ok: false, reason: 'edited' }
 
   const stone: StoneIn = {
     id: s.id, v: s.v, authorKey: s.authorKey, t: s.t, zone: s.zone, instance: s.instance,
@@ -147,12 +160,12 @@ export function checkStone(raw: unknown): Result<StoneIn> {
   return { ok: true, value: stone }
 }
 
-export function checkDelete(raw: unknown): Result<DeleteIn> {
+export function checkDelete(raw: unknown, now: number = Math.floor(Date.now() / 1000)): Result<DeleteIn> {
   if (typeof raw !== 'object' || raw === null) return { ok: false, reason: 'delete' }
   const d = raw as Record<string, unknown>
   if (!isStr(d.id) || d.id.length > MAX_ID || !isInt(d.v) || d.v < 1 || d.v > 1_000_000) {
     return { ok: false, reason: 'delete' }
   }
-  if (d.deletedAt !== undefined && !isInt(d.deletedAt)) return { ok: false, reason: 'delete' }
+  if (d.deletedAt !== undefined && !isTime(d.deletedAt, now)) return { ok: false, reason: 'delete' }
   return { ok: true, value: { id: d.id, v: d.v, deletedAt: d.deletedAt as number | undefined } }
 }

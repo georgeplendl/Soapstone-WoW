@@ -224,7 +224,8 @@ function Stones:Edit(stone, content)
 		changed = packed.data ~= stone.sketch.data
 		if changed then stone.sketch = packed end
 	else
-		local text = strtrim(content.text or "")
+		-- Stored with any pipes made plain, so the server never refuses it.
+		local text = ns.Codec.Neutralize(strtrim(content.text or ""))
 		if text == "" then return false end
 		changed = text ~= stone.text
 		if changed then stone.text = text end
@@ -259,9 +260,12 @@ end
 
 -- A written stone's words. Stones from the database keep theirs scrambled
 -- (Codec.Scramble) and are only unscrambled here, to be shown.
+--
+-- Whatever it says, it's shown as plain text: escape codes (|c, |H, |T...)
+-- are neutralized, so a stone can't draw links, colours or textures.
 function Stones.TextOf(stone)
-	if stone.text then return stone.text end
-	return stone.scrambled and ns.Codec.Unscramble(stone.id, stone.scrambled) or nil
+	local text = stone.text or (stone.scrambled and ns.Codec.Unscramble(stone.id, stone.scrambled)) or nil
+	return text and ns.Codec.Neutralize(text)
 end
 
 -- A drawing: carried here, or (from the database) only named by its sketch id.
@@ -327,7 +331,7 @@ end
 -- Drops a stone at the player's feet. `content` is { text = "..." } or
 -- { sketch = <packed sketch> }. Returns the stone, or nil if nothing dropped.
 function Stones:Drop(content)
-	local text = content.text and strtrim(content.text)
+	local text = content.text and ns.Codec.Neutralize(strtrim(content.text))
 	if text == "" then text = nil end
 	if not text and not content.sketch then return nil end
 	local here = self:GetPlayerLocation()

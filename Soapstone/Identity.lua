@@ -90,6 +90,8 @@ end
 -- elsewhere the realm really is a realm, so keep "Mad-Stormrage".
 function Identity.Display(key)
 	if not key then return nil end
+	-- Names come from other players too: never let one carry escape codes.
+	if key:find("|") then key = ns.Codec and ns.Codec.Neutralize(key) or key:gsub("|", "||") end
 	if Identity.Flavor() ~= "forever" then return key end
 	return (key:gsub("%-", " ", 1))
 end
