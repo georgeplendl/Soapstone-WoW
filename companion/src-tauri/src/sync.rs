@@ -185,6 +185,9 @@ pub struct Cache {
     /// Drawings for the cached sketch stones, by sketch id. A drawing is
     /// never changed in place (an edit makes a new id), so each is fetched once.
     pub sketches: BTreeMap<String, soapdata::Sketch>,
+    /// This server has everything the accounts had when the companion
+    /// first synced with it (the catch-up is done).
+    pub caught_up: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -226,12 +229,21 @@ fn answered(cache: &Cache, key: &str, now: u64, same: impl Fn(&Outcome) -> bool)
     }
 }
 
+/// What to upload. Normally the accounts' `pending`; until the server has
+/// caught up (a server the companion hasn't synced with before, such as
+/// the shared server after the 0.1.0 preview's local one), also everything
+/// the characters already have, since the addon cleared those from
+/// `pending` when the old server acknowledged them.
 fn batch(accounts: &[Account], cache: &Cache, now: u64) -> Batch {
     let mut b = Batch { stones: Vec::new(), deletes: Vec::new(), votes: Vec::new(), unlocks: Vec::new() };
     let mut seen = BTreeSet::new();
+    let catch_up = !cache.caught_up;
     for a in accounts {
         let ours = |key: &str| a.characters.iter().any(|c| c == key);
-        for (id, _) in &a.pending_stones {
+        let (no_stones, no_pairs): (Vec<(String, i64)>, Vec<(String, String, i64)>) = (Vec::new(), Vec::new());
+        let (extra_stones, extra_votes, extra_unlocks) =
+            if catch_up { (&a.catch_up_stones, &a.catch_up_votes, &a.catch_up_unlocks) } else { (&no_stones, &no_pairs, &no_pairs) };
+        for (id, _) in a.pending_stones.iter().chain(extra_stones) {
             let Some(rec) = a.stones.get(id) else { continue };
             let Some(author) = rec.get("authorKey").and_then(|v| v.as_str()) else { continue };
             if !ours(author) || !seen.insert(stone_key(id)) {
@@ -250,7 +262,7 @@ fn batch(accounts: &[Account], cache: &Cache, now: u64) -> Batch {
                 Upload::Delete(d) => b.deletes.push((d, id.clone(), v)),
             }
         }
-        for (id, char, value) in &a.pending_votes {
+        for (id, char, value) in a.pending_votes.iter().chain(extra_votes) {
             let key = char_key("v", id, char);
             if !ours(char) || !seen.insert(key.clone()) {
                 continue;
@@ -265,7 +277,7 @@ fn batch(accounts: &[Account], cache: &Cache, now: u64) -> Batch {
             }
             b.votes.push((json!({ "stoneId": id, "charKey": char, "value": value }), id.clone(), char.clone(), *value));
         }
-        for (id, char, at) in &a.pending_unlocks {
+        for (id, char, at) in a.pending_unlocks.iter().chain(extra_unlocks) {
             let key = char_key("u", id, char);
             if !ours(char) || !seen.insert(key.clone()) || answered(cache, &key, now, |_| true) {
                 continue;
@@ -435,13 +447,36 @@ pub fn waiting(account: &Account, cache: &Cache) -> (usize, usize) {
 
 /// Drops outcomes the addon has acted on (their entry is gone from every
 /// account's `pending`) and removals old enough to have reached everyone.
-fn tidy(cache: &mut Cache, accounts: &[Account], now: u64) {
+/// Every key the sync is still responsible for: pending entries, plus the
+/// catch-up items until the server has caught up.
+fn waiting_keys(accounts: &[Account], catch_up: bool) -> BTreeSet<String> {
     let mut waiting = BTreeSet::new();
     for a in accounts {
         waiting.extend(a.pending_stones.iter().map(|(id, _)| stone_key(id)));
         waiting.extend(a.pending_votes.iter().map(|(id, c, _)| char_key("v", id, c)));
         waiting.extend(a.pending_unlocks.iter().map(|(id, c, _)| char_key("u", id, c)));
+        if catch_up {
+            waiting.extend(a.catch_up_stones.iter().map(|(id, _)| stone_key(id)));
+            waiting.extend(a.catch_up_votes.iter().map(|(id, c, _)| char_key("v", id, c)));
+            waiting.extend(a.catch_up_unlocks.iter().map(|(id, c, _)| char_key("u", id, c)));
+        }
     }
+    waiting
+}
+
+/// The catch-up is done once every catch-up item has a final answer (an
+/// acknowledgement, or a refusal that isn't "try again later").
+fn catch_up_done(accounts: &[Account], cache: &Cache) -> bool {
+    let final_answer = |key: String| cache.outcomes.get(&key).is_some_and(|k| !matches!(k.item, Outcome::Refused { retry: true, .. }));
+    accounts.iter().all(|a| {
+        a.catch_up_stones.iter().all(|(id, _)| final_answer(stone_key(id)))
+            && a.catch_up_votes.iter().all(|(id, c, _)| final_answer(char_key("v", id, c)))
+            && a.catch_up_unlocks.iter().all(|(id, c, _)| final_answer(char_key("u", id, c)))
+    })
+}
+
+fn tidy(cache: &mut Cache, accounts: &[Account], now: u64) {
+    let waiting = waiting_keys(accounts, !cache.caught_up);
     cache.outcomes.retain(|key, kept| {
         // A stone refusal is also how the addon learns to mark it "not
         // shared", so keep it a while even once pending is clear.
@@ -461,6 +496,9 @@ pub fn run(server: &dyn Server, flavor: &str, region: &str, accounts: &[Account]
     if let Err(e) = push_all(server, flavor, region, b, cache, now, &mut report) {
         report.error = Some(e.to_string());
         return report;
+    }
+    if !cache.caught_up && catch_up_done(accounts, cache) {
+        cache.caught_up = true;
     }
     let mut zones: Vec<i64> = Vec::new();
     for a in accounts {
@@ -806,6 +844,53 @@ SoapstoneDB = {
         cache.stones.clear();
         run(&server, "forever", "test", &[], &mut cache, 1200);
         assert!(cache.sketches.is_empty(), "dropped once no stone uses it");
+    }
+
+    #[test]
+    fn a_new_server_gets_everything_the_characters_already_have() {
+        // Pending is empty (an old server acknowledged it all), but the
+        // stones, votes and unlocks are still in the save.
+        let src = r#"
+SoapstoneDB = {
+["meta"] = { ["flavor"] = "forever", ["region"] = "test", ["characters"] = { ["Mad-Decent"] = {}, }, },
+["stones"] = {
+  ["Mad-Decent-1-1"] = { ["id"] = "Mad-Decent-1-1", ["v"] = 1, ["authorKey"] = "Mad-Decent", ["t"] = 1791000000, ["zone"] = 1413,
+    ["instance"] = 1, ["wx"] = 1.5, ["wy"] = 2.5, ["text"] = "mine", },
+  ["Mad-Decent-1-2"] = { ["id"] = "Mad-Decent-1-2", ["v"] = 1, ["authorKey"] = "Mad-Decent", ["t"] = 1791000001, ["zone"] = 1413,
+    ["instance"] = 1, ["wx"] = 9.5, ["wy"] = 2.5, ["text"] = "mine too", },
+  ["Zug-Zug-1-1"] = { ["id"] = "Zug-Zug-1-1", ["v"] = 1, ["authorKey"] = "Zug-Zug", ["text"] = "theirs", ["heardBy"] = { ["Mad-Decent"] = 7, }, },
+},
+["ratings"] = { ["Zug-Zug-1-1"] = { ["Mad-Decent"] = 1, }, },
+["pending"] = { ["stones"] = {}, ["votes"] = {}, ["unlocks"] = {}, },
+}"#;
+        let accounts = [account::parse(src).unwrap()];
+        let fake = Fake::default();
+        // The server takes one stone today and asks to retry the other tomorrow.
+        *fake.push_answer.borrow_mut() = Some(Box::new(|body: &Json| {
+            let mut res = ack_everything(body);
+            if res.acks.stones.len() == 2 {
+                res.acks.stones.retain(|id| id != "Mad-Decent-1-2");
+                res.rejected.push(Rejection { kind: "stones".into(), id: "Mad-Decent-1-2".into(), reason: "too many stones today".into(), retry: true });
+            }
+            Ok(res)
+        }));
+        let mut cache = Cache::default();
+        let report = run(&fake, "forever", "test", &accounts, &mut cache, 1000);
+        assert_eq!(report.uploaded, 3, "one stone, the vote and the unlock");
+        assert!(!cache.caught_up, "not done while a stone waits for tomorrow");
+
+        let pushed = |fake: &Fake| fake.pushes.borrow().len();
+        let before = pushed(&fake);
+        run(&fake, "forever", "test", &accounts, &mut cache, 2000);
+        assert_eq!(pushed(&fake), before, "nothing is sent again before the retry time");
+        *fake.push_answer.borrow_mut() = None; // tomorrow: everything goes through
+        run(&fake, "forever", "test", &accounts, &mut cache, 1000 + RETRY_AFTER);
+        assert!(cache.caught_up, "caught up once everything has an answer");
+        assert_eq!(fake.pushes.borrow().last().unwrap()["stones"][0]["id"], "Mad-Decent-1-2");
+
+        let before = pushed(&fake);
+        run(&fake, "forever", "test", &accounts, &mut cache, 2 * RETRY_AFTER);
+        assert_eq!(pushed(&fake), before, "after catching up, only pending is uploaded");
     }
 
     #[test]

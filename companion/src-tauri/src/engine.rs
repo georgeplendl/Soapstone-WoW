@@ -42,21 +42,29 @@ fn safe(part: &str) -> bool {
     !part.is_empty() && part.len() <= 20 && part.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
-fn cache_path(dir: &Path, (flavor, region): &Scope) -> PathBuf {
-    dir.join("cache").join(format!("{flavor}-{region}.json"))
+/// Each server keeps its own cache (`cache\<server>\<flavor>-<region>.json`):
+/// what one server acknowledged says nothing about another. (Companion
+/// 0.1.0 kept `cache\<flavor>-<region>.json` for its local test server; that
+/// file is simply no longer read.)
+fn cache_path(dir: &Path, server: &str, (flavor, region): &Scope) -> PathBuf {
+    use sha2::{Digest, Sha256};
+    let key: String = Sha256::digest(server.as_bytes()).iter().take(6).map(|b| format!("{b:02x}")).collect();
+    dir.join("cache").join(key).join(format!("{flavor}-{region}.json"))
 }
 
-fn load_cache(dir: &Path, scope: &Scope) -> Cache {
-    fs::read(cache_path(dir, scope)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
+fn load_cache(dir: &Path, server: &str, scope: &Scope) -> Cache {
+    fs::read(cache_path(dir, server, scope)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
 }
 
-fn save_cache(dir: &Path, scope: &Scope, cache: &Cache) -> std::io::Result<()> {
+fn save_cache(dir: &Path, server: &str, scope: &Scope, cache: &Cache) -> std::io::Result<()> {
     let json = serde_json::to_vec(cache).map_err(std::io::Error::other)?;
-    files::write_atomic(&cache_path(dir, scope), &json)
+    files::write_atomic(&cache_path(dir, server, scope), &json)
 }
 
-/// Installs or updates the addon in each folder first (`install_addon`), then syncs.
-pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_dir: &Path, now: u64, install_addon: bool) {
+/// Installs or updates the addon in each folder first (`install_addon`), then
+/// syncs with `server` (its URL picks the cache; `None` = offline, write
+/// from the cache only).
+pub fn sync_all(server: Option<&dyn Server>, server_url: &str, folders: &mut [FolderStatus], data_dir: &Path, now: u64, install_addon: bool) {
     let mut addon_notes: Vec<(Option<String>, Option<String>)> = Vec::new();
     for folder in folders.iter_mut() {
         addon_notes.push(if install_addon { look_after_addon(folder) } else { (None, None) });
@@ -106,10 +114,10 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
     let mut reports: BTreeMap<Scope, Report> = BTreeMap::new();
     let mut caches: BTreeMap<Scope, Cache> = BTreeMap::new();
     for (scope, accounts) in &by_scope {
-        let mut cache = load_cache(data_dir, scope);
+        let mut cache = load_cache(data_dir, server_url, scope);
         if let Some(server) = server {
             let report = sync::run(server, &scope.0, &scope.1, accounts, &mut cache, now);
-            if let Err(e) = save_cache(data_dir, scope, &cache) {
+            if let Err(e) = save_cache(data_dir, server_url, scope, &cache) {
                 reports.insert(scope.clone(), Report { error: Some(format!("couldn't save the cache: {e}")), ..report });
             } else {
                 reports.insert(scope.clone(), report);
@@ -262,7 +270,7 @@ mod tests {
     fn a_cycle_uploads_downloads_and_writes_soapstone_data() {
         let (tmp, mut folders) = setup(SV);
         let data = tmp.path().join("appdata");
-        sync_all(Some(&Fake), &mut folders, &data, 1791234567, false);
+        sync_all(Some(&Fake), "https://test.server", &mut folders, &data, 1791234567, false);
         let sync = folders[0].sync.clone().unwrap();
         assert_eq!(sync.scope.as_deref(), Some("forever · test"));
         assert_eq!(sync.report.as_ref().map(|r| (r.uploaded, r.downloaded)), Some((1, 1)));
@@ -274,12 +282,13 @@ mod tests {
         let vars = crate::lua::parse(&stones).unwrap();
         let records = vars["SoapstoneData_Stones"].path(&["records"]).unwrap().as_table().unwrap().entries.len();
         assert_eq!(records, 2, "Zug's stone and the ack for Mad's");
-        assert!(cache_path(&data, &("forever".into(), "test".into())).exists(), "the cache is saved");
+        assert!(cache_path(&data, "https://test.server", &("forever".into(), "test".into())).exists(), "the cache is saved");
+        assert!(!cache_path(&data, "https://other.server", &("forever".into(), "test".into())).exists(), "per server");
         let summary = folders[0].accounts[0].summary.clone().unwrap();
         assert_eq!((summary.waiting, summary.confirmed), (0, 1), "the uploaded drop counts as confirmed, not waiting");
 
         // Offline next time: the file is still written, from the cache.
-        sync_all(None, &mut folders, &data, 1791234667, false);
+        sync_all(None, "https://test.server", &mut folders, &data, 1791234667, false);
         let sync = folders[0].sync.clone().unwrap();
         assert!(sync.wrote && !sync.installed);
         assert_eq!(sync.note.as_deref(), Some("Showing the stones from the last sync until the server is back."));
@@ -291,7 +300,7 @@ mod tests {
     #[test]
     fn an_old_addon_gets_a_hint_and_no_files() {
         let (tmp, mut folders) = setup("SoapstoneDB = { [\"stones\"] = {}, }");
-        sync_all(Some(&Fake), &mut folders, &tmp.path().join("appdata"), 1, false);
+        sync_all(Some(&Fake), "https://test.server", &mut folders, &tmp.path().join("appdata"), 1, false);
         let sync = folders[0].sync.clone().unwrap();
         assert!(sync.note.unwrap().contains("latest Soapstone addon"));
         assert!(!datafiles::folder(&folders[0].path).exists());
