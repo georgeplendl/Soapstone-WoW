@@ -37,6 +37,9 @@ retired (see [The P2P network](#the-p2p-network)).
 | **Sharing** | **Companion only.** The hidden chat channel and the P2P network are retired |
 | **Sealed text** | Lightly **scrambled** in the data file, so stones can't be read casually in Notepad |
 | **More than one computer** | **Not in v1.** A character belongs to one computer; adding a second with a pairing code comes later |
+| **Installing the addon** | **The companion installs and updates it.** Players install one thing |
+| **Data into the game** | Stranger text reaches the game as **encoded data the addon decodes and checks, never as Lua code** |
+| **Unlock privacy** | A character's unlocks are visible **only to the install that owns it**. Found counts are public totals |
 | **Game types** | Detected automatically. Forever, Classic and Retail stones **never mix** |
 | **Realms** | **Ignored.** Stones are shared across every realm of a game type, so the world doesn't feel empty |
 | **Region** | Stones are split by **WoW region** (US, EU, KR, TW). Players can't message across regions anyway, and it keeps each sync small and fast |
@@ -48,6 +51,24 @@ retired (see [The P2P network](#the-p2p-network)).
 "Region" here means the WoW region your account plays in, not the map
 region. Within a region, the companion still fetches stones zone by zone
 (below).
+
+---
+
+### What a player does
+
+1. **Install the companion.** One installer, no admin prompt, no sign-in.
+   It finds WoW, installs the Soapstone addon, registers itself in the
+   background and sits in the system tray, starting with Windows.
+2. **Play.** Press **Sync** in the addon (a quick reload) to pull in the
+   newest stones, or just get them on the next login.
+
+No username, no password, no account. The rough edges that remain:
+
+- **Reload to sync.** There's no live path without the chat channel.
+- **"Windows protected your PC"** until the companion is code-signed. Fine
+  for a private beta, needed before a public release.
+- **Players without the companion** see no new stones.
+- **Mac players** wait for the second build.
 
 ---
 
@@ -95,6 +116,8 @@ players' accounts at risk.
 
 **The companion** (the only thing that talks to the internet):
 - Finds WoW installs and their SavedVariables.
+- Installs the `Soapstone` addon into each install's `Interface\AddOns` and
+  keeps it updated, so the addon and companion versions always match.
 - Uploads pending changes, downloads stones for your game type and region,
   writes the helper addon's files.
 - Sits in the system tray. No window unless you open it.
@@ -158,11 +181,38 @@ minimap from `Stones.lua`; opening one without the companion says "Start
 the Soapstone companion to see this drawing." Your **own** drawings always
 show, since they're in your SavedVariables.
 
-**Writing Lua safely.** Stone text is typed by strangers. The companion must
-write every string with full Lua escaping (quotes, backslashes, newlines,
-`]]`) so a message can never break out of its string and run as code in
-other players' games. The addon still runs every record through the same
-validation as zone sync (`Codec.DecodeStone` rules) before using it.
+**Never write stranger text as Lua code.** WoW runs `Stones.lua` and
+`Sketches.lua` as Lua when it loads them. If the companion wrote stone text
+as Lua strings, one escaping bug, or a compromised server, could make a
+message break out of its string and run as code in every player's game. So
+the files contain only data the addon decodes itself:
+
+```lua
+SoapstoneData_Stones = {
+  format    = 1,                 -- refused if the addon doesn't know it
+  writtenAt = 1791234567,
+  records   = {
+    "c1RvbmUgcmVjb3JkIG9uZQ==",  -- one base64 blob per stone
+    "c1RvbmUgcmVjb3JkIHR3bw==",
+  },
+}
+```
+
+- The companion writes only numbers and base64 strings, whose alphabet
+  (`A–Z a–z 0–9 + / =`) can't close a Lua string. That's checked again
+  just before writing.
+- Each blob decodes to one stone in a simple field format. The addon decodes
+  it and runs it through the same validation as today
+  (`Codec.DecodeStone` rules: lengths, characters, zone ids, coordinates)
+  before using it. Anything that fails is skipped.
+- So the worst a bad server or a bug can do is put wrong text on a stone,
+  never run code.
+
+**Writing files safely.** The companion writes each file to a temp name in
+the same folder, then renames it into place, so the game never loads a
+half-written file. If a file can't be read anyway, only the helper addon
+fails: Soapstone keeps the stones it had and shows "Companion: data
+unreadable".
 
 **Scrambling sealed text.** A stone has to show the moment you reach it,
 with no network in game, so its words must already be in `Stones.lua`. That
@@ -237,14 +287,19 @@ from a text file, so anyone could claim it. So each name gets a lock:
   second or two of CPU on one PC, expensive for a script registering
   thousands), and gets back a token. The player never sees it.
 - The first install to upload anything as a character (a stone, vote or
-  unlock) **owns that name** for that game type and region. After that,
+  unlock) **owns that name** for that game type and region. It can only
+  claim characters the addon has seen log in on that install (from
+  `SoapstoneDB.meta`), which makes claiming someone else's name take a
+  deliberate hand edit. After that,
   only that install can post, edit, delete, vote or record unlocks as
   `Mad-Decent`.
 
 The name is the address; the token is the key.
 
-**Reading is open.** Stones are public anyway, and downloading a
-character's unlocks reveals little, so pulls don't need ownership.
+**Stones are public; unlocks are private.** Anyone can download stones,
+scores and found counts. A character's unlocks, with their times, show where
+that character has been and when, so the server sends them only to the
+install that owns the character.
 
 #### v1: one computer per character
 
@@ -314,6 +369,44 @@ Server rules:
   point of view, but its stones are only shown back to itself.
 - **Word filter:** a short blocklist on upload, adjustable without an app
   update.
+
+**Moderation needs a tool from day one:** a small private admin page to see
+reported and hidden stones, restore or delete them, limit or ban an
+install, and release a character name.
+
+---
+
+### Security and stability
+
+What could go wrong, ranked by how much it matters.
+
+| Risk | What could happen | How it's handled |
+|---|---|---|
+| **Code in stone text** | A message escapes its string in `Stones.lua` and runs as code in every player's game | Data goes in as base64 blobs the addon decodes and validates, never as Lua strings ([Files on disk](#files-on-disk)). Worst case is wrong text |
+| **Update key stolen** | Whoever holds the companion's update-signing key can push a program to every player's PC | Tauri only installs updates signed with that key. Keep it offline and out of the repo, release from a protected GitHub Actions job, two-factor on the GitHub account |
+| **Server compromised** | The attacker controls what stones everyone receives | Same as the first row: the addon treats every record as untrusted data, so the damage is limited to bad or missing stones |
+| **Name squatting** | Someone hand-edits a file and claims `Mad-Decent` before the real player installs, then posts as them | Claims only for characters the addon has seen log in; admin can release a name and remove its stones. Can't be fully prevented without Blizzard's proof (Battle.net sign-in). It can't touch anyone's account or PC |
+| **Spam and floods** | Thousands of junk stones or fake votes | Proof-of-work, rate limits, density caps, reports, word filter, shadow limits ([above](#stopping-mass-submissions-and-abuse)) |
+| **Unlock privacy** | Someone tracks where a player has been and when | Unlocks go only to the owning install; others see totals |
+| **Stolen token** | Malware on a player's PC posts as their characters | Low value; the token stays in the user's app data folder. Admin can reset it |
+| **Blizzard's rules** | A companion that touches addon files is against the rules on Forever | Same file-only approach as WeakAuras Companion and the Raider.IO client. Confirm for Forever before release (open questions) |
+
+**Stability:**
+
+- **Half-written files:** the companion writes to a temp file and renames it;
+  it reads SavedVariables only after the file has stopped changing.
+- **A broken data file** only breaks the helper addon. Soapstone keeps its
+  last good stones and says "Companion: data unreadable".
+- **Server down or no internet:** the addon plays from its cache, and every
+  drop, vote and unlock waits in `pending`. Nothing is lost.
+- **Mismatched versions:** both data files carry a `format` number; an
+  unknown one is refused with "Update the Soapstone companion". Since the
+  companion installs the addon, they rarely drift apart.
+- **Integrity of stones:** the server is the source of truth. Only a name's
+  owner can edit or delete its stones, every change carries a version, and
+  deletes leave a tombstone, so changes merge cleanly. Editing your own
+  SavedVariables only fools your own game: anything uploaded still has to
+  pass ownership and validation.
 
 ---
 
@@ -423,6 +516,10 @@ small gain. [[Idea - Network Resilience (WoW)]] only matters if P2P stays.
   logs, quit.
 - **Install:** per-user installer (NSIS), no admin prompt. "Start with
   Windows" uses the per-user startup registry key.
+- **Managing the addon:** the companion carries the matching `Soapstone`
+  addon and copies it into each install's `Interface\AddOns`, replacing an
+  older copy (never touching SavedVariables). It skips a folder that's a
+  link to a git checkout, so a developer's working copy isn't overwritten.
 - **Finding WoW:** Blizzard's install-path registry key, then Battle.net's
   `C:\ProgramData\Battle.net\Agent\product.db`, then common locations on
   every drive (`D:\Games\World of Warcraft\`), then "Choose folder…".
@@ -462,10 +559,11 @@ Kept in mind from the start:
    per-zone cap.
 2. **Server:** register, push, pull (including unlocks and found counts),
    sketches, name ownership, with the rate limits and validation from day
-   one. Test it with a script before any app exists.
-3. **Companion core (Windows):** find installs, parse SavedVariables, push
-   and pull, write `Stones.lua` (scrambled) and `Sketches.lua` safely. A
-   plain tray app, unsigned, for a private beta.
+   one, and the admin page. Test it with a script before any app exists.
+3. **Companion core (Windows):** find installs, install the addon, parse
+   SavedVariables, push and pull, write `Stones.lua` (encoded and scrambled)
+   and `Sketches.lua` safely. A plain tray app, unsigned, for a private
+   beta.
 4. **Retire P2P:** remove the chat channel, zone sync and the `outbox` from
    the addon once the companion carries stones.
 5. **Private beta** with a handful of players on WoW Forever. Tune limits.
