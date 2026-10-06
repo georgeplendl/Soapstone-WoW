@@ -21,7 +21,9 @@ plain HTML status window (`ui/`, no bundler).
   as characters that logged in on that account), downloads changes in the
   zones those accounts visited, and keeps everything in
   `%APPDATA%\Soapstone\cache\<flavor>-<region>.json`. It syncs when a
-  SavedVariables file changes (a `/reload` or logout), and every 2 minutes.
+  SavedVariables file changes (a `/reload` or logout, checked every 5
+  seconds), and otherwise every 3 minutes while WoW is running or every 30
+  minutes when it isn't.
 - **Writes `SoapstoneData`** into each game folder with the addon:
   `Stones.lua` (format in `Soapstone/Companion.lua`), installed once with a
   `.toc` matching the addon's Interface number. A first install needs one
