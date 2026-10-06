@@ -394,6 +394,33 @@ fn pull_all(server: &dyn Server, flavor: &str, region: &str, zones: &[i64], cach
     Ok(())
 }
 
+/// (still to upload, already answered) for one account's `pending`. The
+/// file lags the game by a save: the addon clears answered entries when it
+/// loads, but they only leave the file at the next save.
+pub fn waiting(account: &Account, cache: &Cache) -> (usize, usize) {
+    let has = |key: &str, same: &dyn Fn(&Outcome) -> bool| cache.outcomes.get(key).is_some_and(|k| same(&k.item));
+    let mut answered = 0;
+    let mut total = 0;
+    for (id, v) in &account.pending_stones {
+        total += 1;
+        let done = |o: &Outcome| match o {
+            Outcome::AckStone { v: done, .. } | Outcome::Refused { v: done, .. } => done >= v,
+            _ => false,
+        };
+        answered += usize::from(has(&stone_key(id), &done));
+    }
+    for (id, c, value) in &account.pending_votes {
+        total += 1;
+        let done = |o: &Outcome| matches!(o, Outcome::AckVote { value: done, .. } if done == value) || matches!(o, Outcome::Refused { .. });
+        answered += usize::from(has(&char_key("v", id, c), &done));
+    }
+    for (id, c, _) in &account.pending_unlocks {
+        total += 1;
+        answered += usize::from(has(&char_key("u", id, c), &|_| true));
+    }
+    (total - answered, answered)
+}
+
 /// Drops outcomes the addon has acted on (their entry is gone from every
 /// account's `pending`) and removals old enough to have reached everyone.
 fn tidy(cache: &mut Cache, accounts: &[Account], now: u64) {
@@ -712,6 +739,15 @@ SoapstoneDB = {
         *fake.pull_answers.borrow_mut() = vec![stale];
         run(&fake, "forever", "test", &accounts, &mut cache, 1300);
         assert!(!cache.stones.contains_key("Gone-Away-1-1"));
+    }
+
+    #[test]
+    fn answered_entries_dont_count_as_waiting() {
+        let accounts = [account::parse(SV).unwrap()];
+        let mut cache = Cache::default();
+        assert_eq!(waiting(&accounts[0], &cache), (6, 0), "3 stones, 2 votes and an unlock all wait before a sync");
+        run(&Fake::default(), "forever", "test", &accounts, &mut cache, 1000);
+        assert_eq!(waiting(&accounts[0], &cache), (2, 4), "after it, only Zug's stone and the stranger's vote (not ours to send) still wait");
     }
 
     #[test]

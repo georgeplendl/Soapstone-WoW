@@ -55,10 +55,12 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
     // Read every account; pick each folder's game type and region.
     let mut folder_scope: Vec<Option<Scope>> = Vec::new();
     let mut by_scope: BTreeMap<Scope, Vec<Account>> = BTreeMap::new();
-    for folder in folders.iter_mut() {
+    // (folder, account) -> the parsed account and its scope, to count what's waiting after the sync.
+    let mut parsed_at: Vec<(usize, usize, Scope, Account)> = Vec::new();
+    for (fi, folder) in folders.iter_mut().enumerate() {
         let mut newest: Option<(u64, Scope)> = None;
         let mut without_meta = false;
-        for a in folder.accounts.iter().filter(|a| a.state == "ok") {
+        for (ai, a) in folder.accounts.iter().enumerate().filter(|(_, a)| a.state == "ok") {
             let Ok(source) = fs::read(&a.saved_variables) else { continue };
             let Ok(parsed) = account::parse(&String::from_utf8_lossy(&source)) else { continue };
             let modified = a.summary.as_ref().map_or(0, |s| s.modified);
@@ -68,6 +70,7 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
                     if newest.as_ref().is_none_or(|(m, _)| modified > *m) {
                         newest = Some((modified, scope.clone()));
                     }
+                    parsed_at.push((fi, ai, scope.clone(), parsed.clone()));
                     by_scope.entry(scope).or_default().push(parsed);
                 }
                 _ => without_meta = true,
@@ -100,6 +103,13 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
             }
         }
         caches.insert(scope.clone(), cache);
+    }
+
+    // What's still waiting, now that the server has answered.
+    for (fi, ai, scope, account) in &parsed_at {
+        if let (Some(cache), Some(summary)) = (caches.get(scope), folders[*fi].accounts[*ai].summary.as_mut()) {
+            (summary.waiting, summary.confirmed) = sync::waiting(account, cache);
+        }
     }
 
     // Write each folder's SoapstoneData.
@@ -211,6 +221,8 @@ mod tests {
         let records = vars["SoapstoneData_Stones"].path(&["records"]).unwrap().as_table().unwrap().entries.len();
         assert_eq!(records, 2, "Zug's stone and the ack for Mad's");
         assert!(cache_path(&data, &("forever".into(), "test".into())).exists(), "the cache is saved");
+        let summary = folders[0].accounts[0].summary.clone().unwrap();
+        assert_eq!((summary.waiting, summary.confirmed), (0, 1), "the uploaded drop counts as confirmed, not waiting");
 
         // Offline next time: the file is still written, from the cache.
         sync_all(None, &mut folders, &data, 1791234667);

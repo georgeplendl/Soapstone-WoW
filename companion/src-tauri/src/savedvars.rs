@@ -39,6 +39,10 @@ pub struct Summary {
     /// character's votes and unlocks), or the older `outbox` before the
     /// addon had `pending`.
     pub waiting: usize,
+    /// Of those, how many the server has already answered (the sync sets
+    /// it): the game clears them at its next /reload, and the file shows it
+    /// at the save after that. `waiting` doesn't count them.
+    pub confirmed: usize,
     pub modified: u64,
 }
 
@@ -74,7 +78,7 @@ pub fn summarize(source: &str, modified: u64) -> Result<Summary, String> {
         Some(Value::Table(t)) => t,
         Some(_) => return Err("SoapstoneDB is not a table".into()),
         // The addon is installed but hasn't saved anything yet.
-        None => return Ok(Summary { meta: None, stones: 0, waiting: 0, modified }),
+        None => return Ok(Summary { meta: None, stones: 0, waiting: 0, confirmed: 0, modified }),
     };
     let text = |t: &lua::Table, k: &str| t.get(k).and_then(Value::as_str).map(str::to_owned);
     let meta = db.get("meta").and_then(Value::as_table).map(|m| Meta {
@@ -109,7 +113,7 @@ pub fn summarize(source: &str, modified: u64) -> Result<Summary, String> {
         }
         None => db.get("outbox").and_then(Value::as_table).map(|t| t.entries.len()).unwrap_or(0),
     };
-    Ok(Summary { meta, stones, waiting, modified })
+    Ok(Summary { meta, stones, waiting, confirmed: 0, modified })
 }
 
 #[cfg(test)]

@@ -29,8 +29,13 @@ function account(a) {
     const s = a.summary
     const chars = s.meta && s.meta.characters.length ? ` · ${s.meta.characters.map((c) => c.replace('-', ' ')).join(', ')}` : ''
     const game = s.meta ? `${s.meta.flavor ?? '?'} · ${(s.meta.region ?? 'region unknown').toUpperCase()}${chars}` : 'game type not recorded yet (needs addon 0.5)'
-    const waiting = s.waiting === 1 ? '1 change waiting' : `${s.waiting} changes waiting`
+    const waiting = s.waiting === 0 ? 'all synced' : s.waiting === 1 ? '1 change to upload' : `${s.waiting} changes to upload`
     line = el('span', {}, `${s.stones} stones · ${waiting} · `, el('span', { className: 'muted', textContent: game }))
+    if (s.confirmed) {
+      // The file is a save behind the game: the addon has already taken these in.
+      const n = s.confirmed === 1 ? '1 change' : `${s.confirmed} changes`
+      line = el('span', {}, line, el('div', { className: 'muted small', textContent: `${n} uploaded; WoW clears ${s.confirmed === 1 ? 'it' : 'them'} at the next /reload or logout` }))
+    }
   }
   return el('li', {},
     el('div', { className: 'row' }, el('strong', { textContent: a.name }), el('span', { className: 'muted small', textContent: a.summary ? `saved ${ago(a.summary.modified)}` : '' })),
