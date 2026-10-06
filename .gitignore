@@ -6,3 +6,4 @@ __pycache__/
 dist/
 node_modules/
 Soapstone/BuildInfo.lua
+reference/

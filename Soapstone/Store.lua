@@ -27,6 +27,10 @@ Store.MAX_PER_ZONE = 200            -- other players' stones kept per zone
 Store.MAX_TOTAL = 5000              -- other players' stones kept overall
 Store.TOMBSTONE_TTL = 7 * 24 * 3600 -- deleted stones remembered this long
 
+-- Goes up whenever stones are added, changed, removed, unlocked or rated, so
+-- views that redraw rarely (the world map) can tell when to.
+Store.revision = 0
+
 local ZONE_TYPE = (Enum and Enum.UIMapType and Enum.UIMapType.Zone) or 3
 
 local cells = {} -- "instance:cx:cy" -> { [id] = stone } (live stones only)
@@ -138,6 +142,7 @@ function Store:Put(stone)
 	stone.zone = stone.zone or Store.ZoneKey(stone.mapID)
 	db().stones[stone.id] = stone
 	index(stone)
+	self:Touch()
 	return stone
 end
 
@@ -148,6 +153,7 @@ function Store:Remove(id)
 	unindex(stone)
 	db().stones[id] = nil
 	db().ratings[id] = nil
+	self:Touch()
 end
 
 -- Deletes a stone: keeps a tombstone at a higher version, so a stale copy
@@ -165,6 +171,12 @@ function Store:Tombstone(stone)
 		authorKey = stone.authorKey,
 	}
 	self:MarkChanged(stone.id)
+	self:Touch()
+end
+
+-- Something about the stones changed that views may want to redraw for.
+function Store:Touch()
+	self.revision = self.revision + 1
 end
 
 -- Your stone changed (dropped, edited, deleted): announce it in step 4.
@@ -181,6 +193,7 @@ function Store:Clear()
 	wipe(db().outbox)
 	wipe(db().ratings)
 	wipe(cells)
+	self:Touch()
 end
 
 -- Upkeep --------------------------------------------------------------------
@@ -259,6 +272,7 @@ function Store:Rate(id, value)
 	local ratings = db().ratings[id] or {}
 	ratings[ns.Identity.PlayerKey()] = value
 	db().ratings[id] = next(ratings) and ratings or nil
+	self:Touch()
 end
 
 -- Sync view -------------------------------------------------------------------
@@ -353,6 +367,7 @@ function Store:Merge(rec, viaKey)
 			id = rec.id, v = rec.v, t = rec.t, deleted = true, deletedAt = rec.deletedAt or time(),
 			zone = rec.zone, flavor = ns.Identity.Flavor(), authorKey = rec.authorKey,
 		}
+		self:Touch()
 		return have and "deleted" or "tombstone"
 	end
 

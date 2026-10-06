@@ -6,8 +6,9 @@
 //
 // 1. Syntax-checks every addon .lua file as Lua 5.1 (what WoW runs).
 // 2. Runs each tests/*.test.lua in a fresh Lua state (fengari, Lua 5.3).
-//    Tests get ROOT (the addon folder), TESTS, FIXTURES and VERBOSE, stub the
-//    WoW API they need, load addon files, and report through lib/harness.lua.
+//    Tests get ROOT (the addon folder), TESTS, FIXTURES, VERBOSE and
+//    readFile(path) (fengari has no io library), stub the WoW API they need,
+//    load addon files, and report through lib/harness.lua.
 
 const fs = require('fs');
 const path = require('path');
@@ -65,6 +66,12 @@ for (const file of tests) {
   setString(L, 'FIXTURES', FIXTURES);
   lua.lua_pushboolean(L, verbose);
   lua.lua_setglobal(L, to_luastring('VERBOSE'));
+  lua.lua_pushjsfunction(L, (state) => {
+    const file = lua.lua_tojsstring(state, 1);
+    lua.lua_pushstring(state, to_luastring(fs.readFileSync(file, 'utf8')));
+    return 1;
+  });
+  lua.lua_setglobal(L, to_luastring('readFile'));
 
   if (verbose) console.log(`${file}`);
   const status = lauxlib.luaL_dofile(L, to_luastring(path.join(TESTS, file)));

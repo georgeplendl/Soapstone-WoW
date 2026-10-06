@@ -1,0 +1,30 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+	<!-- A stone on the world map (WorldMapPins.lua). Sealed stones glow. -->
+	<Frame name="SoapstoneWorldMapPinTemplate" mixin="SoapstoneWorldMapPinMixin" virtual="true" enableMouse="true">
+		<Size x="16" y="16"/>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="Glow" file="Interface\AddOns\Soapstone\Media\SoapstonePin" alphaMode="ADD" alpha="0" hidden="true">
+					<Size x="34" y="34"/>
+					<Anchors>
+						<Anchor point="CENTER"/>
+					</Anchors>
+				</Texture>
+			</Layer>
+			<Layer level="ARTWORK">
+				<Texture parentKey="Icon" file="Interface\AddOns\Soapstone\Media\SoapstonePin" setAllPoints="true"/>
+			</Layer>
+		</Layers>
+		<Animations>
+			<AnimationGroup parentKey="Pulse" looping="BOUNCE">
+				<Alpha childKey="Glow" fromAlpha="0.1" toAlpha="0.6" duration="1.4" smoothing="IN_OUT"/>
+			</AnimationGroup>
+		</Animations>
+		<!-- Only OnLoad here: the map canvas asserts pins have no OnEnter/OnLeave
+		     scripts of their own, and routes hover and clicks to the mixin's
+		     OnMouseEnter, OnMouseLeave and OnMouseUp methods itself. -->
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+		</Scripts>
+	</Frame>
+</Ui>

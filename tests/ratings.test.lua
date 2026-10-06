@@ -31,6 +31,7 @@ ns.MinimapPins = { Update = function() pins = pins + 1 end }
 ns.MinimapButton = { SetGlow = function() end }
 ns.ReadWindow = { Current = function() return nil end }
 ns.Sync = { OnZone = function() end }
+ns.Guide = { Check = function() end }
 local Store, Stones = ns.Store, ns.Stones
 Store:Init()
 check(type(ns.db.ratings) == "table", "Init adds the ratings table to an existing save")

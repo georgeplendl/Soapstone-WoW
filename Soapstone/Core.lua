@@ -98,6 +98,7 @@ local HELP = {
 	"/soap drop <message> — drop a written stone without the window",
 	"/soap read — open the nearest stone you're close enough to read",
 	"/soap list — nearby stones, nearest first",
+	"/soap guide [off] — point the way to the nearest sealed stone (TomTom's arrow if you have it)",
 	"/soap test [yards] — plant a stranger's stone or sketch north of you (default 200)",
 	"/soap radius <yards> — how close you must be to read (now %d)",
 	"/soap near <yards> — range of the \"somewhere close\" cue (now %d)",
@@ -186,6 +187,8 @@ SlashCmdList.SOAPSTONE = function(input)
 	elseif cmd == "button" then
 		ns.db.minimap.hide = not ns.db.minimap.hide
 		ns.MinimapButton:UpdateVisibility()
+	elseif cmd == "guide" then
+		ns.Guide:Command(rest)
 	elseif cmd == "stats" then
 		printStats()
 	elseif cmd == "sync" then
@@ -221,6 +224,7 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		end
 		ns.MinimapButton:Init()
 		ns.MinimapPins:Init()
+		ns.WorldMapPins:Init()
 		ns.Stones:AdoptOwnStones()
 		ns.Net:Init()
 		ns.Sync:Init()
