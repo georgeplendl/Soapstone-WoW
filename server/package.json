@@ -1,0 +1,25 @@
+{
+  "name": "soapstone-server",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "typecheck": "tsc",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply soapstone --remote",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "description": "Soapstone companion server: Cloudflare Worker + D1",
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/workers-types": "^5.20261006.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11",
+    "wrangler": "4.124.0"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  }
+}

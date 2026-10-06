@@ -14,6 +14,7 @@ toward sealed ones, and sound cues as you close in.
 ## Layout
 
 - `Soapstone/`: the addon (this folder goes in `Interface\AddOns`)
+- `server/`: the companion app's server (Cloudflare Worker + database); see its README
 - `docs/Ideas/`: WoW idea write-ups
 - `docs/Sharing - Architecture.md`: how stones travel between players
 - `docs/To Do.md`: the to-do list

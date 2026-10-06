@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `npm run dev`. In production, set it with
+# `npx wrangler secret put SERVER_SECRET`.
+SERVER_SECRET=local-dev-secret
+POW_BITS=12

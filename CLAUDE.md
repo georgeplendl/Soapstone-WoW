@@ -8,6 +8,7 @@ where it was left. The minimap is the trigger surface (a button to drop stones,
 pins toward sealed ones, sound cues as you close in).
 
 - Addon code: `Soapstone/` (Lua + `.toc`). This folder is what goes in `Interface\AddOns`.
+- Companion server: `server/` (Cloudflare Worker + D1, TypeScript). `cd server && npm test`; needs Node 22 for `wrangler`. Design: `docs/Ideas/Idea - Companion App (WoW).md`.
 - Target client: WoW Forever (build 1.60.1), `## Interface: 16001` (confirmed in game 2026-09-25). It installs as `_classic_beta_`: `/Applications/World of Warcraft/_classic_beta_` on the Mac, `D:\Games\World of Warcraft\_classic_beta_` on the Windows PC.
 - Ideas: `docs/Ideas/` holds WoW idea write-ups, and may be reworked freely.
 
