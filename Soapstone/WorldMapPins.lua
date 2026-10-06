@@ -95,6 +95,10 @@ function MapPins.TooltipLines(stone)
 	end
 	local where = MapPins.Whereabouts(stone)
 	if where then add(where, 0.8, 0.8, 0.8) end
+	local found = ns.Stones:FoundCount(stone)
+	if found and found > 0 then
+		add(format("Found by %d %s", found, found == 1 and "player" or "players"), 0.8, 0.8, 0.8)
+	end
 	if kind == "sealed" then
 		add("Travel there to unlock it.", 0.5, 0.5, 0.5)
 	elseif kind ~= "mine" then

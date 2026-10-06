@@ -33,7 +33,9 @@ local function onPinEnter(pin)
 	local rating = ns.Stones:OthersRating(stone)
 	local vote = rating == ns.Stones.APPRAISE and "  ·  you appraised it"
 		or rating == ns.Stones.DISPARAGE and "  ·  you disparaged it" or ""
-	GameTooltip:AddLine(format("Score %d%s", ns.Stones:Score(stone), vote),
+	local found = ns.Stones:FoundCount(stone)
+	found = found and found > 0 and format("  ·  found by %d", found) or ""
+	GameTooltip:AddLine(format("Score %d%s%s", ns.Stones:Score(stone), found, vote),
 		rating == ns.Stones.DISPARAGE and 0.6 or 1, rating == ns.Stones.DISPARAGE and 0.6 or 0.82,
 		rating == ns.Stones.DISPARAGE and 0.6 or 0)
 	if not ns.Stones:IsReadable(stone, pin.dist) then

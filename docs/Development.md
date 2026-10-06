@@ -86,10 +86,10 @@ The full reference; players get the short version in the [README](../README.md).
 | `/soap test` | Plants a stranger's stone or sketch 200 yd north of you — walk to it |
 | Walk within 150 yd of an unread stone | Soft "somewhere close" ping + notice (re-arms when you walk away) |
 | Walk within 40 yd of a stone | The button glows while in range; the first time also prints the message |
-| Hover a minimap pin | Message if you're in range; "sealed" + distance if not |
+| Hover a minimap pin | Message if you're in range; "sealed" + distance if not; the score, and how many players found it |
 | Open the world map | Every stone you know of. Sealed ones glow; hover for distance + direction (never the message). A line at the bottom counts what's left to find |
 | Click a world map pin (or `/soap guide`) | Guide me there: TomTom's arrow if you have TomTom, else the game's map pin and in-world marker. `/soap guide off` stops |
-| **Appraise** / **Disparage** on any stone | Under the message or sketch: the author (right), a rule, then Edit (left) and Appraise / Disparage (centred); the stone's appraisals show at the right of the title bar. Your own stones start appraised (score 1); Disparage withdraws that to 0, never below. On others' stones, Appraise (+1) or Disparage (−1), press again to withdraw; appraised pins turn gold, disparaged pins fade and stop triggering sound cues. The score shown counts the author's appraisal plus your characters' judgements. The server's shared score already reaches the addon through the companion (`stone.score`) but isn't shown yet |
+| **Appraise** / **Disparage** on any stone | Under the message or sketch: the author (right), a rule, then Edit (left) and Appraise / Disparage (centred); the stone's appraisals show at the right of the title bar. Your own stones start appraised (score 1); Disparage withdraws that to 0, never below. On others' stones, Appraise (+1) or Disparage (−1), press again to withdraw; appraised pins turn gold, disparaged pins fade and stop triggering sound cues. The score shown is the author's appraisal plus the server's shared score (everyone else's votes, one per computer) and your vote if it hasn't uploaded yet; for stones the server hasn't seen, your characters' judgements instead |
 | `/soap sound test` | Preview the "somewhere close" cue; `/soap sound <cue>` plays one (`near`, `appraise`, `disparage`, `drop`, `delete`) and names the sound; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version and which build it is: `0.2.0 (branch ratings @ 16dd7e0, 2026-09-25 18:02)` in a dev checkout, `(release v0.3.0 @ …)` from a release zip |
@@ -213,10 +213,8 @@ Sharing through the companion is live (companion 0.2.x, server deployed
 [Idea - Companion App (WoW)](Ideas/Idea%20-%20Companion%20App%20(WoW).md).
 Short-term chores (CurseForge, icons) are in [To Do](To%20Do.md).
 
-1. **Show shared scores and found counts.** The companion already brings
-   each stone's server-wide score and found count (`stone.score`,
-   `stone.found`); the stone window and pins still show the local score.
-   Then tell authors when their stone was appraised, as in Dark Souls.
+1. **Tell authors when their stone was appraised**, as in Dark Souls. Shared
+   scores and found counts are in (unreleased).
 2. **Reporting from the game.** The server takes reports, but the addon has
    no Report button yet.
 3. **Moderation page** on the server: reported stones, bans, releasing names.

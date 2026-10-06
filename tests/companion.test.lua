@@ -114,6 +114,9 @@ check(p.stones["Mad-Decent-1791000000-1"] == nil and Store:Get("Mad-Decent-17910
 	"an acknowledged drop leaves pending")
 check(p.stones["Mad-Decent-1791000000-2"] == 2, "an edit made after the upload stays (the ack was for v1)")
 check(p.votes["Zug-Zug-1791200000-1"] == nil, "an acknowledged vote leaves pending")
+check(ns.db.sharedVotes["Zug-Zug-1791200000-1"] == 1, "and is recorded as the vote the server counts")
+check(Stones:Score(zug) == 4 and Stones:FoundCount(zug) == 14,
+	"so the stone shows the server's score (3) plus its author's point, and its found count")
 check(p.stones["Mad-Decent-1791000000-3"] == nil and Store:Get("Mad-Decent-1791000000-3").notShared == "too many nearby",
 	"a refused stone leaves pending, marked with the reason")
 check(p.votes["Gone-Away-1791000000-1"]["Mad-Decent"] == -1, "a vote refused for today stays, to try again")

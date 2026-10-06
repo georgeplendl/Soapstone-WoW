@@ -8,6 +8,7 @@ local _, ns = ...
 --   zones   = { [zone] = { visited = time } }   for least-recently-visited eviction
 --   outbox  = { [id] = true }       your changes not yet announced (step 4)
 --   ratings = { [id] = { [characterKey] = 1 | -1 } }   appraise / disparage
+--   sharedVotes = { [id] = 1 | 0 | -1 }   this account's vote as the server counts it
 --   pending = what the companion app uploads (see "Companion" below)
 --   meta    = game type, region, build and characters, for the companion
 --
@@ -156,6 +157,7 @@ function Store:Remove(id)
 	unindex(stone)
 	db().stones[id] = nil
 	db().ratings[id] = nil
+	db().sharedVotes[id] = nil
 	self:Touch()
 end
 
@@ -198,6 +200,7 @@ function Store:Clear()
 	wipe(db().stones)
 	wipe(db().outbox)
 	wipe(db().ratings)
+	wipe(db().sharedVotes)
 	db().pending = nil
 	wipe(cells)
 	self:Touch()
@@ -257,6 +260,7 @@ function Store:PruneTombstones()
 		stones[id] = nil
 		db().outbox[id] = nil
 		db().ratings[id] = nil
+		db().sharedVotes[id] = nil
 	end
 	return #doomed
 end
@@ -280,6 +284,7 @@ end
 function Store:Rate(id, value)
 	local key = ns.Identity.PlayerKey()
 	local ratings = db().ratings[id] or {}
+	local before = ratings[key] or 0
 	ratings[key] = value
 	db().ratings[id] = next(ratings) and ratings or nil
 	-- Votes on this account's own stones stay local: the server doesn't
@@ -287,10 +292,34 @@ function Store:Rate(id, value)
 	local stone = db().stones[id]
 	if stone and Store.IsUploadable(stone) and not Store.IsAccountCharacter(stone.authorKey) then
 		local votes = Store.Pending().votes
+		-- The first change since the server last heard from us: unless an
+		-- acknowledgement said otherwise, it counts the vote we're replacing.
+		if not votes[id] and db().sharedVotes[id] == nil then db().sharedVotes[id] = before end
 		votes[id] = votes[id] or {}
 		votes[id][key] = value or 0
 	end
 	self:Touch()
+end
+
+-- Shared scores ---------------------------------------------------------------------
+-- The server keeps one vote per install (whichever character cast it last)
+-- and sends each stone's score: everyone's votes but its author's. Your
+-- account's part of that score is recorded here, from the companion's
+-- acknowledgements, so a vote still waiting to upload can be counted
+-- without counting the old one too.
+
+function Store:SetSharedVote(id, value)
+	db().sharedVotes[id] = value
+end
+
+-- How far the server's score for `id` is from what it will be once this
+-- account's waiting vote reaches it (0 when nothing's waiting).
+function Store:WaitingVoteChange(id)
+	local waiting = Store.Pending().votes[id]
+	if not waiting then return 0 end
+	local value = waiting[ns.Identity.PlayerKey()]
+	if value == nil then value = select(2, next(waiting)) end
+	return (value or 0) - (db().sharedVotes[id] or 0)
 end
 
 -- Companion ---------------------------------------------------------------------
@@ -600,6 +629,7 @@ local function migrate(d)
 	d.zones = d.zones or {}
 	d.outbox = d.outbox or {}
 	d.ratings = d.ratings or {}
+	d.sharedVotes = d.sharedVotes or {}
 	if d.schema == Store.SCHEMA then
 		seedPending(d, relabel(d) > 0)
 		return 0
