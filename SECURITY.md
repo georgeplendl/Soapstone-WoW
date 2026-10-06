@@ -35,6 +35,9 @@ rather than opening a public issue. For anything else, a normal
   Soapstone from this repository's
   [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases).
 
+**Your data:** what the companion sends and who can see it is in the
+[privacy policy](PRIVACY.md).
+
 **Your account and your name**
 
 - No passwords or email. The companion registers itself with a random token
@@ -71,5 +74,5 @@ players can decide for themselves, and so they don't get forgotten.
 | **Name squatting** | Someone could claim a character's name before its player installs the companion, and post as them. | Claims are capped per install, and an admin can release a name. Proving who owns a character would need Blizzard sign-in, which WoW Forever doesn't offer. |
 | **Unlocks are self-reported** | A modified companion could claim to have found stones it never visited, inflating "found by" counts. | Each install counts once per stone; found counts are for fun, never for anything competitive. |
 | **No moderation page yet** | Reported or unpleasant stones are handled by hand on the server for now. | The moderation page is the next thing being built. |
-| **The installer isn't code-signed yet** | Windows shows "Windows protected your PC", and someone could pass off a tampered copy. | Checksums are published with each release; code signing is planned. |
+| **The installer isn't code-signed yet** | Windows shows "Windows protected your PC", and someone could pass off a tampered copy. | Checksums are published with each release. Signing through the SignPath Foundation is being set up; installers are built by GitHub Actions from the tagged source. |
 | **The old player-to-player network** | When turned on (it's off by default, `/soap net join`), other players can pass along stones, including ones claiming to be by someone else. | Off by default, and being trimmed down to instant drops from a stone's own author. |

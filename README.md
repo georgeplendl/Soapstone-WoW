@@ -98,9 +98,14 @@ To get it, download `Soapstone-Companion-…-setup.exe` from the
 run it. It installs just for you (no admin prompt) and starts with Windows;
 you can turn that off in its tray menu.
 
-> **Beta.** The companion is new, so expect rough edges. Its installer
-> isn't code-signed yet, so Windows may say "Windows protected your PC":
-> choose **More info**, then **Run anyway**.
+> **Beta.** The companion is new, so expect rough edges. Until its
+> installer is code-signed, Windows may say "Windows protected your PC":
+> choose **More info**, then **Run anyway**. Each release lists the
+> installer's SHA-256 checksum, so you can check your download.
+
+What the companion sends, and who can see it, is in the
+[privacy policy](PRIVACY.md). To uninstall it, use Windows Settings >
+Apps > Soapstone; that also removes it from Windows startup.
 
 ## Credits
 
@@ -110,6 +115,24 @@ leaving voice messages at real-world places.
 
 Want to build or change Soapstone? See the
 [developer notes](docs/Development.md).
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/),
+certificate by [SignPath Foundation](https://signpath.org/).
+
+- **Committers and reviewers:** [George Plendl](https://github.com/georgeplendl)
+- **Approvers:** [George Plendl](https://github.com/georgeplendl)
+
+The companion's Windows installer is built from this repository's source by
+GitHub Actions ([`companion-release.yml`](.github/workflows/companion-release.yml))
+and signed only after the maintainer approves each release.
+
+**Privacy policy:** the companion sends the Soapstone server your
+characters' names, the stones you leave and change, your appraisals and
+reports, and which stones your characters have opened; the installer shows
+this before you install. See
+the full [privacy policy](PRIVACY.md). The addon on its own sends nothing.
 
 ## Support
 
