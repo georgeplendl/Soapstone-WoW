@@ -18,6 +18,10 @@ Today every stone lives on players' machines and travels player to player
 
 The companion is a small Windows app that runs next to the game. It uploads
 the stones you leave and brings back everyone else's from a shared database.
+It also keeps track, for each character, of which stones they've unlocked,
+so that progress lives on the server and not just in one SavedVariables
+file. With the companion in place, the chat channel the P2P network uses is
+retired (see [The P2P network](#the-p2p-network)).
 
 ---
 
@@ -27,6 +31,12 @@ the stones you leave and brings back everyone else's from a shared database.
 |---|---|
 | **Platform** | **Windows first.** Built so a macOS version is a second build of the same code, not a rewrite |
 | **Accounts** | **None.** No sign-in, no email. The app registers itself anonymously on first run |
+| **Who a user is** | The **full character name** (`Mad-Decent`), as the addon already uses. Stones, votes and unlocks are all stored by name |
+| **Owning a name** | The first install to use a name owns it; only that install can write as it (see [Identity](#identity-the-character-name)) |
+| **Unlocks** | Stored on the server **per character**. An alt hasn't been there, so it hasn't read the stone |
+| **Sharing** | **Companion only.** The hidden chat channel and the P2P network are retired |
+| **Sealed text** | Lightly **scrambled** in the data file, so stones can't be read casually in Notepad |
+| **More than one computer** | **Not in v1.** A character belongs to one computer; adding a second with a pairing code comes later |
 | **Game types** | Detected automatically. Forever, Classic and Retail stones **never mix** |
 | **Realms** | **Ignored.** Stones are shared across every realm of a game type, so the world doesn't feel empty |
 | **Region** | Stones are split by **WoW region** (US, EU, KR, TW). Players can't message across regions anyway, and it keeps each sync small and fast |
@@ -55,7 +65,9 @@ when it loaded.
 So the companion **isn't live**. Your drops reach the database when you
 reload or log out, and other players' stones reach you on your next login or
 reload. WeakAuras Companion and TradeSkillMaster's desktop app work the same
-way.
+way. With the chat channel retired, there's no live path at all: a stone
+dropped next to you appears after your next reload, not the moment it's
+left. That's the price of a simpler addon with no message limits.
 
 To make this painless, the addon gets a **Sync** button that simply calls
 `ReloadUI()`, and the companion refreshes its files every couple of minutes
@@ -120,7 +132,7 @@ Inside each install:
 ```
 Interface\AddOns\SoapstoneData\
   SoapstoneData.toc     installed once by the companion
-  Stones.lua            written stones, scores, acknowledgements   (kept)
+  Stones.lua            written stones, scores, unlocks, acks       (kept)
   Sketches.lua          drawings                                    (companion running only)
 ```
 
@@ -152,6 +164,17 @@ write every string with full Lua escaping (quotes, backslashes, newlines,
 other players' games. The addon still runs every record through the same
 validation as zone sync (`Codec.DecodeStone` rules) before using it.
 
+**Scrambling sealed text.** A stone has to show the moment you reach it,
+with no network in game, so its words must already be in `Stones.lua`. That
+means anyone could open the file in Notepad and read every sealed stone,
+which defeats "you have to be there". The companion stores each stone's text
+and sketch id scrambled with a simple key (for example, XOR with a key built
+from the stone id, then base64), and the addon unscrambles a stone only when
+you're in reach. This stops casual peeking, not a determined player, and
+that's enough. The other option, sending the words only after the server
+hears you've unlocked a stone, would mean reloading at every stone before
+you could read it.
+
 ---
 
 ### Sync loop
@@ -178,33 +201,78 @@ busy zone is a few hundred KB at most.
 #### What goes up
 
 - New stones, edits and deletes. The addon keeps a `pending` list in
-  SavedVariables (next to the existing `outbox`, which the P2P network
-  uses).
+  SavedVariables (it replaces the `outbox` the P2P network used).
 - Votes (`ratings[id][characterKey]` for your characters).
+- Unlocks: when a stone opens, the addon records it as `heard` (as it does
+  today) with the time and character, and adds it to `pending`.
 - Reports (a new **Report** button on the stone window).
 
 #### What comes down
 
 - Stones and tombstones for your zones, and shared scores.
+- Each stone's **found count** ("Found by 14 players"), for its author.
+- Unlocks for the characters on this install, from every zone, so progress
+  survives a reinstall or a wiped SavedVariables. The server keeps the
+  earliest unlock time if both sides have one.
 - Drawings for sketch stones in those zones (to `Sketches.lua`).
 - Acknowledgements for your uploads.
 
 ---
 
-### Identity without sign-in
+### Identity: the character name
 
-On first run, the companion **registers an install**: it generates a random
-install id and a secret, solves a small proof-of-work puzzle (a second or
-two of CPU on one PC, expensive for a script registering thousands), and
-gets back a token. All uploads use that token.
+**A user is a character, named the way the addon already names them:**
+`Mad-Decent` (on WoW Forever, first and last name; elsewhere, name and
+realm). Within a game type and region it's unique, so stones, votes and
+unlocks are all stored by that name. There's no separate account or player
+id. Each character has its own unlocks, the way WoW keeps achievements and
+explored zones per character.
 
-**Owning a character name:** the first install to upload a stone by a
-character (say `Mad-Decent`) owns that name for that game type and region.
-After that, only that install can post, edit or delete as `Mad-Decent`.
-It's not proof, but it stops anyone else from impersonating an existing
-author or editing their stones. A player who reinstalls gets a "Move my
-characters to this install" option using a recovery code shown at first
-run.
+**The name says who, but it can't prove it.** The server never talks to
+Blizzard; it only sees a request saying "I'm Mad-Decent". The name comes
+from a text file, so anyone could claim it. So each name gets a lock:
+
+- On first run, the companion **registers an install**: it generates a
+  random install id and a secret, solves a small proof-of-work puzzle (a
+  second or two of CPU on one PC, expensive for a script registering
+  thousands), and gets back a token. The player never sees it.
+- The first install to upload anything as a character (a stone, vote or
+  unlock) **owns that name** for that game type and region. After that,
+  only that install can post, edit, delete, vote or record unlocks as
+  `Mad-Decent`.
+
+The name is the address; the token is the key.
+
+**Reading is open.** Stones are public anyway, and downloading a
+character's unlocks reveals little, so pulls don't need ownership.
+
+#### v1: one computer per character
+
+In v1 a character belongs to the one install that claimed it.
+
+- **A second computer** (say, a Mac next to the PC) can still download
+  everything for that character, unlocks included, but can't upload as it.
+  Its drops, votes and unlocks stay in that machine's `pending` list, and
+  the tray shows "Mad Decent is linked to another computer".
+- **Reinstalling** keeps the token if the app's data folder
+  (`%APPDATA%\Soapstone`) survives. If it's lost during the beta, the name
+  is released by hand on the server.
+- **Names that go quiet:** if an owned name hasn't been used for about six
+  months, the server releases it, since a deleted character's name can be
+  taken by someone else in game.
+
+#### Later: adding computers and moving characters
+
+- **Pairing code:** the first computer shows a short code ("7F3-K9Q"); typed
+  into a second computer's companion, it lets that install own the same
+  names too. Its waiting `pending` changes then upload.
+- **Recovery code:** shown once at first run, it moves an install's names
+  to a new install after a lost data folder, without asking anyone.
+- **Renames and transfers:** a renamed character looks like a new one with
+  no unlocks. A "move my progress from Old-Name" option can come later.
+- **Real proof:** if WoW Forever ever offers Battle.net sign-in with a
+  character list, as Retail does, that proves ownership outright and could
+  replace the lock and codes.
 
 ---
 
@@ -234,6 +302,12 @@ Server rules:
   text from the same install within a day is refused.
 - **Votes:** one per character per stone, only from characters the install
   owns. An install can't vote on its own characters' stones.
+- **Unlocks:** only from characters the install owns, and only for stones
+  that exist. They're self-reported, so they're an honour system: fine for
+  a character's own progress and found counts, not proof for anything
+  competitive. The server can drop the impossible ones (dozens of unlocks
+  across continents within a minute), and a character's own stones don't
+  count toward their found count.
 - **Reports:** a stone reported by 3 different installs is hidden until
   reviewed.
 - **Shadow limits:** an install caught abusing keeps working from its own
@@ -258,9 +332,11 @@ characters flavor, region, char_key, install_id                  -- who owns a n
 stones     id, flavor, region, zone, instance, wx, wy, map_id, x, y,
            author, author_key, kind (text | sketch), text, sketch_id,
            v, t, edited_at, deleted_at, install_id, status (live | hidden),
-           score, updated_seq
+           score, found_count, updated_seq
 sketches   id, w, h, data, created_at                             -- data = packed string
 votes      stone_id, char_key, value, install_id, updated_at
+unlocks    flavor, region, char_key, stone_id, unlocked_at,
+           install_id, updated_seq                                -- one row per character per stone
 reports    stone_id, install_id, reason, created_at
 ```
 
@@ -270,8 +346,12 @@ reports    stone_id, install_id, reason, created_at
 - **Stone ids** stay as the addon makes them today:
   `<CharacterKey>-<unix time>-<n>`. They're unique without coordination and
   the server checks the author part matches `author_key`.
-- **`score`** is kept up to date on each vote, so downloads don't have to
-  count votes.
+- **`score`** is kept up to date on each vote, and **`found_count`** on each
+  first unlock, so downloads don't have to count votes or unlocks.
+- **`unlocks`** is keyed on `(flavor, region, char_key, stone_id)`, with an
+  index on `(flavor, region, char_key, updated_seq)` so a companion can ask
+  for "this character's unlocks since". Pushing an unlock that already
+  exists keeps the earlier `unlocked_at`.
 - **`updated_seq`** is a counter bumped on every change. The companion's
   cursor is just the highest one it has seen.
 
@@ -295,9 +375,17 @@ characters). It's small enough to live directly in the database:
 
 ```
 POST /v1/register                 proof-of-work → install id + token
-POST /v1/push                     stones, deletes, votes, reports  → acks, rejections
-GET  /v1/pull?flavor&region&zones&since   stones, tombstones, scores, sketch ids
+POST /v1/push                     stones, deletes, votes, unlocks, reports  → acks, rejections
+GET  /v1/pull?flavor&region&zones&chars&since
+                                  stones, tombstones, scores, found counts,
+                                  sketch ids, unlocks for `chars`
 POST /v1/sketches                 list of sketch ids → packed drawings
+```
+
+Later, with pairing and recovery codes:
+
+```
+POST /v1/pair                     pairing code → this install also owns those names
 POST /v1/characters/move          recovery code → move ownership
 ```
 
@@ -308,17 +396,21 @@ changes.
 
 ### The P2P network
 
-The P2P network is already built. With a database behind the stones, it's
-no longer the main way to share. Options:
+**Decision: retire it.** Stones are shared only through the companion and
+the database. The hidden chat channel, zone sync and the `outbox` go away
+(`Net.lua`, `Sync.lua`, the codec's wire format), which leaves the addon
+smaller and free of the ~1 message per second limit.
 
-1. **Keep it for live drops only** *(recommended)*: a stone dropped near you
-   appears right away through the channel, without waiting for a reload.
-   Drop P2P zone sync, since the database does that job.
-2. Keep all of it, as a fallback for players without the companion.
-3. Remove it and rely on the companion entirely. Simplest, but players
-   without it see nothing new.
+What this costs:
+- **No live drops.** A stone left next to you shows up after your next
+  reload (see the Sync button), not the moment it's left.
+- **Players without the companion see nothing new.** They keep their own
+  stones and whatever was last synced to `Stones.lua`, but get no new ones
+  until they run it.
 
-If drawings are to be companion-only, P2P should carry text stones only.
+The options weighed were keeping P2P for live drops only, or keeping all of
+it as a fallback. Both mean keeping the channel's code and its limits for a
+small gain. [[Idea - Network Resilience (WoW)]] only matters if P2P stays.
 
 ---
 
@@ -364,17 +456,23 @@ Kept in mind from the start:
 ### Build order
 
 1. **Addon groundwork:** `meta` (game type, region, build), a `pending`
-   upload list, loading `SoapstoneData` with validation, the "Companion:"
-   status line, the Sync (reload) button, drop cooldown and per-zone cap.
-2. **Server:** register, push, pull, sketches, with the rate limits and
-   validation from day one. Test it with a script before any app exists.
+   upload list (drops, votes, unlocks with their time and character),
+   loading `SoapstoneData` with validation and unscrambling, the
+   "Companion:" status line, the Sync (reload) button, drop cooldown and
+   per-zone cap.
+2. **Server:** register, push, pull (including unlocks and found counts),
+   sketches, name ownership, with the rate limits and validation from day
+   one. Test it with a script before any app exists.
 3. **Companion core (Windows):** find installs, parse SavedVariables, push
-   and pull, write `Stones.lua` and `Sketches.lua` safely. A plain tray app,
-   unsigned, for a private beta.
-4. **Private beta** with a handful of players on WoW Forever. Tune limits.
-5. **Reports, word filter, shared scores in the addon**, then
-   [[Idea - Zone Leaderboard (WoW)]].
-6. **Signing, auto-update, public release.** macOS after that.
+   and pull, write `Stones.lua` (scrambled) and `Sketches.lua` safely. A
+   plain tray app, unsigned, for a private beta.
+4. **Retire P2P:** remove the chat channel, zone sync and the `outbox` from
+   the addon once the companion carries stones.
+5. **Private beta** with a handful of players on WoW Forever. Tune limits.
+6. **Reports, word filter, shared scores and found counts in the addon**,
+   then [[Idea - Zone Leaderboard (WoW)]].
+7. **Signing, auto-update, public release.** Pairing and recovery codes,
+   then macOS.
 
 ---
 
@@ -392,8 +490,13 @@ Kept in mind from the start:
 
 - Does WoW Forever allow companion apps reading and writing addon files, as
   Retail and Classic do? Check Blizzard's policy for that client.
-- Does `GetCurrentRegion()` exist on WoW Forever?
-- P2P: keep for live drops only (recommended), keep all, or remove?
+- Does `GetCurrentRegion()` exist on WoW Forever? (`/run print(GetCurrentRegion())`)
+- Does WoW Forever offer Battle.net sign-in with a character list? If so,
+  it could prove who owns a name and replace the install lock.
+- Should a stone that's been read stay readable from anywhere? Today it
+  doesn't (you go back to it), but the first unlock prints the full text to
+  chat, so it can be scrolled back to. Decide whether chat shows the words
+  or just a hint.
 - Classic has several kinds of realm (Era, Hardcore, Season of Discovery,
   Anniversary, progression). Pool them all under one game type, or keep
   some apart because their worlds differ?
