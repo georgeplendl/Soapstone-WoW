@@ -23,9 +23,10 @@ local function onPinEnter(pin)
 	GameTooltip:SetOwner(pin, "ANCHOR_RIGHT")
 	if ns.Stones:IsReadable(stone, pin.dist) then
 		-- Sketches are never drawn in tooltips; they open in the read window.
-		GameTooltip:AddLine(stone.sketch and "A sketch" or format("\"%s\"", stone.text or ""), 1, 1, 1, true)
+		local sketch = ns.Stones.IsSketch(stone)
+		GameTooltip:AddLine(sketch and "A sketch" or format("\"%s\"", ns.Stones.TextOf(stone) or ""), 1, 1, 1, true)
 		GameTooltip:AddLine(ns.Stones:Byline(stone), 0.62, 0.83, 0.78)
-		GameTooltip:AddLine(stone.sketch and "Click to view" or "Click to open", 0.5, 0.5, 0.5)
+		GameTooltip:AddLine(sketch and "Click to view" or "Click to open", 0.5, 0.5, 0.5)
 	else
 		GameTooltip:AddLine("A sealed soapstone", 0.6, 0.6, 0.6)
 	end

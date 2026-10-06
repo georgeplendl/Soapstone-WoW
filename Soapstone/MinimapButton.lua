@@ -31,6 +31,7 @@ local function onEnter(btn)
 	else
 		GameTooltip:AddLine("No stones on this continent.", 1, 1, 1)
 	end
+	GameTooltip:AddLine(ns.Companion:Status(), 0.6, 0.6, 0.6)
 	GameTooltip:AddLine(" ")
 	GameTooltip:AddLine("|cffffd100Left-click|r  leave a stone here", 0.8, 0.8, 0.8)
 	GameTooltip:AddLine("|cffffd100Right-click|r  list nearby stones", 0.8, 0.8, 0.8)

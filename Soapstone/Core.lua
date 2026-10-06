@@ -126,6 +126,7 @@ local function printStats()
 	local region, regionId = ns.Identity.Region()
 	ns.Print(format("%d changes waiting for the companion app. Game: %s, region: %s.",
 		ns.Store:PendingCount(), ns.Identity.Flavor(), region or ("unknown (" .. tostring(regionId) .. ")")))
+	ns.Print(ns.Companion:Status() .. ".")
 	if zone then
 		ns.Print(format("Here: %s (zone %d), %d stones. Zones visited: %d.", mapName(zone), zone, s.inZone, s.zones))
 	end
@@ -226,6 +227,8 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		if upgraded > 0 then
 			ns.Print(format("Upgraded %d stones to the new storage format.", upgraded))
 		end
+		ns.Companion:Load()
+		ns.Companion:AnnounceRefusals()
 		ns.MinimapButton:Init()
 		ns.MinimapPins:Init()
 		ns.WorldMapPins:Init()

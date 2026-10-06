@@ -490,6 +490,78 @@ function Store:Merge(rec, viaKey)
 	return have and "updated" or "added"
 end
 
+-- Takes a stone from the database (Companion.lua). The database is the
+-- source of truth, so unlike Merge any newer version is accepted. Your own
+-- characters' stones are never replaced (this account is their source),
+-- but one that's missing here, say after a wiped SavedVariables, is
+-- restored. Returns "added" | "updated" | "restored" | nil.
+function Store:MergeRemote(rec, score, found)
+	local have = db().stones[rec.id]
+	local function stats(stone)
+		stone.inDatabase = true
+		stone.score, stone.found = score, found
+	end
+	if Store.IsAccountCharacter(rec.authorKey) then
+		if have then
+			if not have.deleted then stats(have) end
+			return nil
+		end
+		if rec.deleted then return nil end
+		rec.text = rec.scrambled and ns.Codec.Unscramble(rec.id, rec.scrambled) or nil
+		rec.scrambled = nil
+		rec.author = ns.Identity.Display(rec.authorKey)
+		rec.mine = true
+		rec.heardBy = { [rec.authorKey] = rec.t }
+		stats(rec)
+		self:Put(rec)
+		return "restored"
+	end
+	if have and (have.v or 1) > rec.v then return nil end
+	if have and (have.v or 1) == rec.v then
+		if not have.deleted then stats(have) end
+		return nil
+	end
+	if rec.deleted then
+		if not have then return nil end
+		unindex(have)
+		db().stones[rec.id] = {
+			id = rec.id, v = rec.v, t = rec.t, deleted = true, deletedAt = rec.deletedAt or time(),
+			zone = rec.zone, flavor = ns.Identity.Flavor(), authorKey = rec.authorKey,
+		}
+		self:Touch()
+		return "updated"
+	end
+	rec.author = ns.Identity.Display(rec.authorKey)
+	rec.flavor = ns.Identity.Flavor()
+	if have then rec.heard, rec.heardBy = have.heard, have.heardBy end
+	stats(rec)
+	self:Put(rec)
+	return have and "updated" or "added"
+end
+
+-- The database says a stone is gone: its author deleted it, it was hidden
+-- (reported, or its author is limited) or never shared (refused). Other
+-- players' copies are removed; your own stay, marked as not shared.
+-- Returns true if anything changed.
+function Store:RemoveRemote(id, v, why)
+	local have = db().stones[id]
+	if not have or have.deleted then return false end
+	if Store.IsAccountCharacter(have.authorKey) then
+		if why == "deleted" then return false end -- this account deletes its own stones
+		if have.notShared == why then return false end
+		have.notShared = why
+		return true
+	end
+	if (have.v or 1) > v then return false end
+	unindex(have)
+	db().stones[id] = {
+		id = id, v = math.max(v, have.v or 1), t = have.t, deleted = true, deletedAt = time(),
+		zone = have.zone, flavor = have.flavor, authorKey = have.authorKey, why = why,
+	}
+	self:Touch()
+	return true
+end
+
 -- Schema --------------------------------------------------------------------
 
 -- Schema 1 kept stones in a list. Key them by id and fill in version, game

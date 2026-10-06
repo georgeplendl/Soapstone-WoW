@@ -13,6 +13,7 @@ pub mod files;
 pub mod installs;
 pub mod lua;
 pub mod savedvars;
+pub mod soapdata;
 
 use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
