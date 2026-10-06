@@ -4,6 +4,7 @@
 ## Author: George Plendl
 ## Version: 0.4.1
 ## SavedVariables: SoapstoneDB
+## OptionalDeps: TomTom
 ## IconTexture: Interface\AddOns\Soapstone\Media\Soapstone
 
 BuildInfo.lua
@@ -24,3 +25,6 @@ ReadWindow.lua
 EditWindow.lua
 MinimapButton.lua
 MinimapPins.lua
+WorldMapPins.lua
+WorldMapPins.xml
+Guide.lua

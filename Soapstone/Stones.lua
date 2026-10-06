@@ -408,6 +408,7 @@ function Stones:CheckProximity()
 					anyInRange = true
 					if not stone.heard then
 						stone.heard = true
+						ns.Store:Touch()
 						self:OnUnlock(stone)
 					end
 				elseif band == "near" and (prev == nil or prev == "far") and not stone.heard then
@@ -422,6 +423,7 @@ function Stones:CheckProximity()
 		UIErrorsFrame:AddMessage("You sense a soapstone somewhere close.", 0.62, 0.83, 0.78)
 	end
 	ns.MinimapButton:SetGlow(anyInRange)
+	ns.Guide:Check(here)
 
 	-- An open stone goes silent once you walk out of range.
 	local open = ns.ReadWindow:Current()

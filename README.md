@@ -66,6 +66,8 @@ changes it, update `## Interface:` (or tick *Load out of date AddOns*).
 | Walk within 150 yd of an unread stone | Soft "somewhere close" ping + notice (re-arms when you walk away) |
 | Walk within 40 yd of a stone | The button glows while in range; the first time also prints the message |
 | Hover a minimap pin | Message if you're in range; "sealed" + distance if not |
+| Open the world map | Every stone you know of. Sealed ones glow; hover for distance + direction (never the message). A line at the bottom counts what's left to find |
+| Click a world map pin, or a sealed minimap pin (or `/soap guide`) | Guide me there: TomTom's arrow if you have TomTom, else the game's map pin and in-world marker. `/soap guide off` stops |
 | **Appraise** / **Disparage** on any stone | Under the message or sketch: the author (right), a rule, then Edit (left) and Appraise / Disparage (centred); the stone's appraisals show at the right of the title bar. Your own stones start appraised (score 1); Disparage withdraws that to 0, never below. On others' stones, Appraise (+1) or Disparage (−1), press again to withdraw; appraised pins turn gold, disparaged pins fade and stop triggering sound cues. The score counts the author's appraisal plus your characters' judgements (personal until there's a server) |
 | `/soap sound test` | Preview the "somewhere close" cue; `/soap sound <cue>` plays one (`near`, `appraise`, `disparage`, `drop`, `delete`) and names the sound; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
@@ -110,6 +112,8 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `EditWindow.lua`: "Edit Soapstone" dialog, for changing or deleting one of your stones (text or sketch) within its edit window
 - `MinimapButton.lua`: draggable minimap button that glows while a stone is in range
 - `MinimapPins.lua`: stones drawn on the minimap, with rotating-minimap support
+- `WorldMapPins.lua` / `.xml`: stones on the world map (sealed ones glow) and the count line, through the map's own pin system
+- `Guide.lua`: "guide me there" waypoints, through TomTom (an optional dependency) or the game's own waypoint
 - `Media/`: icon textures with transparent backgrounds (`Soapstone.tga` 64×64 for the button and AddOns list, `SoapstonePin.tga` 32×32 for minimap pins)
 
 Icon source art is `art/soapstone.png`. After changing it, run `py tools/convert_icon.py` to rebuild `Media/`.
@@ -155,10 +159,10 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
    stones from other players online. Next are live drops (announcing new
    stones as they're made). See [Sharing — Architecture](docs/Sharing%20-%20Architecture.md).
    It still needs a real two-player test.
-2. **In-world presence.** An on-screen arrow toward the nearest sealed stone, a
-   rune glow at your feet when on the spot, and the built-in waypoint marker
-   (`C_SuperTrack`) if this client has it.
+2. **In-world presence.** A rune glow at your feet when on the spot. (The
+   arrow and waypoint marker are in: "guide me there", through TomTom or
+   the game's own waypoint.)
 3. **Shared ratings.** Appraisals and disparagements are personal for now;
    with a server they could add up across players (and, as in Dark Souls,
    tell authors when their stone was appraised).
-4. **Libraries.** LibDBIcon for the minimap button, HereBeDragons-Pins for world map pins.
+4. **Libraries.** LibDBIcon for the minimap button.
