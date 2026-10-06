@@ -1,0 +1,125 @@
+# Builds the companion's Windows installer on GitHub's own machines, from the
+# tagged source, so it can be signed through the SignPath Foundation (which
+# only signs builds made this way). Runs on every pushed `companion-vX.Y.Z`
+# tag and creates a DRAFT release to review and publish by hand. Running it
+# by hand (workflow_dispatch) only builds, to check the build works.
+#
+# Signing turns on once these are set (Settings > Secrets and variables >
+# Actions): the secret SIGNPATH_API_TOKEN and the variables
+# SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG and
+# SIGNPATH_SIGNING_POLICY_SLUG. Each signing request then waits for the
+# maintainer's approval in SignPath.
+name: Companion release
+
+on:
+  push:
+    tags:
+      - "companion-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: companion/src-tauri
+
+      - name: Check versions
+        shell: bash
+        run: |
+          v=$(node -p "require('./companion/src-tauri/tauri.conf.json').version")
+          addon=$(grep '^## Version:' Soapstone/Soapstone.toc | sed 's/## Version: *//' | tr -d '\r')
+          echo "COMPANION_VERSION=$v" >> "$GITHUB_ENV"
+          echo "ADDON_VERSION=$addon" >> "$GITHUB_ENV"
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "companion-v$v" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match the companion version $v (tauri.conf.json)"
+            exit 1
+          fi
+          echo "Companion $v, carrying addon $addon"
+
+      - name: Stamp the bundled addon as its release
+        shell: bash
+        run: |
+          # The same BuildInfo.lua tools/release.py puts in the addon zip, so
+          # /soap version reads the same either way.
+          ref="v$ADDON_VERSION"
+          git rev-parse -q --verify "refs/tags/$ref" >/dev/null || ref=HEAD
+          c=$(git rev-parse --short "$ref")
+          d=$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M' "$ref")
+          printf -- '-- Written by tools/release.py for this release. Shown by /soap version.\nlocal _, ns = ...\nns.BUILD = { branch = "v%s", commit = "%s", date = "%s", release = true }\n' "$ADDON_VERSION" "$c" "$d" > Soapstone/BuildInfo.lua
+          cat Soapstone/BuildInfo.lua
+
+      - name: Build the installer
+        working-directory: companion
+        run: |
+          npm ci --no-audit --no-fund
+          npx tauri build
+
+      - name: Collect the installer
+        shell: bash
+        run: |
+          mkdir -p out
+          cp companion/src-tauri/target/release/bundle/nsis/*-setup.exe "out/Soapstone-Companion-v$COMPANION_VERSION-setup.exe"
+          sha256sum out/*.exe
+
+      - name: Upload the unsigned installer
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-installer-unsigned
+          path: out/
+
+      - name: Sign with SignPath
+        if: env.SIGNPATH_ORGANIZATION_ID != '' && github.ref_type == 'tag'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Create a draft release
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          installer=out/Soapstone-Companion-v$COMPANION_VERSION-setup.exe
+          signed="not code-signed yet"
+          if [ -f "signed/Soapstone-Companion-v$COMPANION_VERSION-setup.exe" ]; then
+            installer="signed/Soapstone-Companion-v$COMPANION_VERSION-setup.exe"
+            signed="code-signed through the SignPath Foundation"
+          fi
+          files=("$installer")
+          if gh release download "v$ADDON_VERSION" -p "Soapstone-v$ADDON_VERSION.zip" -D out 2>/dev/null; then
+            files+=("out/Soapstone-v$ADDON_VERSION.zip")
+          fi
+          {
+            echo "Soapstone Companion $COMPANION_VERSION, carrying Soapstone $ADDON_VERSION. The installer is $signed."
+            echo
+            echo "**Check your download (SHA-256):**"
+            for f in "${files[@]}"; do echo "- \`$(basename "$f")\`: \`$(sha256sum "$f" | cut -d' ' -f1)\`"; done
+            echo
+            echo "_Draft made by the Companion release workflow: write the notes, then publish._"
+          } > notes.md
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "Soapstone Companion v$COMPANION_VERSION" --notes-file notes.md "${files[@]}"

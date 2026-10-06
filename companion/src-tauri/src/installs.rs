@@ -36,7 +36,7 @@ pub struct GameFolder {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
-    /// `51825503#1`
+    /// `12345678#1`
     pub name: String,
     /// `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.lua`; may not exist yet.
     pub saved_variables: PathBuf,
@@ -238,7 +238,7 @@ mod tests {
 
     fn make_wow(dir: &Path) -> PathBuf {
         let root = dir.join("World of Warcraft");
-        fs::create_dir_all(root.join("_classic_beta_/WTF/Account/51825503#1/SavedVariables")).unwrap();
+        fs::create_dir_all(root.join("_classic_beta_/WTF/Account/12345678#1/SavedVariables")).unwrap();
         fs::create_dir_all(root.join("_classic_beta_/WTF/Account/SavedVariables")).unwrap();
         fs::create_dir_all(root.join("_classic_beta_/Interface/AddOns/Soapstone")).unwrap();
         fs::create_dir_all(root.join("_retail_/WTF/Account/OTHER")).unwrap();
@@ -257,8 +257,8 @@ mod tests {
 
         let forever = &found[0];
         assert_eq!(forever.accounts.len(), 1);
-        assert_eq!(forever.accounts[0].name, "51825503#1");
-        assert!(forever.accounts[0].saved_variables.ends_with("51825503#1/SavedVariables/Soapstone.lua"));
+        assert_eq!(forever.accounts[0].name, "12345678#1");
+        assert!(forever.accounts[0].saved_variables.ends_with("12345678#1/SavedVariables/Soapstone.lua"));
         assert_eq!(forever.addon.as_ref().map(|a| a.linked), Some(false));
         assert_eq!(found[1].addon, None);
     }

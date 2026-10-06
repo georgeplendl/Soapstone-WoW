@@ -1,0 +1,36 @@
+SOAPSTONE COMPANION: PLEASE READ BEFORE INSTALLING
+
+The Soapstone companion shares the stones you leave in World of Warcraft
+with other Soapstone players, through a shared server.
+
+WHAT IT DOES TO YOUR PC
+- Installs for your Windows user only (no admin rights needed).
+- Starts with Windows and runs in the system tray. You can turn this off
+  any time: right-click the tray icon and untick "Start with Windows".
+- Installs and updates the Soapstone addon in your WoW Forever folder, and
+  writes a small helper addon next to it (Interface\AddOns\SoapstoneData).
+  It never touches your SavedVariables, other addons, or the game itself.
+- Keeps its settings and a cache in %APPDATA%\Soapstone.
+
+WHAT IT SENDS TO THE SOAPSTONE SERVER
+- Your characters' names, the stones you leave (words or drawing, where in
+  the game, and when), your edits and deletions, appraisals, reports, and
+  which stones your characters have opened.
+- A random install id and token it makes up itself. No account, email or
+  password.
+
+WHO CAN SEE IT
+- Everyone using Soapstone sees the stones you leave, with your character's
+  name, where you left them and when.
+- Only your own companion gets back which stones your characters opened.
+- Your IP address is only kept as a keyed hash, for rate limits.
+
+UNINSTALLING
+- Windows Settings > Apps > Soapstone > Uninstall. This removes the program
+  and its "Start with Windows" entry.
+- To remove the rest, delete %APPDATA%\Soapstone, and in your game folder
+  Interface\AddOns\SoapstoneData (and Interface\AddOns\Soapstone if you no
+  longer want the addon).
+
+Full privacy policy: https://github.com/georgeplendl/Soapstone-WoW/blob/main/PRIVACY.md
+Source code (MIT License): https://github.com/georgeplendl/Soapstone-WoW
