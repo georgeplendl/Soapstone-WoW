@@ -63,9 +63,9 @@ src-tauri/target/debug/soapstone-companion.exe --sync-once
 test installs can play two players against a local server without touching
 the real game folder.
 
-It talks to `http://127.0.0.1:8787` until the server is deployed. Set
-`SOAPSTONE_SERVER` to point it somewhere else; each server keeps its own
-registration in `companion.json`.
+It talks to the deployed server, `https://soapstone-server.george-plendl.workers.dev`.
+Set `SOAPSTONE_SERVER=http://127.0.0.1:8787` to use a local `wrangler dev`
+instead; each server keeps its own registration in `companion.json`.
 
 ## Layout
 
