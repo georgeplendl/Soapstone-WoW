@@ -161,6 +161,9 @@ check(Store:Get(dropped.id) == nil, "and pruned once it's been sent")
 region = 3
 Store:RecordMeta()
 check(ns.db.meta.region == "eu", "3 = eu")
+region = 90
+Store:RecordMeta()
+check(ns.db.meta.region == "test" and ns.db.meta.regionId == 90, "90 (WoW Forever's beta) = test")
 region = 98
 Store:RecordMeta()
 check(ns.db.meta.region == nil and ns.db.meta.regionId == 98, "an unknown region is left blank, with the raw id kept")
@@ -170,5 +173,23 @@ check(ns.db.meta.region == nil and ns.db.meta.regionId == nil, "a client without
 
 Store:Clear()
 check(Store:PendingCount() == 0, "/soap clear empties the queue too")
+
+-- Build 70235 labelled Forever stones "classic-18": they come back as forever
+-- and join the queue, next to what was already waiting.
+ns.db.stones = {
+	["Mad-Decent-2-1"] = stone("Mad-Decent-2-1", "Mad-Decent", { mine = true, flavor = "classic-18" }),
+	["Mad-Decent-2-2"] = stone("Mad-Decent-2-2", "Mad-Decent", { mine = true }),
+	["Zug-Zug-2-1"] = stone("Zug-Zug-2-1", "Zug-Zug", { flavor = "classic-18" }),
+}
+ns.db.pending = { stones = { ["Mad-Decent-2-1"] = 1 } }
+Store:Init()
+check(Store:Get("Mad-Decent-2-1").flavor == "forever" and Store:Get("Zug-Zug-2-1").flavor == "forever",
+	"classic-18 stones are relabelled forever")
+local seen = 0
+for _ in Store:Each() do seen = seen + 1 end
+check(seen == 3, "and show again")
+check(ns.db.pending.stones["Mad-Decent-2-2"] == 1 and ns.db.pending.stones["Mad-Decent-2-1"] == 1,
+	"your stones hidden by the old label join the queue")
+check(ns.db.pending.stones["Zug-Zug-2-1"] == nil, "others' don't")
 
 done()

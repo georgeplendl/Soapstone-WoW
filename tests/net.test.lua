@@ -42,6 +42,12 @@ end
 check(flavorFor("11.2.5", 1) == "retail", "11.x on project 1 is retail")
 check(flavorFor("1.15.7", 2) == "classic", "project 2 is classic")
 check(flavorFor("5.5.1", 19) == "classic-19", "other classic projects keep their id")
+WOW_PROJECT_CAMELOT = 18
+check(flavorFor("1.60.1", 18) == "forever", "build 70235: WOW_PROJECT_CAMELOT (18) is forever")
+WOW_PROJECT_CAMELOT = nil
+check(flavorFor("1.60.1", 18) == "forever", "and so is project 18 without the constant")
+check(flavorFor("1.61.0", 42) == "forever", "any 1.60+ build is forever, whatever its project")
+check(flavorFor("1.15.7", 42) == "classic-42", "Classic Era builds (1.15) aren't")
 BUILD, WOW_PROJECT_ID = "1.60.1", 1
 
 -- Identity

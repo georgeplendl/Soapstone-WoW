@@ -67,6 +67,13 @@ describe('stones', () => {
     expect((await a.pull({ 9002: 0 })).zones['9002'].stones).toHaveLength(0)
   })
 
+  it("keeps WoW Forever's beta (region test) apart from launch regions", async () => {
+    const a = await newClient()
+    const pushed = await a.push({ stones: [stone(charKey(), { zone: 9003 })], region: 'test' })
+    expect(pushed.acks.stones).toHaveLength(1)
+    expect((await a.pull({ 9003: 0 })).zones['9003'].stones).toHaveLength(0)
+  })
+
   it('lets only the install that owns a name write as it', async () => {
     const a = await newClient()
     const b = await newClient()

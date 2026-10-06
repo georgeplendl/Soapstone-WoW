@@ -497,13 +497,28 @@ end
 -- sharing existed), so they're marked never to be shared.
 -- The first time `pending` exists, queue the stones you dropped before it
 -- did (and changes still in the outbox), so they upload once the companion
--- runs.
-local function seedPending(d)
-	if d.pending then return end
+-- runs. `force` runs it again (after relabelling made more stones yours to
+-- upload); entries already waiting are kept.
+local function seedPending(d, force)
+	if d.pending and not force then return end
 	local waiting = Store.Pending().stones
 	for id, stone in pairs(d.stones) do
-		if (stone.mine or d.outbox[id]) and Store.IsUploadable(stone) then waiting[id] = stone.v or 1 end
+		if (stone.mine or d.outbox[id]) and Store.IsUploadable(stone) then waiting[id] = waiting[id] or stone.v or 1 end
 	end
+end
+
+-- Stones saved under an old label for this game (Identity.FLAVOR_ALIASES)
+-- get today's. Returns how many changed.
+local function relabel(d)
+	local count = 0
+	for _, stone in pairs(d.stones) do
+		local label = stone.flavor and ns.Identity.FLAVOR_ALIASES[stone.flavor]
+		if label then
+			stone.flavor = label
+			count = count + 1
+		end
+	end
+	return count
 end
 
 local function migrate(d)
@@ -511,7 +526,7 @@ local function migrate(d)
 	d.outbox = d.outbox or {}
 	d.ratings = d.ratings or {}
 	if d.schema == Store.SCHEMA then
-		seedPending(d)
+		seedPending(d, relabel(d) > 0)
 		return 0
 	end
 	local old, stones, count = d.stones or {}, {}, 0
