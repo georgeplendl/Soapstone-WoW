@@ -192,6 +192,57 @@ fn record_text(r: &Record) -> String {
     }
 }
 
+/// A drawing for `Sketches.lua`, as `/v1/sketches` returns it.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Sketch {
+    pub id: String,
+    pub w: i64,
+    pub h: i64,
+    pub data: String,
+}
+
+impl Sketch {
+    /// What the addon accepts (`Codec.DecodeSketchRecord`): `sk_` + 16 hex,
+    /// 160×60, packed data in the base64 alphabet.
+    pub fn is_valid(&self) -> bool {
+        self.id.len() == 19
+            && self.id.starts_with("sk_")
+            && self.id[3..].bytes().all(|b| b.is_ascii_hexdigit())
+            && self.w == 160
+            && self.h == 60
+            && !self.data.is_empty()
+            && self.data.len() <= 8000
+            && self.data.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/')
+    }
+}
+
+/// `Sketches.lua`: the drawings for sketch stones, written while the
+/// companion runs and emptied when it quits (the addon also ignores a file
+/// older than 15 minutes).
+pub fn sketches_lua(flavor: &str, region: &str, written_at: u64, sketches: &[Sketch]) -> Result<String, String> {
+    let scope = base64(format!("{}~{}", escape(flavor), escape(region)).as_bytes());
+    let records: Vec<String> = sketches
+        .iter()
+        .filter(|s| s.is_valid())
+        .map(|s| base64(format!("{}~{}~{}~{}", s.id, s.w, s.h, s.data).as_bytes()))
+        .collect();
+    if let Some(bad) = std::iter::once(&scope).chain(&records).find(|s| !is_base64(s)) {
+        return Err(format!("refusing to write a string that isn't base64: {bad:?}"));
+    }
+    let mut out = String::new();
+    out.push_str("-- Drawings from the Soapstone companion; emptied when it quits, so don't edit it.\n");
+    out.push_str("SoapstoneData_Sketches = {\n");
+    let _ = writeln!(out, "format = {FORMAT},");
+    let _ = writeln!(out, "writtenAt = {written_at},");
+    let _ = writeln!(out, "scope = \"{scope}\",");
+    out.push_str("records = {\n");
+    for r in &records {
+        let _ = writeln!(out, "\"{r}\",");
+    }
+    out.push_str("},\n}\n");
+    Ok(out)
+}
+
 /// The whole `Stones.lua`. Errors only if something that must be base64
 /// isn't, which would be a bug here, never something to write anyway.
 pub fn stones_lua(file: &DataFile) -> Result<String, String> {
@@ -217,6 +268,26 @@ pub fn stones_lua(file: &DataFile) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The drawings fixture, read by `tests/companion.test.lua` too.
+    const SKETCH_FIXTURE: &str = "../../tests/fixtures/companion/Sketches.lua";
+
+    #[test]
+    fn sketches_match_the_shared_fixture() {
+        let sketches = [
+            Sketch { id: "sk_9f2c41e07ab35d18".into(), w: 160, h: 60, data: "k0DD9EDOErEENGpEENHpEENInEFMJnEFMJnEFKECFnEFJEDEoEJEDFEBFPGtDPFMBGFHuDOGVCHzDIIZoEGBGBKpEFDEEHqEEPDnrD".into() },
+            Sketch { id: "sk_0000000000000000".into(), w: 10, h: 60, data: "AAAA".into() },
+            Sketch { id: "sk_bad\"..os.exit()".into(), w: 160, h: 60, data: "AAAA".into() },
+        ];
+        let text = sketches_lua("forever", "test", 1791234567, &sketches).unwrap();
+        assert_eq!(text.matches("\",\n").count(), 2, "scope plus the one valid drawing; invalid ones are left out");
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(SKETCH_FIXTURE);
+        if std::env::var_os("UPDATE_FIXTURES").is_some() {
+            std::fs::write(&path, &text).unwrap();
+        }
+        let expected = std::fs::read_to_string(&path).expect("fixture missing: run with UPDATE_FIXTURES=1");
+        assert_eq!(text, expected.replace("\r\n", "\n"));
+    }
 
     /// The file both sides test against: this test writes it (with
     /// `UPDATE_FIXTURES=1`) or checks it, and `tests/companion.test.lua`

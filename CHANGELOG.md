@@ -34,7 +34,7 @@ for players: what changed in game, not how.
   Soapstone loads everyone's stones from it when you log in or `/reload`.
   It also tells you if a stone of yours couldn't be shared, and why. The
   minimap button's tooltip and `/soap stats` say when the companion last
-  synced.
+  synced. Other players' drawings show while the companion is running.
 
 ### Fixed
 - **Stones missing since the October 5 beta patch are back.** The patch

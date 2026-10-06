@@ -269,6 +269,13 @@ function Stones.IsSketch(stone)
 	return stone.sketch ~= nil or stone.sketchId ~= nil
 end
 
+-- The drawing itself: your own and other players' come with the stone; ones
+-- from the database come from the companion while it runs (Sketches.lua).
+function Stones.SketchOf(stone)
+	if stone.sketch then return stone.sketch end
+	return stone.sketchId and ns.Companion and ns.Companion.sketches[stone.sketchId] or nil
+end
+
 -- One-line description for chat and tooltips.
 function Stones:Summary(stone)
 	if Stones.IsSketch(stone) then return "a sketch" end
