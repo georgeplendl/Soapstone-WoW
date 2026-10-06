@@ -9,7 +9,7 @@ pins toward sealed ones, sound cues as you close in).
 
 - Addon code: `Soapstone/` (Lua + `.toc`). This folder is what goes in `Interface\AddOns`.
 - Target client: Classic beta at `D:\Games\World of Warcraft\_classic_beta_` (build 1.60.1). The `## Interface:` value in the `.toc` is still unconfirmed.
-- Ideas: `docs/Ideas/` may be reworked freely for WoW.
+- Ideas: `docs/Ideas/` holds WoW idea write-ups; `docs/Ideas/Archive/` holds the ideas carried over from the app. Both may be reworked freely for WoW.
 - `docs/App Reference/` is a frozen copy of the phone app's docs. Use it for background only; its decisions don't automatically apply here.
 
 ## Related project: Soapstone (phone app)
