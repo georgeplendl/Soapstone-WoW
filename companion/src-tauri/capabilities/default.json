@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What the status window may do: read status and ask for a rescan.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
