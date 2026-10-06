@@ -1,0 +1,19 @@
+{
+  // Soapstone server (Cloudflare Workers + D1). See README.md.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "soapstone-server",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-15",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "soapstone",
+      // Replaced with the real id after `wrangler d1 create soapstone`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "POW_BITS": "18"
+  }
+}
