@@ -3,9 +3,17 @@
 How Soapstone stones get from the player who drops them to every other player
 who walks past, with nothing to install but the addon.
 
-**Status (2026-09-25):** steps 1–3 built. Zone sync works on the simulated
-network in `tests/`; it hasn't yet run between two real players, which needs
-a second Soapstone player online. Next: step 4, live drops.
+**Status (2026-10-06): superseded for sharing.** Stones are now shared
+through the companion app and its server
+([Idea - Companion App (WoW)](Ideas/Idea%20-%20Companion%20App%20(WoW).md)),
+so the "no server" constraint below no longer holds. The network described
+here still exists but has been **off by default since 0.3.1** (`/soap net
+join`). The plan is to trim it to live drops from a stone's own author and
+remove zone sync. This page is kept as the record of how it works and what
+was learned on the WoW Forever client.
+
+*Earlier status (2026-09-25):* steps 1–3 built. Zone sync works on the
+simulated network in `tests/`; it hasn't yet run between two real players.
 
 ---
 

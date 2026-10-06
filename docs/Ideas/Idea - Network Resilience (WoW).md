@@ -4,6 +4,10 @@
 > player-to-player network (`docs/Sharing - Architecture.md`). It doesn't
 > carry over to the phone app.
 >
+> **Status (2026-10-06): on hold.** The companion app now shares stones, and
+> the player-to-player network is opt-in and due to be trimmed to live
+> drops, so most of this matters only if that live channel needs it.
+>
 > The ideas come from studying how another WoW Forever addon, Happy Camper,
 > runs its own network. Only the general approaches are borrowed. No code,
 > channel or traffic is shared with it, and Soapstone stays on its own

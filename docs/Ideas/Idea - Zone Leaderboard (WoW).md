@@ -3,6 +3,11 @@
 > **WoW-specific.** This idea is for the Soapstone-WoW addon. It builds on
 > the addon's Appraise / Disparage ratings and its player-to-player network,
 > and doesn't carry over to the phone app as written.
+>
+> **Status (2026-10-06): not started.** The blocker below (votes never
+> shared) is half solved: the server now keeps one vote per install and
+> sends each stone's shared score to the companion, but the addon doesn't
+> show it yet.
 
 ## Zone Leaderboard: Most Appraised in the Zone
 

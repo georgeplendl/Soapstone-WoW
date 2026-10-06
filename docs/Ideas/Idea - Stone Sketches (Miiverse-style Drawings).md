@@ -6,7 +6,7 @@ When dropping a stone, you can draw on it instead of writing. Sketches are tiny,
 
 Inspired by **Miiverse** (Nintendo's Wii U/3DS social network, 2012–2017), where you could post stylus drawings on a 320×120, 1-bit black-and-white canvas, and by **Splatoon / Splatoon 2**, which showed those posts as graffiti around Inkopolis and kept the same canvas at the Inkopolis Square mailbox after Miiverse closed. The limits are the charm: people made remarkable things inside them.
 
-**Status:** first version built on 2026-09-25 (addon v0.2.0, branch `stone-sketches`). Not yet tried in game.
+**Status:** shipped in addon v0.2.0 (2026-09-25) and in use in game (see the README's screenshots). Since companion 0.2.0, drawings are shared through the companion.
 
 ---
 

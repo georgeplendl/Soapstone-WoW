@@ -18,29 +18,43 @@ toward sealed ones, and sound cues as you close in.
 - `Soapstone/`: the addon (this folder goes in `Interface\AddOns`)
 - `server/`: the companion app's server (Cloudflare Worker + database); see [its README](../server/README.md)
 - `companion/`: the companion tray app (Tauri: Rust plus a small HTML window); see [its README](../companion/README.md)
+- `tests/`: the addon's tests (Node + fengari); see [Tests](#tests)
+- `tools/`: release, CurseForge upload, icon conversion and build-info scripts
+- `art/`: icon source art (`soapstone.png`, plus `soapstone-hires.svg` and 512/1024 px renders for store pages)
 - `docs/Ideas/`: WoW idea write-ups
-- `docs/Sharing - Architecture.md`: how stones travel between players
+- `docs/Sharing - Architecture.md`: the older player-to-player network (opt-in since 0.3.1)
 - `docs/To Do.md`: the to-do list
 - The phone app's docs (spec, research, original ideas) live in its own repo: [georgeplendl/Soapstone](https://github.com/georgeplendl/Soapstone)
 
 ## Download
 
-Each version is published on the
-[Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases) with
-its changelog and a `Soapstone-vX.Y.Z.zip`. Unzip it into your client's
-`Interface\AddOns` folder so you get `AddOns\Soapstone\Soapstone.toc`, then
-restart the game. `/soap version` shows what's installed. Full history is in
-[CHANGELOG.md](../CHANGELOG.md).
+Players install through the companion (Windows) or the addon zip; both are
+on the [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases),
+and the [README](../README.md#install) has the steps. Addon releases are
+tagged `vX.Y.Z`, companion releases `companion-vX.Y.Z`. `/soap version`
+shows what's installed. Full history is in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Install (dev loop)
 
-Target client: the Classic beta install at `D:\Games\World of Warcraft\_classic_beta_` (build `1.60.1.70009`).
+Target client: WoW Forever (build `1.60.1.70009`), which installs as
+`_classic_beta_`: `D:\Games\World of Warcraft\_classic_beta_` on the
+Windows PC, `/Applications/World of Warcraft/_classic_beta_` on the Mac.
 
-Link the addon folder into AddOns so edits are live after `/reload`. From an **admin** Command Prompt:
+Link the addon folder into AddOns so edits are live after `/reload`
+(replace `<repo>` with your clone). On Windows, from an **admin** Command Prompt:
 
 ```
-mklink /J "D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns\Soapstone" "C:\Users\PC\Documents\Playground\Soapstone-WoW\Soapstone"
+mklink /J "D:\Games\World of Warcraft\_classic_beta_\Interface\AddOns\Soapstone" "<repo>\Soapstone"
 ```
+
+On the Mac:
+
+```
+ln -s "<repo>/Soapstone" "/Applications/World of Warcraft/_classic_beta_/Interface/AddOns/Soapstone"
+```
+
+The companion never replaces a linked addon folder, so it's safe to run it
+alongside a dev checkout.
 
 **Branch in `/soap version`:** once per clone, turn on the repo's git hooks:
 
@@ -75,11 +89,11 @@ The full reference; players get the short version in the [README](../README.md).
 | Hover a minimap pin | Message if you're in range; "sealed" + distance if not |
 | Open the world map | Every stone you know of. Sealed ones glow; hover for distance + direction (never the message). A line at the bottom counts what's left to find |
 | Click a world map pin (or `/soap guide`) | Guide me there: TomTom's arrow if you have TomTom, else the game's map pin and in-world marker. `/soap guide off` stops |
-| **Appraise** / **Disparage** on any stone | Under the message or sketch: the author (right), a rule, then Edit (left) and Appraise / Disparage (centred); the stone's appraisals show at the right of the title bar. Your own stones start appraised (score 1); Disparage withdraws that to 0, never below. On others' stones, Appraise (+1) or Disparage (−1), press again to withdraw; appraised pins turn gold, disparaged pins fade and stop triggering sound cues. The score counts the author's appraisal plus your characters' judgements (personal until there's a server) |
+| **Appraise** / **Disparage** on any stone | Under the message or sketch: the author (right), a rule, then Edit (left) and Appraise / Disparage (centred); the stone's appraisals show at the right of the title bar. Your own stones start appraised (score 1); Disparage withdraws that to 0, never below. On others' stones, Appraise (+1) or Disparage (−1), press again to withdraw; appraised pins turn gold, disparaged pins fade and stop triggering sound cues. The score shown counts the author's appraisal plus your characters' judgements. The server's shared score already reaches the addon through the companion (`stone.score`) but isn't shown yet |
 | `/soap sound test` | Preview the "somewhere close" cue; `/soap sound <cue>` plays one (`near`, `appraise`, `disparage`, `drop`, `delete`) and names the sound; `/soap sound on\|off` toggles them |
 | `/soap radius 25`, `/soap near 100` | Change the read / "somewhere close" ranges |
 | `/soap version` | Shows the installed version and which build it is: `0.2.0 (branch ratings @ 16dd7e0, 2026-09-25 18:02)` in a dev checkout, `(release v0.3.0 @ …)` from a release zip |
-| `/soap stats` | How many stones are stored (yours, others', test), tombstones, pending changes, and the busiest zones |
+| `/soap stats` | How many stones are stored (yours, others', test), tombstones, changes waiting for the companion, the companion's status ("synced 2 mins ago"), game and region, and the busiest zones |
 | Settle in a zone for a few seconds (networking on) | Soapstone asks other players online for that zone's stones and fetches the ones you're missing ("12 new stones arrived for The Barrens") |
 | `/soap sync` (or shift-click the minimap button) | Sync with the companion app: reloads the UI, so your changes upload and the latest stones load |
 | `/soap net sync` / `/soap net sync now` | Zone sync between players (networking on): status and recent results / ask again right away |
@@ -103,6 +117,7 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 ## Addon files
 
 - `Soapstone.toc`: addon manifest, load order, SavedVariables
+- `BuildInfo.lua`: which build this is, for `/soap version` (git-ignored; written by the git hooks, or by the release tools in a release)
 - `Core.lua`: saved data defaults, shared window helper, `/soap` commands, startup
 - `Sketch.lua`: the 1-bit sketch grid, round brushes, gap-free lines, undo records, compact encoding
 - `Stones.lua`: stone data (text or sketch), positions and distance, 1-second proximity check with near/read zones
@@ -111,7 +126,8 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `Cues.lua`: sound cues; picks the first built-in sound your client has, or plays a custom `.ogg`
 - `Codec.lua`: stones as text for the wire, and validation of everything received
 - `Net.lua`: the hidden `SoapstoneNet` channel, wire format, paced send queue, multi-part payloads, offline-peer detection, and `/soap net` test tools
-- `Sync.lua`: zone sync, i.e. fetching the current zone's stones from other players
+- `Sync.lua`: zone sync, i.e. fetching the current zone's stones from other players (only with networking on)
+- `Companion.lua`: reads the `SoapstoneData` helper addon the companion writes (stones, removals, upload results, unlocks, drawings), the "Companion:" status, and `/soap sync`
 - `SketchCanvas.lua`: draws a sketch as pooled row-run rectangles; mouse drawing and undo when editable
 - `DropWindow.lua`: "Leave a Soapstone" window with Write / Draw buttons and the Splatoon-style tool strip
 - `WritePanel.lua`: the message box shared by the drop and edit windows
@@ -122,7 +138,7 @@ Stones are saved per account in `WTF\Account\<ACCOUNT>\SavedVariables\Soapstone.
 - `MinimapPins.lua`: stones drawn on the minimap, with rotating-minimap support
 - `WorldMapPins.lua` / `.xml`: stones on the world map (sealed ones glow) and the count line, through the map's own pin system
 - `Guide.lua`: "guide me there" waypoints, through TomTom (an optional dependency) or the game's own waypoint
-- `Media/`: icon textures with transparent backgrounds (`Soapstone.tga` 64×64 for the button and AddOns list, `SoapstonePin.tga` 32×32 for minimap pins)
+- `Media/`: icon textures with transparent backgrounds (`Soapstone.tga` 64×64 for the button and AddOns list, `SoapstonePin.tga` 32×32 for the pins on both maps)
 
 Icon source art is `art/soapstone.png`. After changing it, run `py tools/convert_icon.py` to rebuild `Media/`.
 
@@ -141,7 +157,12 @@ runs each `tests/*.test.lua` under [fengari](https://github.com/fengari-lua/feng
 `tests/lib/wowsim.lua` simulates several WoW Forever players on one server
 (with the measured latency and send limits) for end-to-end sync tests. The
 **Tests** GitHub Action runs the suite on every push to `main` and every
-pull request.
+pull request, along with the companion's Rust tests and a dry run of the
+CurseForge upload.
+
+The other parts have their own tests: `cd companion && npm test` (Rust,
+`cargo test`) and `cd server && npm test` (Cloudflare's local runtime; needs
+Node 22). The server's tests aren't in CI yet, so run them before deploying.
 
 ## Releasing
 
@@ -187,16 +208,24 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
 
 ## Next steps
 
-1. **Sharing through the companion app.** The server (`server/`) and the
-   companion (`companion/`) carry stones, votes, unlocks and drawings between
-   players; the plan is in
-   [Idea - Companion App (WoW)](Ideas/Idea%20-%20Companion%20App%20(WoW).md).
-   The older player-to-player zone sync ([Sharing — Architecture](Sharing%20-%20Architecture.md))
-   is being trimmed to live drops only.
-2. **In-world presence.** A rune glow at your feet when on the spot. (The
+Sharing through the companion is live (companion 0.2.x, server deployed
+2026-10-06); its plan and build order are in
+[Idea - Companion App (WoW)](Ideas/Idea%20-%20Companion%20App%20(WoW).md).
+Short-term chores (CurseForge, icons) are in [To Do](To%20Do.md).
+
+1. **Show shared scores and found counts.** The companion already brings
+   each stone's server-wide score and found count (`stone.score`,
+   `stone.found`); the stone window and pins still show the local score.
+   Then tell authors when their stone was appraised, as in Dark Souls.
+2. **Reporting from the game.** The server takes reports, but the addon has
+   no Report button yet.
+3. **Moderation page** on the server: reported stones, bans, releasing names.
+4. **Trim the player-to-player network to live drops.** Remove zone sync and
+   the outbox now that the companion carries stones
+   ([Sharing — Architecture](Sharing%20-%20Architecture.md)).
+5. **Code signing** for the companion installer (SignPath, being set up),
+   then a macOS companion.
+6. **In-world presence.** A rune glow at your feet when on the spot. (The
    arrow and waypoint marker are in: "guide me there", through TomTom or
    the game's own waypoint.)
-3. **Shared ratings.** With the server, appraisals can add up across
-   players (and, as in Dark Souls, tell authors when their stone was
-   appraised).
-4. **Libraries.** LibDBIcon for the minimap button.
+7. **Libraries.** LibDBIcon for the minimap button.
