@@ -160,6 +160,30 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
    ```
    The **Release** GitHub Action checks the tag matches the `.toc` and the
    changelog, then publishes the GitHub Release with the zip attached.
+   It then uploads the same zip to
+   [CurseForge](https://www.curseforge.com/projects/1730855) as a **beta**
+   file for WoW Forever, with that version's changelog
+   (`tools/curseforge.py`). If only the CurseForge upload fails, use
+   **Re-run failed jobs** on the workflow run.
+5. The companion carries its own copy of the addon, so after an addon
+   release, tag a companion release (`companion-vX.Y.Z`) to ship it there too.
+
+### CurseForge
+
+- Project id `1730855`, in the `.toc` as `## X-Curse-Project-ID`.
+- The upload runs only once the repo secret `CF_API_TOKEN` is set (a token
+  from authors.curseforge.com > Settings > API tokens). Until then the
+  Release workflow just leaves a notice.
+- The game version comes from `## Interface:` (`16001` is CurseForge's
+  `1.60.1`) and its id is looked up through the API. If that lookup fails or
+  finds more than one, set the repo variable `CF_GAME_VERSION_IDS` to the
+  right id.
+- Files go up as `beta` while WoW Forever is in beta: change `RELEASE_TYPE`
+  in `tools/curseforge.py` (or set `CF_RELEASE_TYPE`) at launch. At launch,
+  also check whether the `Interface` number and CurseForge game version change.
+- TomTom is listed as an optional dependency.
+- `py tools/curseforge.py upload --dry-run` shows what would be sent; the
+  Tests workflow runs it on every pull request.
 
 ## Next steps
 
