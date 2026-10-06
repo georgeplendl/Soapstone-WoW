@@ -32,10 +32,12 @@ plain HTML status window (`ui/`, no bundler).
   commit. Copies it didn't install are replaced only by a newer version; its
   own copies only while their files are still exactly what it wrote; linked
   folders never. Set `"manageAddon": false` in `companion.json` to turn it off.
-- **Tray icon** with a status line and Open / Check now / Quit. Closing the
-  window keeps it in the tray.
-
-Not yet: Start with Windows, single-instance.
+- **Tray icon** with a status line and Open / Check now / Start with
+  Windows / Quit. Closing the window keeps it in the tray. Opening the
+  companion again shows the running one instead of starting a second.
+- **Start with Windows** is turned on the first time a release build runs
+  (once; after that it's the player's choice in the tray). Development
+  builds never turn it on by themselves.
 
 ## Run it
 
