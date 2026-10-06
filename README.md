@@ -93,9 +93,14 @@ files when you log in or reload, new stones arrive at your next login or
 `/reload`. Shift-click the minimap button (or type `/soap sync`) to sync
 right away.
 
-> **Early preview.** The companion in the latest release is for testing:
-> it talks to a test server on your own PC, not a shared one yet, so it
-> doesn't share stones with other players. A public server comes next.
+To get it, download `Soapstone-Companion-…-setup.exe` from the
+[Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases) and
+run it. It installs just for you (no admin prompt) and starts with Windows;
+you can turn that off in its tray menu.
+
+> **Beta.** The companion is new, so expect rough edges. Its installer
+> isn't code-signed yet, so Windows may say "Windows protected your PC":
+> choose **More info**, then **Run anyway**.
 
 ## Credits
 

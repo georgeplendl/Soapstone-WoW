@@ -8,8 +8,8 @@
     {
       "binding": "DB",
       "database_name": "soapstone",
-      // Replaced with the real id after `wrangler d1 create soapstone`.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // Created with `wrangler d1 create soapstone` (region WNAM), 2026-10-06.
+      "database_id": "4a15532b-2910-43c3-82bf-0a27959d5f2c",
       "migrations_dir": "migrations"
     }
   ],

@@ -59,14 +59,27 @@ npm run smoke            # in another terminal: two fake companions, end to end
 Schema changes go in a new numbered file in `migrations/`; never edit one
 that's been applied.
 
-## Deploying (not done yet)
+## Deployed
 
-1. A Cloudflare account, then `npx wrangler login`.
-2. `npx wrangler d1 create soapstone` and put the id it prints in
-   `wrangler.jsonc` (`database_id`).
-3. `npx wrangler secret put SERVER_SECRET` with a long random value.
-4. `npm run db:migrate`, then `npm run deploy`.
-5. `npm run smoke -- https://soapstone-server.<account>.workers.dev`.
+Live at **https://soapstone-server.george-plendl.workers.dev** (George's
+Cloudflare account; D1 database `soapstone`, region WNAM). Deployed
+2026-10-06, and the smoke test passes against it.
+
+- **Update the code:** `npm run deploy`.
+- **Schema changes:** add a numbered file in `migrations/`, then
+  `npm run db:migrate` (remote) before deploying code that needs it.
+- **The secret:** `SERVER_SECRET` was set once with the first deploy (a
+  random value that was never written down). Changing it with
+  `npx wrangler secret put SERVER_SECRET` only invalidates sign-up
+  puzzles in flight and hashed IP limits; tokens don't depend on it.
+- **Check it:** `npm run smoke -- https://soapstone-server.george-plendl.workers.dev`
+  (registers two test installs and leaves one test stone in region `us`).
+
+How it was set up, for a fresh account: `npx wrangler login`;
+`npx wrangler d1 create soapstone` and put its id in `wrangler.jsonc`;
+`npm run db:migrate`; then deploy with a secrets file holding a long random
+`SERVER_SECRET` (`npx wrangler deploy --secrets-file <file>`), and delete
+the file.
 
 ## Not built yet
 

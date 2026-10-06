@@ -1,6 +1,6 @@
 [package]
 name = "soapstone-companion"
-version = "0.1.0"
+version = "0.2.0"
 description = "Soapstone companion: syncs the Soapstone addon's stones with the shared database"
 authors = ["George Plendl"]
 license = "MIT"
