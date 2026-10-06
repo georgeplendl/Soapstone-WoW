@@ -1,5 +1,28 @@
 # To Do
 
+## Finish publishing on CurseForge
+
+Addon releases already upload to CurseForge
+([project 1730855](https://www.curseforge.com/projects/1730855)) from the
+Release workflow, but the upload stays switched off until there's an API
+token. API access was requested on 2026-10-06. Details are under
+"Releasing" in [Development](Development.md).
+
+- [ ] **When API access is granted:** create a token at
+  authors.curseforge.com > Settings > API tokens and add it as the repo
+  secret `CF_API_TOKEN` (Settings > Secrets and variables > Actions).
+- [ ] **On the next `v*` release:** check that the CurseForge job uploaded
+  the file and that it shows up as a beta for WoW Forever (1.60.1). If it
+  couldn't pick the game version, set the repo variable
+  `CF_GAME_VERSION_IDS` to the right id and use **Re-run failed jobs**.
+- [ ] **README:** once Soapstone is on CurseForge, add it to Install, and
+  say to update through either the CurseForge app or the companion, not
+  both (the companion updates the addon folder too, so the CurseForge app
+  may then show it as modified).
+- [ ] **At WoW Forever's launch (2026-11-04):** switch uploads from `beta`
+  to `release` (`RELEASE_TYPE` in `tools/curseforge.py`), and check whether
+  the `## Interface:` number or CurseForge's game version changed.
+
 ## Redesign the soapstone images for every state
 
 Today there's one source image, `art/soapstone.png` (an amber crystal),
