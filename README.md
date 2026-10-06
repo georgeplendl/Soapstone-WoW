@@ -34,6 +34,30 @@ it is. Open it to read, appraise or disparage it.
 
 ## Install
 
+### With the companion (Windows, recommended)
+
+The [Soapstone companion](#sharing-with-other-players) installs the addon
+for you, keeps it up to date, and shares stones with other players.
+
+1. Download the latest `Soapstone-Companion-vX.Y.Z-setup.exe` from the
+   [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases).
+2. Run it. It installs just for your Windows user (no admin prompt), puts
+   Soapstone into your WoW Forever folder, and starts with Windows; you can
+   turn that off in its tray menu.
+3. Restart the game once so it picks up the new files. A soapstone button
+   appears on your minimap.
+
+> **Beta.** The companion is new, so expect rough edges. Until its
+> installer is code-signed, Windows may say "Windows protected your PC":
+> choose **More info**, then **Run anyway**. Each release lists the
+> installer's SHA-256 checksum, so you can check your download.
+
+### Addon only (Windows or Mac)
+
+Without the companion the addon works on its own, but it's the companion
+that brings in other players' stones and shares yours. The companion is
+Windows-only for now.
+
 1. Download the latest `Soapstone-vX.Y.Z.zip` from the
    [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases).
 2. Unzip it into your game's `Interface\AddOns` folder, so you end up with
@@ -74,7 +98,7 @@ read is still sealed for your alts.
 | `/soap list` | Stones nearby, nearest first |
 | `/soap read` | Open the nearest stone you're close enough to read |
 | `/soap guide` | Point the way to the nearest sealed stone (`/soap guide off` stops) |
-| `/soap sync` | Sync with the companion app (also: shift-click the minimap button) |
+| `/soap sync` | Reload the UI so the companion syncs now (also: shift-click the minimap button) |
 | `/soap sound` | Turn the sound cues on or off |
 | `/soap button` | Show or hide the minimap button |
 | `/soap help` | Every command |
@@ -85,23 +109,16 @@ The **Soapstone companion** is a small app that sits in your system tray
 next to WoW and shares stones with everyone through a shared database:
 stones other players left show up when you log in, along with their
 drawings, and yours reach them the same way. It also installs and updates
-the addon for you, so you only install one thing.
+the addon for you, so you only install one thing (see [Install](#install)).
+It runs on Windows only for now.
 
 It only reads and writes Soapstone's own files, the way the WeakAuras
 Companion does, and never touches the game itself. Because WoW only loads
 files when you log in or reload, new stones arrive at your next login or
-`/reload`. Shift-click the minimap button (or type `/soap sync`) to sync
-right away.
-
-To get it, download `Soapstone-Companion-…-setup.exe` from the
-[Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases) and
-run it. It installs just for you (no admin prompt) and starts with Windows;
-you can turn that off in its tray menu.
-
-> **Beta.** The companion is new, so expect rough edges. Until its
-> installer is code-signed, Windows may say "Windows protected your PC":
-> choose **More info**, then **Run anyway**. Each release lists the
-> installer's SHA-256 checksum, so you can check your download.
+`/reload`. While WoW is running, the companion checks for new stones every
+3 minutes. Shift-click the minimap button (or type `/soap sync`) to reload
+right away: the companion shares your new stones within seconds, and you
+get every stone it has fetched so far.
 
 What the companion sends, and who can see it, is in the
 [privacy policy](PRIVACY.md). To uninstall it, use Windows Settings >
@@ -126,13 +143,16 @@ certificate by [SignPath Foundation](https://signpath.org/).
 
 The companion's Windows installer is built from this repository's source by
 GitHub Actions ([`companion-release.yml`](.github/workflows/companion-release.yml))
-and signed only after the maintainer approves each release.
+and signed only after the maintainer approves each release. Signing is
+still being set up, so installers up to v0.2.2 are not signed yet.
 
 **Privacy policy:** the companion sends the Soapstone server your
 characters' names, the stones you leave and change, your appraisals and
 reports, and which stones your characters have opened; the installer shows
 this before you install. See
-the full [privacy policy](PRIVACY.md). The addon on its own sends nothing.
+the full [privacy policy](PRIVACY.md). The addon on its own sends nothing,
+unless you turn on its older player-to-player network (`/soap net join`,
+off by default).
 
 ## Support
 
