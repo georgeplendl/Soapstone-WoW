@@ -1,6 +1,11 @@
 # Publishes a GitHub Release whenever a version tag (v1.2.3) is pushed.
 # The tag must match `## Version:` in Soapstone/Soapstone.toc, and
 # CHANGELOG.md must have a section for it; tools/release.py checks both.
+#
+# Then uploads the same zip to CurseForge (tools/curseforge.py), once the
+# secret CF_API_TOKEN is set (Settings > Secrets and variables > Actions).
+# It's its own job, so if CurseForge fails, "Re-run failed jobs" retries
+# just the upload.
 name: Release
 
 on:
@@ -28,3 +33,24 @@ jobs:
             --title "Soapstone $GITHUB_REF_NAME" \
             --notes-file dist/release-notes.md \
             --verify-tag
+
+  curseforge:
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_GAME_VERSION_IDS: ${{ vars.CF_GAME_VERSION_IDS }} # optional: skips the game version lookup
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build zip
+        if: env.CF_API_TOKEN != ''
+        run: python3 tools/release.py build --tag "$GITHUB_REF_NAME"
+
+      - name: Upload to CurseForge
+        if: env.CF_API_TOKEN != ''
+        run: python3 tools/curseforge.py upload --tag "$GITHUB_REF_NAME"
+
+      - name: CurseForge not set up
+        if: env.CF_API_TOKEN == ''
+        run: echo "::notice::CF_API_TOKEN isn't set, so nothing was uploaded to CurseForge."
