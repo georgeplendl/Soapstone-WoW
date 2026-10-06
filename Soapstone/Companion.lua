@@ -250,6 +250,19 @@ function Companion:AnnounceRefusals()
 	end
 end
 
+-- Sync: the addon can't fetch anything itself, so syncing means reloading
+-- the UI. WoW saves SavedVariables (the companion uploads your changes
+-- within seconds) and the addon reads the companion's latest files.
+-- Without a companion there's nothing to sync, so it says how to get one.
+function Companion:Sync()
+	if self.state == "none" then
+		ns.Print("Syncing needs the Soapstone companion app, which shares your stones and brings back everyone else's.")
+		return false
+	end
+	ReloadUI()
+	return true
+end
+
 -- "Companion: synced 2 mins ago", for /soap stats and the minimap button.
 function Companion:Status(now)
 	now = now or time()

@@ -73,9 +73,9 @@ check(joins == 1 and joined, "the choice sticks: next login joins by itself")
 ns.Net:Command("leave")
 check(ns.db.network == false and not joined, "/soap net leave turns it off and leaves")
 
--- With networking off, /soap sync says how to turn it on.
+-- With networking off, /soap net sync says how to turn it on.
 ns.Sync.zone = 1413
 ns.Sync:Command("now")
-check(printed[#printed]:find("Networking is off") ~= nil, "/soap sync now explains networking is off")
+check(printed[#printed]:find("Networking is off") ~= nil, "/soap net sync now explains networking is off")
 
 done()

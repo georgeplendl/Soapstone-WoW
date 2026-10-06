@@ -172,8 +172,9 @@ arrival). Stone records are 16 `~`-separated fields with `%XX` escaping
   seen is kept, so a stale copy can't resurrect it later. Every record is
   validated by `Codec.DecodeStone` first (id belongs to the author, text
   ≤ 140 characters, sketch format and data, numbers, position).
-- **`/soap sync`** shows the zone, its fingerprint, any sync in progress
-  and recent results; `/soap sync now` asks again immediately.
+- **`/soap net sync`** shows the zone, its fingerprint, any sync in progress
+  and recent results; `/soap net sync now` asks again immediately. (Before
+  the companion app this was `/soap sync`, which now syncs with the companion.)
 
 **Simulated-network results** (`tests/sync.test.lua`, with WoW Forever's
 measured latency and allowance): a newcomer pulled 25 stones (5 sketches)
