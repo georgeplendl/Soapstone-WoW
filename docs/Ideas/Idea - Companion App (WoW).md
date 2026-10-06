@@ -20,8 +20,9 @@ The companion is a small Windows app that runs next to the game. It uploads
 the stones you leave and brings back everyone else's from a shared database.
 It also keeps track, for each character, of which stones they've unlocked,
 so that progress lives on the server and not just in one SavedVariables
-file. With the companion in place, the chat channel the P2P network uses is
-retired (see [The P2P network](#the-p2p-network)).
+file. The hidden chat channel stays, but only for **live drops**: a stone
+appears in seconds for players in the zone, straight from its author. The
+database does everything else (see [The live channel](#the-live-channel)).
 
 ---
 
@@ -34,7 +35,9 @@ retired (see [The P2P network](#the-p2p-network)).
 | **Who a user is** | The **full character name** (`Mad-Decent`), as the addon already uses. Stones, votes and unlocks are all stored by name |
 | **Owning a name** | The first install to use a name owns it; only that install can write as it (see [Identity](#identity-the-character-name)) |
 | **Unlocks** | Stored on the server **per character**. An alt hasn't been there, so it hasn't read the stone |
-| **Sharing** | **Companion only.** The hidden chat channel and the P2P network are retired |
+| **Sharing** | **Hybrid.** The companion and database carry everything and are the source of truth. The hidden channel carries only **live drops, edits and deletes, straight from their author**, to players in the zone. P2P zone sync is retired |
+| **Drops without the companion** | **v1: kept, not uploaded by others.** The author's copy waits in `pending`; players who saw it live keep it for 7 days. Witness uploads may come later |
+| **Removing stones on sync** | A stone is removed only when the server says so (tombstone or rejection), **never just because the server doesn't have it** |
 | **Sealed text** | Lightly **scrambled** in the data file, so stones can't be read casually in Notepad |
 | **More than one computer** | **Not in v1.** A character belongs to one computer; adding a second with a pairing code comes later |
 | **Installing the addon** | **The companion installs and updates it.** Players install one thing |
@@ -59,15 +62,17 @@ region. Within a region, the companion still fetches stones zone by zone
 1. **Install the companion.** One installer, no admin prompt, no sign-in.
    It finds WoW, installs the Soapstone addon, registers itself in the
    background and sits in the system tray, starting with Windows.
-2. **Play.** Press **Sync** in the addon (a quick reload) to pull in the
-   newest stones, or just get them on the next login.
+2. **Play.** A stone someone drops while you're both in the zone appears in
+   seconds. Stones left while you were away are there when you log in.
+   **Sync** in the addon (a quick reload) is a rarely needed catch-up.
 
 No username, no password, no account. The rough edges that remain:
 
-- **Reload to sync.** There's no live path without the chat channel.
+- **Catching up needs a reload or login.** Only live drops arrive mid-session.
 - **"Windows protected your PC"** until the companion is code-signed. Fine
   for a private beta, needed before a public release.
-- **Players without the companion** see no new stones.
+- **Players without the companion** see live drops from players nearby,
+  but not stones from players who are offline.
 - **Mac players** wait for the second build.
 
 ---
@@ -86,13 +91,20 @@ when it loaded.
 So the companion **isn't live**. Your drops reach the database when you
 reload or log out, and other players' stones reach you on your next login or
 reload. WeakAuras Companion and TradeSkillMaster's desktop app work the same
-way. With the chat channel retired, there's no live path at all: a stone
-dropped next to you appears after your next reload, not the moment it's
-left. That's the price of a simpler addon with no message limits.
+way. Nothing outside the game can push data into a running addon; the only
+live path is other players, over the hidden channel
+([The live channel](#the-live-channel)).
 
-To make this painless, the addon gets a **Sync** button that simply calls
-`ReloadUI()`, and the companion refreshes its files every couple of minutes
-so any reload picks up the latest.
+To make catching up painless, the addon gets a **Sync** button that simply
+calls `ReloadUI()`, and the companion refreshes its files every couple of
+minutes so any reload picks up the latest.
+
+**To test: the chat log as a faster way out.** WoW writes
+`Logs\WoWChatLog.txt` while you play, not just at logout. If the addon can
+get your drops into that log, the companion could watch it and upload within
+seconds instead of at the next save. That would also save drops from a
+crash (below). Unverified: check on WoW Forever which messages the log
+records, and that addon output can appear in it.
 
 **Ruled out:** reading pixels off the screen, sending keystrokes into the
 game, or reading game memory. That's how bots work, and it would put
@@ -239,6 +251,42 @@ you could read it.
    twice.
 4. **Exit:** it empties `Sketches.lua`.
 
+#### A drop's path to the database
+
+Only the **author's own companion** uploads a stone, from the author's
+SavedVariables. The live channel reaches players online, never the database.
+
+1. **You drop a stone.** The addon adds it to your stones and to `pending`,
+   and sends it over the live channel to players in the zone.
+2. **The game saves SavedVariables** on `/reload`, logout, exit or
+   disconnect. Until then the stone exists only in game memory (and on the
+   screens of players who got it live).
+3. **The companion sees the file change**, waits for it to settle, reads
+   `pending` (without running it) and uploads the stone.
+4. **The server checks it** (name ownership, limits, word filter,
+   validation), stores it, and answers with an acknowledgement or a
+   rejection with a reason.
+5. **The acknowledgement goes into `Stones.lua`.** On the next load the
+   addon marks the stone uploaded and clears it from `pending`.
+6. **Everyone else** gets it on their next login or reload.
+
+So a stone reaches the database **at the author's next reload or logout**:
+minutes, or hours after a long session. Players nearby don't wait, since
+they got it live.
+
+- **Companion closed:** the stone waits in `pending`, even for weeks, and
+  uploads whenever the companion next runs.
+- **Game crash:** WoW doesn't save SavedVariables on a crash, so drops since
+  the last save are lost. That's true of every addon. Pressing **Sync**
+  after a drop you care about protects it; the chat-log path, if it works,
+  would remove the risk.
+- **Rejected:** the addon shows why on the next load ("Your stone in Durotar
+  wasn't shared: too many nearby"). The stone stays visible only to you, and
+  live copies others received disappear on their next sync (the server
+  sends them the rejection as a tombstone).
+- **Other players never upload your stone,** even if they got it live. Only
+  your install owns your name.
+
 **Which zones:** every zone you've visited in that game type (the addon
 already records visits in `SoapstoneDB.zones`), plus the zones next to them.
 Nearest and highest-rated first. New zones join the list after you visit
@@ -251,7 +299,7 @@ busy zone is a few hundred KB at most.
 #### What goes up
 
 - New stones, edits and deletes. The addon keeps a `pending` list in
-  SavedVariables (it replaces the `outbox` the P2P network used).
+  SavedVariables (it replaces the `outbox` P2P zone sync used).
 - Votes (`ratings[id][characterKey]` for your characters).
 - Unlocks: when a stone opens, the addon records it as `heard` (as it does
   today) with the time and character, and adds it to `pending`.
@@ -487,23 +535,69 @@ changes.
 
 ---
 
-### The P2P network
+### The live channel
 
-**Decision: retire it.** Stones are shared only through the companion and
-the database. The hidden chat channel, zone sync and the `outbox` go away
-(`Net.lua`, `Sync.lua`, the codec's wire format), which leaves the addon
-smaller and free of the ~1 message per second limit.
+The P2P network did two jobs: **live drops** and **zone sync** (players
+swapping whole zones of stones). Zone sync was the heavy part and what ran
+into the ~1 message per second limit. The database now does that job, so
+zone sync and the `outbox` are removed (`Sync.lua`). The hidden channel
+stays for live drops only, which is a few messages per drop. `Net.lua` and
+the codec's wire format are trimmed, not rewritten.
 
-What this costs:
-- **No live drops.** A stone left next to you shows up after your next
-  reload (see the Sync button), not the moment it's left.
-- **Players without the companion see nothing new.** They keep their own
-  stones and whatever was last synced to `Stones.lua`, but get no new ones
-  until they run it.
+| | Live channel | Companion + database |
+|---|---|---|
+| Carries | **New drops, edits and deletes**, sent once by the author to players in the zone | **Everything:** stones, votes, unlocks, found counts, drawings |
+| Reaches | Players online in that zone right now | Everyone, on login or reload |
+| Role | Instant, but only for who's online | The source of truth; fills every gap |
 
-The options weighed were keeping P2P for live drops only, or keeping all of
-it as a fallback. Both mean keeping the channel's code and its limits for a
-small gain. [[Idea - Network Resilience (WoW)]] only matters if P2P stays.
+**Trust: accept live stones only straight from their author.** WoW tells
+the addon who sent each addon message, and that can't be faked, so a drop
+from `Mad-Decent` really came from Mad Decent's client. A relayed copy of
+someone else's stone proves nothing, so there's no relaying.
+
+- Live stones carry the same id and version as in the database, so when the
+  next download includes them they merge without duplicates.
+- They go through the same validation as everything else, and the addon's
+  own limits (one drop per 30 s, 140 characters) apply on both ends.
+- If the server rejects one (rate limit, word filter, banned install), the
+  rejection comes down as a tombstone and the live copies disappear.
+- **Text only.** Drawings are companion-only, so a sketch stone arrives live
+  as a pin and "sketch by …", and the drawing comes with the next sync.
+- Votes and unlocks never go over the channel; they're personal and go
+  through the companion.
+
+[[Idea - Network Resilience (WoW)]] applies again, in a smaller form: backup
+channels and the additive wire format still matter for live drops; coalesced
+replies and the census mattered mostly for zone sync.
+
+#### Drops from players without the companion
+
+A player without the companion can still drop a stone; it goes out live to
+players in the zone and waits in their own `pending`. It doesn't reach the
+database, because only the author's own install uploads stones.
+
+**v1: keep it, don't upload it for them.**
+- The author's copy uploads if they install the companion, however much
+  later.
+- Players who got it live keep it locally for **7 days**, marked as not yet
+  in the database, then drop it if the database still hasn't heard of it.
+- This needs the rule from the decisions: **a sync removes a stone only when
+  the server says so**, never just because the server doesn't have it.
+  Otherwise live-only stones would vanish on everyone's next sync.
+
+**Later, if the beta shows many drops without the companion: witness
+uploads.** Players with the companion who received the stone live upload it
+on the author's behalf. The server can't see the channel, so it has to take
+witnesses at their word, and a dishonest one could invent stones. Safeguards:
+- accept a stone only once **2–3 different installs** report it identically
+  (same id, text and spot);
+- only for names **no install owns**; an owned name's own install uploads;
+- mark it **witnessed** with tighter limits. If the author installs the
+  companion later, they claim the name and its stones.
+
+**Ruled out: requiring the companion to drop.** Cleanest for integrity, but
+it turns away players who'd leave one stone before deciding to install
+anything.
 
 ---
 
@@ -564,8 +658,10 @@ Kept in mind from the start:
    SavedVariables, push and pull, write `Stones.lua` (encoded and scrambled)
    and `Sketches.lua` safely. A plain tray app, unsigned, for a private
    beta.
-4. **Retire P2P:** remove the chat channel, zone sync and the `outbox` from
-   the addon once the companion carries stones.
+4. **Trim P2P to the live channel:** remove zone sync and the `outbox` once
+   the companion carries stones; keep author-only live drops, add the
+   7-day keep for stones not yet in the database and the "remove only on
+   the server's word" rule. Test the chat-log path on Forever.
 5. **Private beta** with a handful of players on WoW Forever. Tune limits.
 6. **Reports, word filter, shared scores and found counts in the addon**,
    then [[Idea - Zone Leaderboard (WoW)]].
@@ -598,6 +694,10 @@ Kept in mind from the start:
 - Classic has several kinds of realm (Era, Hardcore, Season of Discovery,
   Anniversary, progression). Pool them all under one game type, or keep
   some apart because their worlds differ?
+- Does WoW Forever write `Logs\WoWChatLog.txt` during play, and can the
+  addon's output reach it? If so, drops can upload within seconds.
+- How many drops come from players without the companion? Decides whether
+  witness uploads are worth building.
 - The exact limits (drops per day, stones per spot) are guesses until the
   private beta.
 
