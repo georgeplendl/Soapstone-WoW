@@ -14,9 +14,10 @@ toward sealed ones, and sound cues as you close in.
 ## Layout
 
 - `Soapstone/`: the addon (this folder goes in `Interface\AddOns`)
-- `docs/Ideas/`: WoW idea write-ups; `docs/Ideas/Archive/` holds the ones carried over from the app, free to be reworked for WoW
-- `docs/Inspiration.md`, `docs/Project Soapstone Initial Ideas.md`: origin notes
-- `docs/App Reference/`: the phone app's spec, MVP, design and research. Reference only.
+- `docs/Ideas/`: WoW idea write-ups
+- `docs/Sharing - Architecture.md`: how stones travel between players
+- `docs/To Do.md`: the to-do list
+- The phone app's docs (spec, research, original ideas) live in its own repo: [georgeplendl/Soapstone](https://github.com/georgeplendl/Soapstone)
 
 ## Download
 

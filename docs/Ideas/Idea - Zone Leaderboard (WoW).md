@@ -124,8 +124,8 @@ and there's no moderation yet.
 
 ### Related
 
-- [[Idea - Quests (Pilgrimage System)]]: the board is a light,
+- [Idea - Quests (Pilgrimage System)](https://github.com/georgeplendl/Soapstone/blob/main/docs/Ideas/Idea%20-%20Quests%20%28Pilgrimage%20System%29.md) (phone app): the board is a light,
   player-made version of a pilgrimage.
-- [[Idea - First Discovery Bonus]]: "first to read the #1 stone" could be a
+- [Idea - First Discovery Bonus](https://github.com/georgeplendl/Soapstone/blob/main/docs/Ideas/Idea%20-%20First%20Discovery%20Bonus.md) (phone app): "first to read the #1 stone" could be a
   moment of its own.
 - `docs/Sharing - Architecture.md`: zone sync, message budget, identity.

@@ -407,5 +407,5 @@ Kept in mind from the start:
 - `docs/Sharing - Architecture.md`: the P2P network, message budget,
   identity, zone keys.
 - [[Idea - Zone Leaderboard (WoW)]]: needs shared, trustworthy votes.
-- [[Idea - First Discovery Bonus]]: needs a server to know who read a stone
+- [Idea - First Discovery Bonus](https://github.com/georgeplendl/Soapstone/blob/main/docs/Ideas/Idea%20-%20First%20Discovery%20Bonus.md) (phone app): needs a server to know who read a stone
   first.
