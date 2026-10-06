@@ -665,7 +665,7 @@ Kept in mind from the start:
 | 3. Companion core | Done (companion 0.2.x), without the scrambling: data files hold plain base64 records |
 | 4. Trim P2P | Not started. The network is opt-in (off by default since addon 0.3.1) |
 | 5. Beta | Under way, with public beta releases on GitHub; CurseForge is waiting on API access |
-| 6. Reports, filter, shared scores | Server side done (reports, word filter, one vote and find per install). The addon has no Report button and still shows local scores |
+| 6. Reports, filter, shared scores | Server side done (reports, word filter, one vote and find per install). The addon shows shared scores and found counts (unreleased) but has no Report button yet |
 | 7. Signing, auto-update, release | SignPath signing being set up. The companion updates the addon, but not itself yet |
 
 1. **Addon groundwork:** `meta` (game type, region, build), a `pending`

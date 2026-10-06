@@ -62,11 +62,14 @@ end
 -- pressing the same button again withdraws the judgement (0). Its author
 -- starts out having appraised it, and may withdraw or even disparage their
 -- own stone, but their own judgement only ever counts as 1 or 0: they can
--- take their appraisal away, not push the score below it. The score here is
--- what this client knows: the author's part plus judgements cast by your
--- characters on this account (a server would add everyone else's). On other
--- players' stones your judgement also changes what you see: appraised pins
--- turn gold, disparaged ones fade and stop calling you over.
+-- take their appraisal away, not push the score below it. Once the stone is
+-- in the shared database, the companion brings its score there (everyone's
+-- votes, one per computer, but its author's), and the score here is the
+-- author's part plus that, plus your vote if it hasn't been uploaded yet.
+-- Before that, it's what this client knows: the author's part plus the
+-- judgements cast by your characters on this account. On other players'
+-- stones your judgement also changes what you see: appraised pins turn gold,
+-- disparaged ones fade and stop calling you over.
 
 Stones.APPRAISE, Stones.DISPARAGE = 1, -1
 
@@ -101,10 +104,33 @@ function Stones:Score(stone)
 	-- which only takes their own appraisal away.
 	local own = author and votes[author]
 	local score = (own == 0 or own == -1) and 0 or 1
+	local shared = stone.inDatabase and stone.score
+	if shared and not ns.Store.IsAccountCharacter(stone.authorKey) then
+		return score + shared + ns.Store:WaitingVoteChange(stone.id)
+	end
+	-- One of this account's stones: the server's score holds everyone else's
+	-- votes, and your other characters' judgements stay on this computer.
 	for key, vote in pairs(votes) do
 		if key ~= author then score = score + vote end
 	end
-	return score
+	return score + (shared or 0)
+end
+
+-- How many players have found `stone` (one per computer, never its author),
+-- counting your own find while it waits to upload. nil until the stone is in
+-- the shared database.
+function Stones:FoundCount(stone)
+	if not (stone and stone.inDatabase and stone.found) then return nil end
+	local found = stone.found
+	local waiting = ns.Store.Pending().unlocks[stone.id]
+	if waiting and not ns.Store.IsAccountCharacter(stone.authorKey) then
+		local counted = false
+		for char in pairs(stone.heardBy or {}) do
+			if waiting[char] == nil then counted = true break end
+		end
+		if not counted then found = found + 1 end
+	end
+	return found
 end
 
 -- Appraise (APPRAISE) or Disparage (DISPARAGE) was pressed. Returns your new

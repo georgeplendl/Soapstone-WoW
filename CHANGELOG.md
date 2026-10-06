@@ -10,6 +10,14 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+### Added
+- **Scores count everyone.** With the companion, a stone's score now adds
+  up every player's appraisals and disparagements (one per computer), not
+  just your own characters'. Your vote counts straight away, even before
+  the companion has shared it.
+- **Found counts.** Hovering a stone on the minimap or world map shows how
+  many players have found it.
+
 ## [0.5.1] - 2026-10-06
 
 ### Fixed

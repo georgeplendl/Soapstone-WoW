@@ -118,6 +118,7 @@ function handlers.A(self, rest, out)
 		local char = ns.Codec.Unescape(f[3] or "")
 		local list = (kind == "v" and pending.votes or pending.unlocks)[id]
 		if list and list[char] ~= nil and (kind == "u" or list[char] == int(f[4])) then
+			if kind == "v" then ns.Store:SetSharedVote(id, list[char]) end
 			list[char] = nil
 			if not next(list) then (kind == "v" and pending.votes or pending.unlocks)[id] = nil end
 		end

@@ -83,7 +83,8 @@ What's new in each version is in the [changelog](CHANGELOG.md).
   get its arrow; otherwise you get the game's own map pin.
 - **Appraise or disparage:** praise a stone you liked, or mark one you
   didn't. Appraised pins turn gold. Disparaged ones fade and stop calling
-  you over.
+  you over. With the companion, a stone's score adds up every player's
+  votes, and its pin shows how many players have found it.
 - **Change your mind:** for 5 minutes after dropping a stone, you can edit
   or delete it from its window.
 

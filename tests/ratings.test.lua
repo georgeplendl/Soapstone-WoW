@@ -125,4 +125,54 @@ here.wx = 20
 Stones:CheckProximity()
 check(#cues == 1 and ns.Store.IsHeard(near), "walking up to it unlocks it without another sound")
 
+-- Shared scores: a stone in the database shows the server's score (everyone
+-- but its author, one vote per computer) plus its author's point, and a vote
+-- still waiting to upload counts without counting the one it replaces.
+local shared = put("Zug-Zug-1790000000-5", "Zug-Zug", { inDatabase = true, score = 4, found = 7 })
+check(Stones:Score(shared) == 5, "a shared stone: its author's point plus the server's 4")
+Stones:Vote(shared, A)
+check(ns.db.pending.votes[shared.id]["Mad-Decent"] == A and Stones:Score(shared) == 6,
+	"appraising it counts at once, while the vote waits to upload")
+-- The companion uploads it: the next file has the new score and the acknowledgement.
+shared.score = 5
+Store:SetSharedVote(shared.id, A)
+ns.db.pending.votes[shared.id] = nil
+check(Stones:Score(shared) == 6, "once uploaded, the server's score holds it (not counted twice)")
+Stones:Vote(shared, A)
+check(Stones:Score(shared) == 5, "withdrawing takes it off before the server hears")
+Stones:Vote(shared, D)
+check(Stones:Score(shared) == 4, "and disparaging takes off one more")
+
+-- A vote from before shared scores: the server counts it, nothing records it.
+local old = put("Zug-Zug-1790000000-6", "Zug-Zug", { inDatabase = true, score = 2 })
+ns.db.ratings[old.id] = { ["Mad-Decent"] = A }
+check(Stones:Score(old) == 3, "an old appraisal is already in the server's score")
+Stones:Vote(old, D)
+check(ns.db.sharedVotes[old.id] == A and Stones:Score(old) == 1,
+	"changing it replaces the vote the server had, not nothing")
+
+local local_ = put("Zug-Zug-1790000000-7", "Zug-Zug")
+Stones:Vote(local_, A)
+check(Stones:Score(local_) == 2, "a stone the server hasn't seen keeps the local score")
+
+local mine = put("Mad-Decent-1790000000-8", "Mad-Decent", { mine = true, inDatabase = true, score = 3 })
+check(Stones:Score(mine) == 4, "your own stone: your appraisal plus everyone else's 3")
+Stones:Vote(mine, D)
+check(Stones:Score(mine) == 3 and ns.db.pending.votes[mine.id] == nil,
+	"withdrawing your own appraisal is local only")
+
+-- Found counts.
+check(Stones:FoundCount(local_) == nil, "no found count before the stone is in the database")
+check(Stones:FoundCount(shared) == 7, "the server's found count")
+Store.Pending().unlocks[shared.id] = { ["Mad-Decent"] = NOW }
+shared.heardBy = { ["Mad-Decent"] = NOW }
+check(Stones:FoundCount(shared) == 8, "plus your find while it waits to upload")
+shared.heardBy["Osha-Compliant"] = NOW - 100
+check(Stones:FoundCount(shared) == 7, "unless another of your characters found it first (already counted)")
+
+Store:Remove(shared.id)
+check(ns.db.sharedVotes[shared.id] == nil, "an evicted stone's shared vote goes with it")
+Store:Clear()
+check(next(ns.db.sharedVotes) == nil, "/soap clear clears shared votes too")
+
 done()
