@@ -110,11 +110,11 @@ local shunned = put("Zug-Zug-2-2", "Zug-Zug", { wx = -20, wy = 0 })
 Stones:Vote(shunned, D)
 cues = {}
 Stones:CheckProximity()
-check(near.heard and near.unlocked, "a normal stone in range unlocks")
-check(not shunned.heard and not shunned.unlocked, "a disparaged one in range doesn't")
+check(ns.Store.IsHeard(near) and near.unlocked, "a normal stone in range unlocks")
+check(not ns.Store.IsHeard(shunned) and not shunned.unlocked, "a disparaged one in range doesn't")
 check(#cues == 0, "reaching a stone is silent (no read chime)")
 -- The "somewhere close" cue stays: walk away, forget the stone, come back.
-near.heard = nil
+near.heard, near.heardBy = nil, nil
 here.wx = 1000
 Stones:CheckProximity()
 here.wx = 120 -- 100 yd from it: close, not readable
@@ -122,6 +122,6 @@ Stones:CheckProximity()
 check(#cues == 1 and cues[1] == "near", "an unheard stone close by still plays the near cue")
 here.wx = 20
 Stones:CheckProximity()
-check(#cues == 1 and near.heard, "walking up to it unlocks it without another sound")
+check(#cues == 1 and ns.Store.IsHeard(near), "walking up to it unlocks it without another sound")
 
 done()

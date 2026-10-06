@@ -30,7 +30,7 @@ end
 
 local function title(stone)
 	if ns.Store.IsMine(stone) then return "Your soapstone" end
-	return stone.heard and "A soapstone" or "A sealed soapstone"
+	return ns.Store.IsHeard(stone) and "A soapstone" or "A sealed soapstone"
 end
 
 function Guide.HasTomTom()
@@ -124,7 +124,7 @@ end
 function Guide:NearestSealed()
 	for _, entry in ipairs(ns.Stones:Nearby()) do
 		local stone = entry.stone
-		if not stone.heard and not ns.Store.IsMine(stone) and not ns.Stones:IsDisparaged(stone)
+		if not ns.Store.IsHeard(stone) and not ns.Store.IsMine(stone) and not ns.Stones:IsDisparaged(stone)
 			and entry.dist > ns.db.gateYards then
 			return stone
 		end

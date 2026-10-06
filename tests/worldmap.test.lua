@@ -286,7 +286,7 @@ check(refreshes == before + 1 and #acquired == 6, "a new stone (say, synced in) 
 -- Walk up to the sealed stone: unlocking it turns its pin to read.
 player.x, player.y = 0.5, 0.49 -- 10 yards from it
 Stones:CheckProximity()
-check(sealed.heard, "standing by it unlocks it")
+check(ns.Store.IsHeard(sealed), "standing by it unlocks it")
 MapPins:Update()
 check(MapPins.Kind(sealed) == "read" and not pinFor(sealed).Glow.shown, "and its map pin stops glowing")
 check(MapPins.summary.text == "The Barrens: 1 sealed soapstone to find · 4 read", "and the count line moves on (one synced in, one unlocked)")

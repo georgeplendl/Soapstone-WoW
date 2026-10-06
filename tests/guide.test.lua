@@ -132,7 +132,7 @@ end
 function TomTom:RemoveWaypoint(uid) removed[#removed + 1] = uid end
 
 check(Guide.Method(1413) == "tomtom" and Guide.Method(9001) == "tomtom", "TomTom wins whenever it's installed")
-check(far.heard, "(the walk above unlocked the far stone)")
+check(ns.Store.IsHeard(far), "(the walk above unlocked the far stone)")
 local fresh = put("Zug-Zug-1-5", "Zug-Zug", 500, 600) -- still sealed, 640 yd away
 userPin = nil
 Guide:To(fresh)

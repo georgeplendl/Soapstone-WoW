@@ -121,15 +121,33 @@ Stones:CheckProximity()
 check(ns.db.pending.unlocks["Zug-Zug-1-1"] == nil, "a stone out of reach isn't unlocked")
 pos.x = 80
 Stones:CheckProximity()
-check(Store:Get("Zug-Zug-1-1").heard, "walking up to a stranger's stone opens it")
+check(Store.IsHeard(Store:Get("Zug-Zug-1-1")), "walking up to a stranger's stone opens it")
 check(ns.db.pending.unlocks["Zug-Zug-1-1"]["Osha-Compliant"] == NOW, "and queues the unlock with who and when")
 NOW = NOW + 60
-Store:Unlocked(zug)
+Store:Unlock(zug)
 check(ns.db.pending.unlocks["Zug-Zug-1-1"]["Osha-Compliant"] == NOW - 60, "a repeat keeps the first unlock time")
-Store:Unlocked(Store:Get("Mad-Decent-1-1"))
+Store:Unlock(Store:Get("Mad-Decent-1-1"))
 check(ns.db.pending.unlocks["Mad-Decent-1-1"] == nil, "your own characters' stones don't count as unlocks")
+check(Store.IsHeard(Store:Get("Mad-Decent-1-1")), "(but Osha has read Mad's stone now)")
 
-check(Store:PendingCount() == 1 + 2 + 1, "PendingCount: 1 stone, 2 votes, 1 unlock")
+-- Read is per character.
+who = { "Mad", "Decent" }
+check(not Store.IsHeard(zug), "Mad hasn't read the stone Osha opened")
+Stones:Vote(zug, Stones.APPRAISE) -- he'd disparaged it, and disparaged stones never open
+pos.x = 0
+Stones:CheckProximity()
+pos.x = 80
+Stones:CheckProximity()
+check(Store.IsHeard(zug) and ns.db.pending.unlocks["Zug-Zug-1-1"]["Mad-Decent"] == NOW,
+	"until he walks up to it himself, which queues his own unlock")
+check(ns.db.pending.unlocks["Zug-Zug-1-1"]["Osha-Compliant"] == NOW - 60, "next to Osha's")
+local old = Store:Put(stone("Zug-Zug-1-9", "Zug-Zug", { heard = true, wx = 5000 }))
+check(Store.IsHeard(old, "Mad-Decent") and Store.IsHeard(old, "Osha-Compliant"),
+	"a stone read before 0.5 (heard = true, no names) counts as read by everyone")
+check(Store.IsHeard(dropped, "Mad-Decent") and not Store.IsHeard(dropped, "Osha-Compliant"),
+	"a drop counts as read by its author only")
+
+check(Store:PendingCount() == 1 + 2 + 2, "PendingCount: 1 stone, 2 votes, 2 unlocks")
 
 -- A delete waiting for the companion outlives the tombstone TTL.
 NOW = NOW + Store.TOMBSTONE_TTL + 1

@@ -81,7 +81,7 @@ local function style(pin, readable, onRim)
 	if readable then
 		pin.tex:SetVertexColor(1, 1, 1)
 		pin:SetAlpha(1)
-	elseif stone.heard then
+	elseif ns.Store.IsHeard(stone) then
 		pin.tex:SetVertexColor(0.8, 0.8, 0.8)
 		pin:SetAlpha(0.75)
 	else

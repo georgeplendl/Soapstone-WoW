@@ -32,7 +32,7 @@ function MapPins.Kind(stone)
 	if ns.Store.IsMine(stone) then return "mine" end
 	local rating = ns.Stones:OthersRating(stone)
 	if rating == ns.Stones.DISPARAGE then return "disparaged" end
-	if not stone.heard then return "sealed" end
+	if not ns.Store.IsHeard(stone) then return "sealed" end
 	if rating == ns.Stones.APPRAISE then return "appraised" end
 	return "read"
 end

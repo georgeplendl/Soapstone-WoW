@@ -31,6 +31,12 @@ for players: what changed in game, not how.
   this update. Nothing leaves your computer yet. `/soap stats` shows how
   many changes are waiting.
 
+### Changed
+- **Each character reads stones for themselves.** A stone your main has
+  read is still sealed for your alts until they've stood there too,
+  including stones your other characters left. Stones you'd already read
+  before this update stay read for everyone.
+
 ## [0.4.1] - 2026-09-25
 
 ### Removed

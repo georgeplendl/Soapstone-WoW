@@ -5,7 +5,7 @@ local _, ns = ...
 -- continuous across a continent. World X grows northward, world Y grows westward.
 --
 -- stone = { id, author ("Mad Decent"), authorKey ("Mad-Decent"), flavor,
---           t, mapID, x, y, instance, wx, wy, mine, heard, edited,
+--           t, mapID, x, y, instance, wx, wy, mine, heardBy (see Store.IsHeard), edited,
 --           windowStart (when the edit window last restarted; defaults to t),
 --           text = "..." or sketch = <Sketch.Pack result> }
 
@@ -322,7 +322,7 @@ function Stones:Drop(content)
 	here.authorKey = ns.Identity.PlayerKey()
 	here.flavor = ns.Identity.Flavor()
 	here.mine = true
-	here.heard = true
+	here.heardBy = { [here.authorKey] = time() }
 	self:Add(here)
 	ns.Store:MarkChanged(here.id)
 	ns.Cues:Play("drop")
@@ -406,13 +406,11 @@ function Stones:CheckProximity()
 				nextBands[stone.id] = band
 				if band == "read" then
 					anyInRange = true
-					if not stone.heard then
-						stone.heard = true
-						ns.Store:Unlocked(stone)
-						ns.Store:Touch()
+					if not ns.Store.IsHeard(stone) then
+						ns.Store:Unlock(stone)
 						self:OnUnlock(stone)
 					end
-				elseif band == "near" and (prev == nil or prev == "far") and not stone.heard then
+				elseif band == "near" and (prev == nil or prev == "far") and not ns.Store.IsHeard(stone) then
 					cueNear = true
 				end
 			end

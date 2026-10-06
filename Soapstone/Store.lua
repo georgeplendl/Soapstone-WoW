@@ -13,7 +13,8 @@ local _, ns = ...
 --
 -- stone = { id, v (version, edits bump it), flavor, zone (zone-level uiMapID),
 --           instance, wx, wy (world yards), mapID, x, y (map 0-1), t (dropped),
---           author, authorKey, text | sketch, edited, heard,
+--           author, authorKey, text | sketch, edited,
+--           heardBy = { [characterKey] = time } (read by; heard = true before 0.5),
 --           localOnly (test stones, never shared), via / verified (step 3) }
 -- tombstone = { id, v, deleted = true, deletedAt, zone, flavor, authorKey }
 --
@@ -339,12 +340,26 @@ function Store.IsAccountCharacter(key)
 	return key ~= nil and (key == ns.Identity.PlayerKey() or (meta and meta.characters and meta.characters[key] ~= nil))
 end
 
--- A stranger's stone opened for the first time.
-function Store:Unlocked(stone)
+-- Read ("heard") is per character: an alt that hasn't been to a stone
+-- hasn't read it. heardBy = { [characterKey] = time }. Stones read before
+-- 0.5 only say heard = true, without who; they count as read by every
+-- character on the account.
+function Store.IsHeard(stone, key)
+	if stone.heard == true then return true end
+	return stone.heardBy ~= nil and stone.heardBy[key or ns.Identity.PlayerKey()] ~= nil
+end
+
+-- The current character opens a stone: mark it read, and queue the unlock
+-- for the companion (not for this account's own stones).
+function Store:Unlock(stone)
+	local key, now = ns.Identity.PlayerKey(), time()
+	stone.heardBy = stone.heardBy or {}
+	stone.heardBy[key] = stone.heardBy[key] or now
+	self:Touch()
 	if not Store.IsUploadable(stone) or Store.IsAccountCharacter(stone.authorKey) then return end
 	local unlocks = Store.Pending().unlocks
 	unlocks[stone.id] = unlocks[stone.id] or {}
-	unlocks[stone.id][ns.Identity.PlayerKey()] = unlocks[stone.id][ns.Identity.PlayerKey()] or time()
+	unlocks[stone.id][key] = unlocks[stone.id][key] or stone.heardBy[key]
 end
 
 -- Number of entries waiting for the companion.
@@ -470,7 +485,7 @@ function Store:Merge(rec, viaKey)
 	rec.flavor = ns.Identity.Flavor()
 	rec.via = viaKey
 	rec.verified = firstHand
-	if have then rec.heard = have.heard end
+	if have then rec.heard, rec.heardBy = have.heard, have.heardBy end
 	self:Put(rec)
 	return have and "updated" or "added"
 end
