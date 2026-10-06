@@ -10,6 +10,8 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-06
+
 ### Added
 - **Stones on the world map.** Every stone you know of now shows on the
   world map, so there's always somewhere to head for. Sealed stones (ones
@@ -25,16 +27,19 @@ for players: what changed in game, not how.
   pin and in-world marker. The waypoint clears itself
   once you're close enough to read the stone, and a map pin you set
   yourself is never touched. `/soap guide off` stops guiding.
-- **Getting ready for the companion app.** Soapstone now keeps a list of
-  your drops, edits, deletes, appraisals and the stones you've opened, so
-  the coming companion app can share them, including stones you left before
-  this update. Nothing leaves your computer yet. `/soap stats` shows how
-  many changes are waiting.
-- **Stones from the companion app.** Once the companion is running,
-  Soapstone loads everyone's stones from it when you log in or `/reload`.
-  It also tells you if a stone of yours couldn't be shared, and why. The
-  minimap button's tooltip and `/soap stats` say when the companion last
-  synced. Other players' drawings show while the companion is running.
+- **The Soapstone companion (early preview).** A small app for your
+  system tray that shares stones between players through a shared
+  database, and installs and keeps Soapstone up to date for you. This
+  release includes a first preview, `Soapstone-Companion-v0.1.0-setup.exe`.
+  It talks to a test server on your own PC, so it doesn't share stones with
+  other players yet; a public server comes next.
+  - With the companion running, Soapstone loads its stones (and drawings)
+    when you log in or `/reload`, and tells you if a stone of yours couldn't
+    be shared, and why. The minimap button's tooltip and `/soap stats` say
+    when it last synced.
+  - Soapstone keeps a list of your drops, edits, deletes, appraisals and the
+    stones you've opened, for the companion to upload, including stones you
+    left before this update. `/soap stats` shows how many are waiting.
 - **Sync.** Shift-click the minimap button, or type `/soap sync`, to share
   your latest changes and pick up new stones from the companion right away
   (it reloads your UI). The old player-to-player zone sync moved to
@@ -193,7 +198,8 @@ for players: what changed in game, not how.
   (`/soap near`) and a chime when you can read one (`/soap sound`).
 - `/soap list`, `/soap test`, `/soap button` and `/soap clear`.
 
-[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.3.1...v0.3.2
