@@ -190,7 +190,7 @@ pub fn gather(config: &mut config::Config) -> Status {
     let line = if connected { "Connected to the Soapstone server" } else { "Can't reach the Soapstone server" }.to_string();
     let client = config.registration().map(|r| api::Client::new(&config.server, Some(r)));
     let server: Option<&dyn sync::Server> = if connected { client.as_ref().map(|c| c as &dyn sync::Server) } else { None };
-    engine::sync_all(server, &mut folders, &config::dir(), unix_now(), config.manage_addon);
+    engine::sync_all(server, &config.server, &mut folders, &config::dir(), unix_now(), config.manage_addon);
     Status {
         server: config.server.clone(),
         connected,

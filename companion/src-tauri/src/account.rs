@@ -22,8 +22,15 @@ pub struct Account {
     pub pending_votes: Vec<(String, String, i64)>,
     /// (stone id, character, unlocked at)
     pub pending_unlocks: Vec<(String, String, i64)>,
-    /// The records `pending_stones` refers to.
+    /// The records `pending_stones` and `catch_up_stones` refer to.
     pub stones: BTreeMap<String, Table>,
+    /// Everything this account's characters already have, pending or not,
+    /// for a server the companion hasn't synced with before (sync.rs
+    /// "catch-up"): their own live stones (id, version), their votes on
+    /// others' stones (from `ratings`) and their unlocks (from `heardBy`).
+    pub catch_up_stones: Vec<(String, i64)>,
+    pub catch_up_votes: Vec<(String, String, i64)>,
+    pub catch_up_unlocks: Vec<(String, String, i64)>,
 }
 
 fn str_key(k: &Key) -> Option<&str> {
@@ -80,6 +87,55 @@ pub fn parse(source: &str) -> Result<Account, String> {
     };
     a.pending_votes = per_char("votes");
     a.pending_unlocks = per_char("unlocks");
+
+    // Catch-up: what the characters have, from the stones and ratings themselves.
+    let characters = a.characters.clone();
+    let ours = |key: &str| characters.iter().any(|c| c == key);
+    let author_of = |rec: &Table| rec.get("authorKey").and_then(Value::as_str).map(str::to_owned);
+    // Ids the server takes: "<author>-<time>-<n>".
+    let shareable = |id: &str, rec: &Table| {
+        author_of(rec).is_some_and(|author| id.starts_with(&format!("{author}-")))
+            && rec.get("localOnly").and_then(Value::as_bool) != Some(true)
+    };
+    let mut catch_up_stones = Vec::new();
+    let mut catch_up_unlocks = Vec::new();
+    for (k, v) in &stones.entries {
+        let (Some(id), Some(rec)) = (str_key(k), v.as_table()) else { continue };
+        if !shareable(id, rec) || rec.get("deleted").and_then(Value::as_bool) == Some(true) {
+            continue;
+        }
+        let author = author_of(rec).unwrap_or_default();
+        if ours(&author) {
+            catch_up_stones.push((id.to_owned(), rec.get("v").and_then(int).unwrap_or(1)));
+            a.stones.entry(id.to_owned()).or_insert_with(|| rec.clone());
+        } else if let Some(heard) = rec.get("heardBy").and_then(Value::as_table) {
+            for (c, at) in &heard.entries {
+                if let (Some(c), Some(at)) = (str_key(c), int(at)) {
+                    if ours(c) {
+                        catch_up_unlocks.push((id.to_owned(), c.to_owned(), at));
+                    }
+                }
+            }
+        }
+    }
+    let mut catch_up_votes = Vec::new();
+    for (k, v) in &tbl(db, "ratings").entries {
+        let (Some(id), Some(chars)) = (str_key(k), v.as_table()) else { continue };
+        let Some(rec) = stones.get(id).and_then(Value::as_table) else { continue };
+        if !shareable(id, rec) || author_of(rec).is_some_and(|author| ours(&author)) {
+            continue; // votes on this account's own stones stay local
+        }
+        for (c, value) in &chars.entries {
+            if let (Some(c), Some(value)) = (str_key(c), int(value)) {
+                if ours(c) && matches!(value, -1 | 1) {
+                    catch_up_votes.push((id.to_owned(), c.to_owned(), value));
+                }
+            }
+        }
+    }
+    a.catch_up_stones = catch_up_stones;
+    a.catch_up_votes = catch_up_votes;
+    a.catch_up_unlocks = catch_up_unlocks;
     Ok(a)
 }
 
@@ -179,6 +235,31 @@ SoapstoneDB = {
         let (Upload::Delete(d), v) = upload(&a.stones["Mad-Decent-1-2"]).unwrap() else { panic!("expected a delete") };
         assert_eq!(v, 2);
         assert_eq!(d, json!({ "id": "Mad-Decent-1-2", "v": 2, "authorKey": "Mad-Decent", "zone": 1413, "deletedAt": 1791000100 }));
+    }
+
+    #[test]
+    fn catch_up_takes_what_the_characters_already_have() {
+        let src = r#"
+SoapstoneDB = {
+["meta"] = { ["flavor"] = "forever", ["region"] = "test", ["characters"] = { ["Mad-Decent"] = {}, }, },
+["stones"] = {
+  ["Mad-Decent-1-1"] = { ["id"] = "Mad-Decent-1-1", ["v"] = 2, ["authorKey"] = "Mad-Decent", ["text"] = "mine", },
+  ["Mad-Decent-1-2"] = { ["id"] = "Mad-Decent-1-2", ["v"] = 3, ["authorKey"] = "Mad-Decent", ["deleted"] = true, },
+  ["1790363195-7862"] = { ["id"] = "1790363195-7862", ["authorKey"] = "Mad-Decent", ["text"] = "old id", },
+  ["Zug-Zug-1-1"] = { ["id"] = "Zug-Zug-1-1", ["authorKey"] = "Zug-Zug", ["text"] = "theirs",
+    ["heardBy"] = { ["Mad-Decent"] = 1791000000, ["Zug-Zug"] = 5, }, },
+  ["local-1-1"] = { ["id"] = "local-1-1", ["localOnly"] = true, ["heardBy"] = { ["Mad-Decent"] = 1, }, },
+},
+["ratings"] = {
+  ["Zug-Zug-1-1"] = { ["Mad-Decent"] = 1, ["Someone-Else"] = -1, },
+  ["Mad-Decent-1-1"] = { ["Mad-Decent"] = -1, },
+},
+}"#;
+        let a = parse(src).unwrap();
+        assert_eq!(a.catch_up_stones, [("Mad-Decent-1-1".to_string(), 2)], "own live stones with author ids; not tombstones or old ids");
+        assert!(a.stones.contains_key("Mad-Decent-1-1"), "with their records");
+        assert_eq!(a.catch_up_votes, [("Zug-Zug-1-1".to_string(), "Mad-Decent".to_string(), 1)], "own characters' votes on others' stones");
+        assert_eq!(a.catch_up_unlocks, [("Zug-Zug-1-1".to_string(), "Mad-Decent".to_string(), 1791000000)], "own characters' unlocks of others' stones");
     }
 
     #[test]
