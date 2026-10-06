@@ -1,24 +1,29 @@
-//! The Soapstone companion: a tray app that sits next to WoW, finds the
-//! Soapstone addon's files and (in later steps) syncs them with the server.
-//! Design: `docs/Ideas/Idea - Companion App (WoW).md`.
+//! The Soapstone companion: a tray app that sits next to WoW, uploads what
+//! the Soapstone addon has waiting, and writes everyone's stones back into
+//! the game (`SoapstoneData`). Design: `docs/Ideas/Idea - Companion App (WoW).md`.
 //!
-//! One background thread does all the work: every couple of minutes, or when
-//! asked, it scans for WoW folders, reads each account's SavedVariables and
-//! checks in with the server. The tray menu and the window only show what it
-//! found.
+//! One background thread does all the work. Every couple of minutes, when a
+//! SavedVariables file changes (a /reload or logout), or when asked, it scans
+//! for WoW folders, reads each account, checks in with the server and syncs
+//! (engine.rs). The tray menu and the window only show what it found.
 
+pub mod account;
 pub mod api;
 pub mod config;
+pub mod datafiles;
+pub mod engine;
 pub mod files;
 pub mod installs;
 pub mod lua;
 pub mod savedvars;
 pub mod soapdata;
+pub mod sync;
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -29,6 +34,8 @@ use crate::installs::{AddonFolder, GameFolder};
 use crate::savedvars::{Read, Summary};
 
 const SCAN_EVERY: Duration = Duration::from_secs(120);
+/// How often SavedVariables files are checked for a /reload or logout.
+const WATCH_EVERY: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -49,6 +56,7 @@ pub struct FolderStatus {
     pub path: PathBuf,
     pub addon: Option<AddonFolder>,
     pub accounts: Vec<AccountStatus>,
+    pub sync: Option<engine::FolderSync>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -102,7 +110,7 @@ fn unix_now() -> u64 {
     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
-fn folder_status(folder: GameFolder) -> FolderStatus {
+pub(crate) fn folder_status(folder: GameFolder) -> FolderStatus {
     let accounts = folder
         .accounts
         .into_iter()
@@ -116,7 +124,7 @@ fn folder_status(folder: GameFolder) -> FolderStatus {
             AccountStatus { name: a.name, saved_variables: a.saved_variables, state, summary, error }
         })
         .collect();
-    FolderStatus { name: folder.name, path: folder.path, addon: folder.addon, accounts }
+    FolderStatus { name: folder.name, path: folder.path, addon: folder.addon, accounts, sync: None }
 }
 
 /// Makes sure this install is registered with the server and its token
@@ -148,36 +156,80 @@ fn check_in(config: &mut config::Config) -> (bool, String) {
     }
 }
 
+/// When each SavedVariables file last changed, to notice a /reload or logout.
+fn stamps(folders: &[FolderStatus]) -> BTreeMap<PathBuf, SystemTime> {
+    folders
+        .iter()
+        .flat_map(|f| &f.accounts)
+        .filter_map(|a| Some((a.saved_variables.clone(), std::fs::metadata(&a.saved_variables).ok()?.modified().ok()?)))
+        .collect()
+}
+
+/// A file changed since `known` and has finished being written.
+fn saved_since(known: &BTreeMap<PathBuf, SystemTime>) -> bool {
+    known.keys().any(|path| {
+        let Ok(modified) = std::fs::metadata(path).and_then(|m| m.modified()) else { return false };
+        let settled = SystemTime::now().duration_since(modified).unwrap_or_default() >= savedvars::SETTLE;
+        settled && known.get(path) != Some(&modified)
+    })
+}
+
+/// One scan and sync, without any UI. `SOAPSTONE_WOW_ONLY` limits the scan
+/// to one WoW folder (for testing against a copy).
+pub fn gather(config: &mut config::Config) -> Status {
+    let found = match std::env::var_os("SOAPSTONE_WOW_ONLY") {
+        Some(root) => installs::scan_root(std::path::Path::new(&root)),
+        None => installs::find(&config.wow_folders),
+    };
+    let mut folders: Vec<FolderStatus> = found.into_iter().map(folder_status).collect();
+    let (connected, line) = check_in(config);
+    let client = config.registration().map(|r| api::Client::new(&config.server, Some(r)));
+    let server: Option<&dyn sync::Server> = if connected { client.as_ref().map(|c| c as &dyn sync::Server) } else { None };
+    engine::sync_all(server, &mut folders, &config::dir(), unix_now());
+    Status { server: config.server.clone(), connected, connection: line, folders, scanned_at: unix_now(), config_path: config::path() }
+}
+
+/// `soapstone-companion --sync-once`: one cycle, the result printed as JSON.
+pub fn sync_once() {
+    let mut config = config::load();
+    let status = gather(&mut config);
+    println!("{}", serde_json::to_string_pretty(&status).unwrap_or_default());
+}
+
+fn cycle(app: &AppHandle, config: &mut config::Config, headline: &MenuItem<Wry>, connection: &MenuItem<Wry>) -> Status {
+    let status = gather(config);
+    let _ = headline.set_text(status.headline());
+    let _ = connection.set_text(&status.connection);
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_tooltip(Some(format!("Soapstone
+{}
+{}", status.headline(), status.connection)));
+    }
+    let _ = app.emit("status", &status);
+    *app.state::<Shared>().status.lock().unwrap() = status.clone();
+    status
+}
+
 fn work(app: AppHandle, wake: mpsc::Receiver<()>, headline: MenuItem<Wry>, connection: MenuItem<Wry>) {
     let mut config = config::load();
+    let mut status = cycle(&app, &mut config, &headline, &connection);
+    let mut known = stamps(&status.folders);
+    let mut last = Instant::now();
     loop {
-        let folders: Vec<FolderStatus> = installs::find(&config.wow_folders).into_iter().map(folder_status).collect();
-        let (connected, line) = check_in(&mut config);
-        let status = Status {
-            server: config.server.clone(),
-            connected,
-            connection: line,
-            folders,
-            scanned_at: unix_now(),
-            config_path: config::path(),
-        };
-        let _ = headline.set_text(status.headline());
-        let _ = connection.set_text(&status.connection);
-        if let Some(tray) = app.tray_by_id("main") {
-            let _ = tray.set_tooltip(Some(format!("Soapstone\n{}\n{}", status.headline(), status.connection)));
-        }
-        let _ = app.emit("status", &status);
-        *app.state::<Shared>().status.lock().unwrap() = status;
-
-        // A settling file is read again soon, not in two minutes.
-        let settling = app.state::<Shared>().status.lock().unwrap().folders.iter().flat_map(|f| &f.accounts).any(|a| a.state == "settling");
-        let wait = if settling { savedvars::SETTLE * 2 } else { SCAN_EVERY };
-        match wake.recv_timeout(wait) {
-            Ok(()) | Err(RecvTimeoutError::Timeout) => {
-                // Drain repeated requests so one scan answers them all.
+        let asked = match wake.recv_timeout(WATCH_EVERY) {
+            Ok(()) => {
+                // Drain repeated requests so one cycle answers them all.
                 while wake.try_recv().is_ok() {}
+                true
             }
+            Err(RecvTimeoutError::Timeout) => false,
             Err(RecvTimeoutError::Disconnected) => return,
+        };
+        let settling = status.folders.iter().flat_map(|f| &f.accounts).any(|a| a.state == "settling");
+        if asked || last.elapsed() >= SCAN_EVERY || saved_since(&known) || (settling && last.elapsed() >= savedvars::SETTLE * 2) {
+            status = cycle(&app, &mut config, &headline, &connection);
+            known = stamps(&status.folders);
+            last = Instant::now();
         }
     }
 }

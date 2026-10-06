@@ -42,7 +42,11 @@ impl Config {
     }
 }
 
+/// `SOAPSTONE_DATA_DIR` overrides it, to run a second test install.
 pub fn dir() -> PathBuf {
+    if let Some(dir) = std::env::var_os("SOAPSTONE_DATA_DIR") {
+        return PathBuf::from(dir);
+    }
     dirs::config_dir().unwrap_or_else(std::env::temp_dir).join("Soapstone")
 }
 

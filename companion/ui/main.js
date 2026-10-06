@@ -47,7 +47,27 @@ function folder(f) {
   return el('section', { className: 'card' },
     el('div', { className: 'row' }, el('h2', { textContent: f.name }), addon),
     el('div', { className: 'path', textContent: f.path }),
+    syncLine(f.sync),
     accounts)
+}
+
+function syncLine(s) {
+  if (!s) return ''
+  const parts = []
+  if (s.scope) parts.push(s.scope)
+  const r = s.report
+  if (r && !r.error) {
+    parts.push(`synced ${ago(s.syncedAt)}`)
+    if (r.uploaded) parts.push(`${r.uploaded} uploaded`)
+    if (r.refused) parts.push(`${r.refused} refused`)
+    if (r.downloaded) parts.push(`${r.downloaded} downloaded`)
+    if (r.removed) parts.push(`${r.removed} removed`)
+  }
+  const lines = [el('div', { className: 'small', textContent: parts.join(' · ') })]
+  if (r && r.error) lines.push(el('div', { className: 'warn small', textContent: `Sync stopped: ${r.error}` }))
+  if (s.installed) lines.push(el('div', { className: 'ok small', textContent: 'SoapstoneData installed. Restart WoW once to load it.' }))
+  if (s.note) lines.push(el('div', { className: 'muted small', textContent: s.note }))
+  return el('div', { style: 'margin-top:6px' }, ...lines)
 }
 
 function render(s) {
