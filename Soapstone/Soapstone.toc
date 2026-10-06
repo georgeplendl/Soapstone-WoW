@@ -2,7 +2,7 @@
 ## Title: Soapstone
 ## Notes: Leave messages and sketches in the world. They can only be read by someone standing where you stood.
 ## Author: George Plendl
-## Version: 0.4.1
+## Version: 0.5.0
 ## SavedVariables: SoapstoneDB
 ## OptionalDeps: TomTom, SoapstoneData
 ## IconTexture: Interface\AddOns\Soapstone\Media\Soapstone
