@@ -8,6 +8,7 @@
 //! (engine.rs). The tray menu and the window only show what it found.
 
 pub mod account;
+pub mod addon;
 pub mod api;
 pub mod config;
 pub mod datafiles;
@@ -59,6 +60,8 @@ pub struct FolderStatus {
     pub name: String,
     pub path: PathBuf,
     pub addon: Option<AddonFolder>,
+    /// The game version from `.build.info`, if known.
+    pub build: Option<String>,
     pub accounts: Vec<AccountStatus>,
     pub sync: Option<engine::FolderSync>,
 }
@@ -125,7 +128,7 @@ pub(crate) fn folder_status(folder: GameFolder) -> FolderStatus {
             AccountStatus { name: a.name, saved_variables: a.saved_variables, state, summary, error }
         })
         .collect();
-    FolderStatus { name: folder.name, path: folder.path, addon: folder.addon, accounts, sync: None }
+    FolderStatus { name: folder.name, path: folder.path, addon: folder.addon, build: folder.build, accounts, sync: None }
 }
 
 /// Makes sure this install is registered with the server and its token
@@ -187,7 +190,7 @@ pub fn gather(config: &mut config::Config) -> Status {
     let line = if connected { "Connected to the Soapstone server" } else { "Can't reach the Soapstone server" }.to_string();
     let client = config.registration().map(|r| api::Client::new(&config.server, Some(r)));
     let server: Option<&dyn sync::Server> = if connected { client.as_ref().map(|c| c as &dyn sync::Server) } else { None };
-    engine::sync_all(server, &mut folders, &config::dir(), unix_now());
+    engine::sync_all(server, &mut folders, &config::dir(), unix_now(), config.manage_addon);
     Status {
         server: config.server.clone(),
         connected,

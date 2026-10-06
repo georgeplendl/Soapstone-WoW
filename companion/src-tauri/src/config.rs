@@ -23,11 +23,13 @@ pub struct Config {
     pub registrations: Vec<(String, Registration)>,
     /// WoW folders the player chose by hand.
     pub wow_folders: Vec<PathBuf>,
+    /// Install and update the Soapstone addon (src/addon.rs).
+    pub manage_addon: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config { server: DEFAULT_SERVER.into(), registrations: Vec::new(), wow_folders: Vec::new() }
+        Config { server: DEFAULT_SERVER.into(), registrations: Vec::new(), wow_folders: Vec::new(), manage_addon: true }
     }
 }
 

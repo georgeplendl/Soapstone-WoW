@@ -28,6 +28,9 @@ pub struct GameFolder {
     pub accounts: Vec<Account>,
     /// `Interface\AddOns\Soapstone`, if the addon is installed.
     pub addon: Option<AddonFolder>,
+    /// The game version this folder runs ("1.60.1.70235"), from the WoW
+    /// folder's `.build.info`, if it says.
+    pub build: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -127,7 +130,21 @@ fn game_folder(name: String, path: PathBuf) -> GameFolder {
         linked: meta.file_type().is_symlink() || is_junction(&addon_path),
         path: addon_path,
     });
-    GameFolder { name, path, accounts, addon }
+    let build = path.parent().and_then(|root| fs::read_to_string(root.join(".build.info")).ok()).and_then(|info| build_of(&info, &name));
+    GameFolder { name, path, accounts, addon, build }
+}
+
+/// The version `.build.info` lists for a game folder. The folder name maps
+/// to Battle.net's product: `_retail_` is `wow`, `_classic_beta_` is
+/// `wow_classic_beta`.
+pub fn build_of(info: &str, folder: &str) -> Option<String> {
+    let inner = folder.trim_matches('_');
+    let product = if inner == "retail" { "wow".to_owned() } else { format!("wow_{inner}") };
+    let mut lines = info.lines();
+    let header: Vec<&str> = lines.next()?.split('|').map(|h| h.split('!').next().unwrap_or("")).collect();
+    let col = |name: &str| header.iter().position(|h| *h == name);
+    let (p, v) = (col("Product")?, col("Version")?);
+    lines.map(|l| l.split('|').collect::<Vec<_>>()).find(|row| row.get(p) == Some(&product.as_str())).and_then(|row| row.get(v).map(|s| s.to_string())).filter(|v| !v.is_empty())
 }
 
 #[cfg(windows)]
@@ -265,6 +282,15 @@ mod tests {
         let found = find(&[root.clone(), root.join("_retail_")]);
         let ours = found.iter().filter(|f| f.path.starts_with(&root)).count();
         assert_eq!(ours, 2);
+    }
+
+    #[test]
+    fn build_info_versions() {
+        let info = "Branch!STRING:0|Active!DEC:1|Version!STRING:0|Product!STRING:0\nus|1|1.60.1.70235|wow_classic_beta\nus|1|11.2.5.63906|wow\n";
+        assert_eq!(build_of(info, "_classic_beta_").as_deref(), Some("1.60.1.70235"));
+        assert_eq!(build_of(info, "_retail_").as_deref(), Some("11.2.5.63906"));
+        assert_eq!(build_of(info, "_classic_era_"), None);
+        assert_eq!(build_of("", "_retail_"), None);
     }
 
     #[test]

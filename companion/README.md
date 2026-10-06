@@ -26,11 +26,16 @@ plain HTML status window (`ui/`, no bundler).
   `Stones.lua` (format in `Soapstone/Companion.lua`), installed once with a
   `.toc` matching the addon's Interface number. A first install needs one
   game restart; after that `/reload` picks up each rewrite.
+- **Installs and updates the addon** in each WoW Forever folder (per
+  `.build.info`). The addon is built into the companion from `../Soapstone`
+  at compile time, so **build releases from a clean checkout** of the tagged
+  commit. Copies it didn't install are replaced only by a newer version; its
+  own copies only while their files are still exactly what it wrote; linked
+  folders never. Set `"manageAddon": false` in `companion.json` to turn it off.
 - **Tray icon** with a status line and Open / Check now / Quit. Closing the
   window keeps it in the tray.
 
-Not yet: drawings (`Sketches.lua`), installing or updating the addon itself,
-Start with Windows, single-instance.
+Not yet: Start with Windows, single-instance.
 
 ## Run it
 
@@ -70,6 +75,7 @@ registration in `companion.json`.
 | `src-tauri/src/account.rs` | What the sync reads from one account's SavedVariables |
 | `src-tauri/src/soapdata.rs` | Writing `Stones.lua`: base64 records only |
 | `src-tauri/src/datafiles.rs` | Installing `SoapstoneData` into a game folder |
+| `src-tauri/src/addon.rs` | Installing and updating the Soapstone addon itself |
 | `src-tauri/src/installs.rs` | Finding WoW folders (the only per-platform paths) |
 | `src-tauri/src/lua.rs` | SavedVariables parser: data only, refuses code |
 | `src-tauri/src/savedvars.rs` | What the companion reads from `Soapstone.lua` |
