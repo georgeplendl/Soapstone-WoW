@@ -80,8 +80,8 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
         folder.sync = Some(FolderSync {
             scope: scope.as_ref().map(|(f, r)| format!("{f} · {r}")),
             note: match (&scope, without_meta) {
-                (None, true) => Some("Log in once with Soapstone 0.5 or later so it can record the game type and region".into()),
-                (None, false) => Some("Nothing to sync yet: log in once with the addon enabled".into()),
+                (None, true) => Some("Log in once with the latest Soapstone addon so the companion knows which game this is.".into()),
+                (None, false) => Some("Nothing to share yet. Log in once with the Soapstone addon enabled.".into()),
                 _ => None,
             },
             ..FolderSync::default()
@@ -116,20 +116,19 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
     for (folder, scope) in folders.iter_mut().zip(folder_scope) {
         let Some(scope) = scope else { continue };
         let sync = folder.sync.get_or_insert_with(FolderSync::default);
+        let last = caches[&scope].synced_at;
+        sync.synced_at = (last > 0).then_some(last);
         if let Some(report) = reports.get(&scope) {
             sync.report = Some(report.clone());
-            if report.error.is_none() {
-                sync.synced_at = Some(now);
-            }
-        } else {
-            sync.note = Some("Not connected: showing the last synced stones".into());
+        } else if last > 0 {
+            sync.note = Some("Showing the stones from the last sync until the server is back.".into());
         }
         if folder.addon.is_none() {
-            sync.note = Some("Install the Soapstone addon in this folder to see the stones".into());
+            sync.note = Some("The Soapstone addon isn't installed in this game yet.".into());
             continue;
         }
         let Some(interface) = datafiles::interface_of(&folder.path) else {
-            sync.note = Some("Couldn't read Soapstone.toc".into());
+            sync.note = Some("Soapstone's addon files look damaged (its .toc can't be read). Reinstalling the addon should fix it.".into());
             continue;
         };
         let accounts = &by_scope[&scope];
@@ -139,7 +138,7 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
                 sync.wrote = true;
                 sync.installed = installed;
             }
-            Err(e) => sync.note = Some(format!("Couldn't write SoapstoneData: {e}")),
+            Err(e) => sync.note = Some(format!("Couldn't save the stones into your game folder ({e}).")),
         }
     }
 }
@@ -228,7 +227,8 @@ mod tests {
         sync_all(None, &mut folders, &data, 1791234667);
         let sync = folders[0].sync.clone().unwrap();
         assert!(sync.wrote && !sync.installed);
-        assert_eq!(sync.note.as_deref(), Some("Not connected: showing the last synced stones"));
+        assert_eq!(sync.note.as_deref(), Some("Showing the stones from the last sync until the server is back."));
+        assert_eq!(sync.synced_at, Some(1791234567), "offline, it still says when it last synced");
         let again = fs::read_to_string(datafiles::folder(&folders[0].path).join("Stones.lua")).unwrap();
         assert_eq!(again.replace("1791234667", "1791234567"), stones);
     }
@@ -238,7 +238,7 @@ mod tests {
         let (tmp, mut folders) = setup("SoapstoneDB = { [\"stones\"] = {}, }");
         sync_all(Some(&Fake), &mut folders, &tmp.path().join("appdata"), 1);
         let sync = folders[0].sync.clone().unwrap();
-        assert!(sync.note.unwrap().contains("Soapstone 0.5"));
+        assert!(sync.note.unwrap().contains("latest Soapstone addon"));
         assert!(!datafiles::folder(&folders[0].path).exists());
     }
 

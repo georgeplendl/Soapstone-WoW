@@ -42,8 +42,12 @@ const WATCH_EVERY: Duration = Duration::from_secs(5);
 pub struct Status {
     pub server: String,
     pub connected: bool,
-    /// One line about the server: connected, or why not.
+    /// One plain line about the server, for the tray and the window.
     pub connection: String,
+    /// What actually happened (errors included), for troubleshooting.
+    pub connection_detail: String,
+    /// This install's id on the server (not the secret token).
+    pub install_id: Option<String>,
     pub folders: Vec<FolderStatus>,
     pub scanned_at: u64,
     pub config_path: PathBuf,
@@ -77,16 +81,13 @@ impl Status {
 
     /// The first line of the tray menu.
     fn headline(&self) -> String {
-        match self.folders.len() {
-            0 => "No WoW folders found".into(),
-            n => {
-                let folders = if n == 1 { "1 WoW folder".to_string() } else { format!("{n} WoW folders") };
-                match self.waiting() {
-                    0 => folders,
-                    1 => format!("{folders} · 1 change waiting"),
-                    w => format!("{folders} · {w} changes waiting"),
-                }
-            }
+        if self.folders.is_empty() {
+            return "Couldn't find World of Warcraft".into();
+        }
+        match self.waiting() {
+            0 => "Everything's shared".into(),
+            1 => "1 change waiting to upload".into(),
+            n => format!("{n} changes waiting to upload"),
         }
     }
 }
@@ -182,11 +183,21 @@ pub fn gather(config: &mut config::Config) -> Status {
         None => installs::find(&config.wow_folders),
     };
     let mut folders: Vec<FolderStatus> = found.into_iter().map(folder_status).collect();
-    let (connected, line) = check_in(config);
+    let (connected, detail) = check_in(config);
+    let line = if connected { "Connected to the Soapstone server" } else { "Can't reach the Soapstone server" }.to_string();
     let client = config.registration().map(|r| api::Client::new(&config.server, Some(r)));
     let server: Option<&dyn sync::Server> = if connected { client.as_ref().map(|c| c as &dyn sync::Server) } else { None };
     engine::sync_all(server, &mut folders, &config::dir(), unix_now());
-    Status { server: config.server.clone(), connected, connection: line, folders, scanned_at: unix_now(), config_path: config::path() }
+    Status {
+        server: config.server.clone(),
+        connected,
+        connection: line,
+        connection_detail: detail,
+        install_id: config.registration().map(|r| r.install_id.clone()),
+        folders,
+        scanned_at: unix_now(),
+        config_path: config::path(),
+    }
 }
 
 /// `soapstone-companion --sync-once`: one cycle, the result printed as JSON.

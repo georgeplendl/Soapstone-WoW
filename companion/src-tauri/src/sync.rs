@@ -173,6 +173,8 @@ pub struct Cache {
     pub unlocks: BTreeMap<String, i64>,
     /// "s|id", "v|id|char", "u|id|char" -> outcome
     pub outcomes: BTreeMap<String, Kept<Outcome>>,
+    /// When a sync last finished without errors.
+    pub synced_at: u64,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -458,8 +460,9 @@ pub fn run(server: &dyn Server, flavor: &str, region: &str, accounts: &[Account]
             }
         }
     }
-    if let Err(e) = pull_all(server, flavor, region, &zones, cache, now, &mut report) {
-        report.error = Some(e.to_string());
+    match pull_all(server, flavor, region, &zones, cache, now, &mut report) {
+        Ok(()) => cache.synced_at = now,
+        Err(e) => report.error = Some(e.to_string()),
     }
     report
 }
