@@ -12,7 +12,8 @@ const MAX_ID = 100
 const MAX_KEY = 60
 const MAX_COORD = 1_000_000
 
-export const REGIONS = ['us', 'eu', 'kr', 'tw', 'cn'] as const
+// `test`: WoW Forever's beta (region id 90, portal "test"), kept apart from launch.
+export const REGIONS = ['us', 'eu', 'kr', 'tw', 'cn', 'test'] as const
 
 export type Sketch = { w: number; h: number; data: string }
 

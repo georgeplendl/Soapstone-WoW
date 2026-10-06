@@ -25,6 +25,23 @@ for players: what changed in game, not how.
   pin and in-world marker. The waypoint clears itself
   once you're close enough to read the stone, and a map pin you set
   yourself is never touched. `/soap guide off` stops guiding.
+- **Getting ready for the companion app.** Soapstone now keeps a list of
+  your drops, edits, deletes, appraisals and the stones you've opened, so
+  the coming companion app can share them, including stones you left before
+  this update. Nothing leaves your computer yet. `/soap stats` shows how
+  many changes are waiting.
+
+### Fixed
+- **Stones missing since the October 5 beta patch are back.** The patch
+  changed how WoW Forever identifies itself, so Soapstone took it for a
+  different game and hid every stone left before it. Stones dropped since
+  then were filed under the wrong game too. All of them show again.
+
+### Changed
+- **Each character reads stones for themselves.** A stone your main has
+  read is still sealed for your alts until they've stood there too,
+  including stones your other characters left. Stones you'd already read
+  before this update stay read for everyone.
 
 ## [0.4.1] - 2026-09-25
 

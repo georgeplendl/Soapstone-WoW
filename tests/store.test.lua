@@ -85,7 +85,9 @@ check(tomb.deleted and tomb.v == 2 and tomb.text == nil and tomb.zone == 1413, "
 check(#Store:Near({ instance = 1, wx = 2000, wy = 0 }, 10) == 0, "tombstones leave the spatial index")
 check(SoapstoneDB.outbox["Mad-Decent-1-1"], "delete queued in the outbox")
 check(Store:Stats().tombstones == 1 and Store:Stats().live == 10, "stats count tombstones separately")
+check(SoapstoneDB.pending.stones["Mad-Decent-1-1"] == 2, "and waiting for the companion")
 NOW = NOW + Store.TOMBSTONE_TTL + 1
+SoapstoneDB.pending.stones["Mad-Decent-1-1"] = nil -- uploaded (see pending.test.lua for one that isn't)
 check(Store:PruneTombstones() == 1 and Store:Get("Mad-Decent-1-1") == nil, "tombstones pruned after 7 days")
 check(SoapstoneDB.outbox["Mad-Decent-1-1"] == nil, "and dropped from the outbox")
 

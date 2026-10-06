@@ -151,8 +151,12 @@ SoapstoneDB.meta = {
 The companion reads `meta` from each install's SavedVariables and keeps a
 separate cache for each (game type, region) pair. If `GetCurrentRegion`
 doesn't exist on a client, the companion falls back to the `portal` line in
-that install's `WTF\Config.wtf`. **To verify on WoW Forever:** that
-`GetCurrentRegion()` exists and returns a sensible value.
+that install's `WTF\Config.wtf`. **On WoW Forever's beta** (build 70235)
+`GetCurrentRegion()` returns 90 and `Config.wtf` says `portal "test"`, so the
+addon records region `test`: beta stones stay apart from launch ones, with no
+wipe needed. That build also gave Forever its own project,
+`WOW_PROJECT_CAMELOT = 18`; game types are fixed labels (`forever`) so a
+renumbering never splits a game's stones.
 
 Each WoW install folder (`_retail_`, `_classic_`, `_classic_era_`,
 WoW Forever's own) has its own SavedVariables and its own `SoapstoneData`,
@@ -684,7 +688,7 @@ Kept in mind from the start:
 
 - Does WoW Forever allow companion apps reading and writing addon files, as
   Retail and Classic do? Check Blizzard's policy for that client.
-- Does `GetCurrentRegion()` exist on WoW Forever? (`/run print(GetCurrentRegion())`)
+- What region ids does WoW Forever report at launch? (Beta: 90, recorded as `test`.)
 - Does WoW Forever offer Battle.net sign-in with a character list? If so,
   it could prove who owns a name and replace the install lock.
 - Should a stone that's been read stay readable from anywhere? Today it
