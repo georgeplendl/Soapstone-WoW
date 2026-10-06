@@ -8,7 +8,7 @@ where it was left. The minimap is the trigger surface (a button to drop stones,
 pins toward sealed ones, sound cues as you close in).
 
 - Addon code: `Soapstone/` (Lua + `.toc`). This folder is what goes in `Interface\AddOns`.
-- Target client: Classic beta at `D:\Games\World of Warcraft\_classic_beta_` (build 1.60.1). The `## Interface:` value in the `.toc` is still unconfirmed.
+- Target client: WoW Forever (build 1.60.1), `## Interface: 16001` (confirmed in game 2026-09-25). It installs as `_classic_beta_`: `/Applications/World of Warcraft/_classic_beta_` on the Mac, `D:\Games\World of Warcraft\_classic_beta_` on the Windows PC.
 - Ideas: `docs/Ideas/` holds WoW idea write-ups, and may be reworked freely.
 
 ## Related project: Soapstone (phone app)
