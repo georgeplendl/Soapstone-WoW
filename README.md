@@ -11,6 +11,26 @@ drift away from the app as it finds what works inside WoW.
 The minimap is the trigger surface: a button to drop stones, pins that pull you
 toward sealed ones, and sound cues as you close in.
 
+## Screenshots
+
+**Leave a stone:** write a message, or draw one.
+
+<p>
+  <img src="docs/Screenshots/write.png" alt="The Leave a Soapstone window on Write: &quot;Be wary of GANK!&quot;, 16 of 140 letters" width="420">
+  <img src="docs/Screenshots/draw.png" alt="The Leave a Soapstone window on Draw: a sketch saying COOL! with a smiling figure giving a thumbs up" width="420">
+</p>
+
+**Find it:** its pin on the minimap, and on the world map with how far away
+it is. Open it to read, appraise or disparage it.
+
+<p>
+  <img src="docs/Screenshots/minimap.png" alt="A minimap pin's tooltip in The Barrens: &quot;Be wary of GANK!&quot; by Mad Decent, score 1" width="300">
+  <img src="docs/Screenshots/world-map.png" alt="A world map pin's tooltip: Your soapstone, Mad Decent, 1 hr ago, 3850 yd to the north-west, click to guide me there" width="260">
+</p>
+<p>
+  <img src="docs/Screenshots/read.png" alt="A stone opened: &quot;Be wary of GANK!&quot; by Mad Decent, with Edit, Appraised and Disparage buttons" width="480">
+</p>
+
 ## Layout
 
 - `Soapstone/`: the addon (this folder goes in `Interface\AddOns`)
@@ -168,3 +188,9 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
    with a server they could add up across players (and, as in Dark Souls,
    tell authors when their stone was appraised).
 4. **Libraries.** LibDBIcon for the minimap button.
+
+## Support
+
+Soapstone is free. If you enjoy it, you can buy me a coffee:
+
+<a href="https://www.buymeacoffee.com/georgeplendl"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=georgeplendl&button_colour=FFDD00&font_colour=000000&font_family=Inter&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="45"></a>
