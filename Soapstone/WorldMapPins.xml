@@ -20,11 +20,11 @@
 				<Alpha childKey="Glow" fromAlpha="0.1" toAlpha="0.6" duration="1.4" smoothing="IN_OUT"/>
 			</AnimationGroup>
 		</Animations>
+		<!-- Only OnLoad here: the map canvas asserts pins have no OnEnter/OnLeave
+		     scripts of their own, and routes hover and clicks to the mixin's
+		     OnMouseEnter, OnMouseLeave and OnMouseUp methods itself. -->
 		<Scripts>
 			<OnLoad method="OnLoad"/>
-			<OnEnter method="OnMouseEnter"/>
-			<OnLeave method="OnMouseLeave"/>
-			<OnMouseUp method="OnMouseUp"/>
 		</Scripts>
 	</Frame>
 </Ui>

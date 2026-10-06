@@ -83,7 +83,10 @@ end }
 C_Map.CanSetUserWaypointOnMap = function(mapID) return mapID == 1413 end
 C_Map.SetUserWaypoint = function(point) userPin = point end
 C_Map.HasUserWaypoint = function() return userPin ~= nil end
-C_Map.GetUserWaypoint = function() return userPin end
+-- Like the real client: the position comes back as a plain table, no GetXY.
+C_Map.GetUserWaypoint = function()
+	return userPin and { uiMapID = userPin.uiMapID, position = { x = userPin.position.x, y = userPin.position.y } }
+end
 C_Map.ClearUserWaypoint = function() userPin = nil end
 C_SuperTrack = { SetSuperTrackedUserWaypoint = function(on) superTracked = on end }
 

@@ -156,6 +156,14 @@ end
 check(joined(elsewhere):find("another continent") ~= nil, "a stone on another continent says so")
 
 -- Hooking into the map --------------------------------------------------------------
+-- The real canvas asserts that pins have no OnEnter/OnLeave scripts (it routes
+-- hover to OnMouseEnter/OnMouseLeave, and clicks to OnMouseUp, itself).
+local xml = readFile(ROOT .. "/WorldMapPins.xml")
+for _, script in ipairs({ "OnEnter", "OnLeave", "OnMouseUp", "OnMouseDown", "OnClick" }) do
+	check(not xml:find("<" .. script .. "[%s/>]"), "the pin template sets no " .. script .. " script")
+end
+check(xml:find('<OnLoad method="OnLoad"/>') ~= nil, "only OnLoad")
+
 local acquired, released, refreshes = {}, 0, 0
 MapCanvasPinMixin = {
 	UseFrameLevelType = function(self, level) self.level = level end,

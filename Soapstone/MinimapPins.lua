@@ -37,7 +37,6 @@ local function onPinEnter(pin)
 		rating == ns.Stones.DISPARAGE and 0.6 or 0)
 	if not ns.Stones:IsReadable(stone, pin.dist) then
 		GameTooltip:AddLine(format("Walk within %d yards to read it (%d yd away).", ns.db.gateYards, pin.dist), 0.8, 0.8, 0.8, true)
-		GameTooltip:AddLine(ns.Guide.Hint(), 0.5, 0.5, 0.5)
 	end
 	GameTooltip:Show()
 end
@@ -55,12 +54,9 @@ local function acquire(i)
 	pin:SetScript("OnEnter", onPinEnter)
 	pin:SetScript("OnLeave", GameTooltip_Hide)
 	pin:SetScript("OnMouseUp", function(self, button)
-		if button ~= "LeftButton" or not self.stone then return end
-		GameTooltip:Hide()
-		if ns.Stones:IsReadable(self.stone, self.dist) then
+		if button == "LeftButton" and self.stone and ns.Stones:IsReadable(self.stone, self.dist) then
+			GameTooltip:Hide()
 			ns.ReadWindow:Show(self.stone)
-		else
-			ns.Guide:To(self.stone)
 		end
 	end)
 	pool[i] = pin

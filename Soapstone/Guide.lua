@@ -84,26 +84,27 @@ function Guide:To(stone)
 	end
 end
 
--- Whether the game's map pin is still the one we set.
-local function ourMapPin()
-	if not (current and current.via == "map") then return false end
+-- Whether the game's map pin is still the one `guide` set. The game hands the
+-- position back as a plain { x, y } table, not a vector with GetXY.
+local function ourMapPin(guide)
 	if not (C_Map.HasUserWaypoint and C_Map.HasUserWaypoint()) then return false end
 	local point = C_Map.GetUserWaypoint()
-	if not point or point.uiMapID ~= current.mapID then return false end
-	local x, y = point.position:GetXY()
-	return math.abs(x - current.x) < 0.0001 and math.abs(y - current.y) < 0.0001
+	local pos = point and point.position
+	if not pos or point.uiMapID ~= guide.mapID or not pos.x or not pos.y then return false end
+	return math.abs(pos.x - guide.x) < 0.0001 and math.abs(pos.y - guide.y) < 0.0001
 end
 
 function Guide:Clear()
-	if not current then return end
-	if current.via == "tomtom" then
-		if current.uid and Guide.HasTomTom() and TomTom:IsValidWaypoint(current.uid) then
-			TomTom:RemoveWaypoint(current.uid)
+	local guide = current
+	if not guide then return end
+	current = nil -- first, so a failure below can't leave it repeating every tick
+	if guide.via == "tomtom" then
+		if guide.uid and Guide.HasTomTom() and TomTom:IsValidWaypoint(guide.uid) then
+			TomTom:RemoveWaypoint(guide.uid)
 		end
-	elseif ourMapPin() then
+	elseif guide.via == "map" and ourMapPin(guide) then
 		C_Map.ClearUserWaypoint()
 	end
-	current = nil
 end
 
 -- Every proximity tick: arriving (or the stone vanishing) ends the guide.

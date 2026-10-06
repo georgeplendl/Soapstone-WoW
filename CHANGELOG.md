@@ -19,10 +19,10 @@ for players: what changed in game, not how.
   still have to stand where it was left to read it.
 - **A count under the world map:** "Durotar: 4 sealed soapstones to find ·
   2 read", for whichever zone or continent you're looking at.
-- **Guide me there.** Click a stone's pin, on the world map or a sealed one
-  on the minimap, or type `/soap guide` for the nearest sealed stone. With
-  **TomTom** installed, its arrow points the way. Without it, Soapstone uses
-  the game's own map pin and in-world marker. The waypoint clears itself
+- **Guide me there.** Click a stone's pin on the world map, or type
+  `/soap guide` for the nearest sealed stone. With **TomTom** installed,
+  its arrow points the way. Without it, Soapstone uses the game's own map
+  pin and in-world marker. The waypoint clears itself
   once you're close enough to read the stone, and a map pin you set
   yourself is never touched. `/soap guide off` stops guiding.
 
