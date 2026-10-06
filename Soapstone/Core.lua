@@ -123,6 +123,9 @@ local function printStats()
 	ns.Print(format("%d stones: %d yours, %d from others, %d test stones.", s.live, s.mine, s.others, s.localOnly))
 	ns.Print(format("%d deleted (kept as tombstones), %d of your changes waiting to announce, %d messages queued.",
 		s.tombstones, s.outbox, ns.Net:QueueLength()))
+	local region, regionId = ns.Identity.Region()
+	ns.Print(format("%d changes waiting for the companion app. Game: %s, region: %s.",
+		ns.Store:PendingCount(), ns.Identity.Flavor(), region or ("unknown (" .. tostring(regionId) .. ")")))
 	if zone then
 		ns.Print(format("Here: %s (zone %d), %d stones. Zones visited: %d.", mapName(zone), zone, s.inZone, s.zones))
 	end
@@ -218,6 +221,7 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		ns.db = SoapstoneDB
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_LOGIN" then
+		ns.Store:RecordMeta()
 		local upgraded = ns.Store:Init()
 		if upgraded > 0 then
 			ns.Print(format("Upgraded %d stones to the new storage format.", upgraded))

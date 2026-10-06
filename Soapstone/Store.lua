@@ -8,6 +8,8 @@ local _, ns = ...
 --   zones   = { [zone] = { visited = time } }   for least-recently-visited eviction
 --   outbox  = { [id] = true }       your changes not yet announced (step 4)
 --   ratings = { [id] = { [characterKey] = 1 | -1 } }   appraise / disparage
+--   pending = what the companion app uploads (see "Companion" below)
+--   meta    = game type, region, build and characters, for the companion
 --
 -- stone = { id, v (version, edits bump it), flavor, zone (zone-level uiMapID),
 --           instance, wx, wy (world yards), mapID, x, y (map 0-1), t (dropped),
@@ -179,9 +181,12 @@ function Store:Touch()
 	self.revision = self.revision + 1
 end
 
--- Your stone changed (dropped, edited, deleted): announce it in step 4.
+-- Your stone changed (dropped, edited, deleted): announce it over the
+-- network (outbox) and queue it for the companion (pending).
 function Store:MarkChanged(id)
 	db().outbox[id] = true
+	local stone = db().stones[id]
+	if stone and Store.IsUploadable(stone) then Store.Pending().stones[id] = stone.v or 1 end
 end
 
 function Store:Visit(zone)
@@ -192,6 +197,7 @@ function Store:Clear()
 	wipe(db().stones)
 	wipe(db().outbox)
 	wipe(db().ratings)
+	db().pending = nil
 	wipe(cells)
 	self:Touch()
 end
@@ -241,8 +247,10 @@ end
 function Store:PruneTombstones()
 	local cutoff = time() - self.TOMBSTONE_TTL
 	local stones, doomed = db().stones, {}
+	local waiting = Store.Pending().stones
 	for id, stone in pairs(stones) do
-		if stone.deleted and (stone.deletedAt or 0) < cutoff then doomed[#doomed + 1] = id end
+		-- A delete the companion hasn't uploaded yet is kept until it has.
+		if stone.deleted and (stone.deletedAt or 0) < cutoff and not waiting[id] then doomed[#doomed + 1] = id end
 	end
 	for _, id in ipairs(doomed) do
 		stones[id] = nil
@@ -269,10 +277,97 @@ end
 
 -- value: 1, -1, 0 (an author taking back their own upvote), or nil to clear.
 function Store:Rate(id, value)
+	local key = ns.Identity.PlayerKey()
 	local ratings = db().ratings[id] or {}
-	ratings[ns.Identity.PlayerKey()] = value
+	ratings[key] = value
 	db().ratings[id] = next(ratings) and ratings or nil
+	-- Votes on this account's own stones stay local: the server doesn't
+	-- take an install's votes on its own stones.
+	local stone = db().stones[id]
+	if stone and Store.IsUploadable(stone) and not Store.IsAccountCharacter(stone.authorKey) then
+		local votes = Store.Pending().votes
+		votes[id] = votes[id] or {}
+		votes[id][key] = value or 0
+	end
 	self:Touch()
+end
+
+-- Companion ---------------------------------------------------------------------
+-- The companion app (companion/) reads SavedVariables after each /reload or
+-- logout and uploads `pending`:
+--
+--   pending = {
+--     stones  = { [id] = v },                          drops, edits, deletes; the
+--                                                      record is db.stones[id]
+--     votes   = { [id] = { [characterKey] = 1 | 0 | -1 } },
+--     unlocks = { [id] = { [characterKey] = time } },
+--   }
+--
+-- An entry stays until the companion acknowledges it, however long that
+-- takes. Values are what to upload, so a change made after an upload but
+-- before its acknowledgement isn't lost (the acknowledgement names the
+-- version or value it saw).
+--
+-- `meta` tells the companion which game type and region this file belongs
+-- to, and which characters really logged in on this account (the only ones
+-- it may claim on the server).
+
+function Store.Pending()
+	local d = db()
+	local p = d.pending
+	if not p then
+		p = {}
+		d.pending = p
+	end
+	p.stones = p.stones or {}
+	p.votes = p.votes or {}
+	p.unlocks = p.unlocks or {}
+	return p
+end
+
+-- Can go to the server: shareable, and with an id that starts with its
+-- author ("Mad-Decent-<time>-<n>"), which the server insists on. Stones from
+-- before ids carried the name stay local.
+function Store.IsUploadable(stone)
+	local author = stone.authorKey
+	return Store.IsShareable(stone) and stone.id:sub(1, #author + 1) == author .. "-"
+end
+
+-- One of the characters seen logging in on this account (meta.characters).
+function Store.IsAccountCharacter(key)
+	local meta = db().meta
+	return key ~= nil and (key == ns.Identity.PlayerKey() or (meta and meta.characters and meta.characters[key] ~= nil))
+end
+
+-- A stranger's stone opened for the first time.
+function Store:Unlocked(stone)
+	if not Store.IsUploadable(stone) or Store.IsAccountCharacter(stone.authorKey) then return end
+	local unlocks = Store.Pending().unlocks
+	unlocks[stone.id] = unlocks[stone.id] or {}
+	unlocks[stone.id][ns.Identity.PlayerKey()] = unlocks[stone.id][ns.Identity.PlayerKey()] or time()
+end
+
+-- Number of entries waiting for the companion.
+function Store:PendingCount()
+	local p, n = Store.Pending(), 0
+	for _ in pairs(p.stones) do n = n + 1 end
+	for _, list in pairs(p.votes) do for _ in pairs(list) do n = n + 1 end end
+	for _, list in pairs(p.unlocks) do for _ in pairs(list) do n = n + 1 end end
+	return n
+end
+
+-- Called at login: who's playing, on which game type, region and build.
+function Store:RecordMeta()
+	local d = db()
+	local meta = d.meta or {}
+	d.meta = meta
+	local version, build = GetBuildInfo()
+	meta.flavor = ns.Identity.Flavor()
+	meta.region, meta.regionId = ns.Identity.Region()
+	meta.build = build and build ~= "" and (version .. "." .. build) or version
+	meta.addon = ns.Version and ns.Version() or nil
+	meta.characters = meta.characters or {}
+	meta.characters[ns.Identity.PlayerKey()] = { name = ns.Identity.PlayerDisplay(), seen = time() }
 end
 
 -- Sync view -------------------------------------------------------------------
@@ -385,11 +480,25 @@ end
 -- Schema 1 kept stones in a list. Key them by id and fill in version, game
 -- and zone. Stones that weren't yours were all local test stones then (no
 -- sharing existed), so they're marked never to be shared.
+-- The first time `pending` exists, queue the stones you dropped before it
+-- did (and changes still in the outbox), so they upload once the companion
+-- runs.
+local function seedPending(d)
+	if d.pending then return end
+	local waiting = Store.Pending().stones
+	for id, stone in pairs(d.stones) do
+		if (stone.mine or d.outbox[id]) and Store.IsUploadable(stone) then waiting[id] = stone.v or 1 end
+	end
+end
+
 local function migrate(d)
 	d.zones = d.zones or {}
 	d.outbox = d.outbox or {}
 	d.ratings = d.ratings or {}
-	if d.schema == Store.SCHEMA then return 0 end
+	if d.schema == Store.SCHEMA then
+		seedPending(d)
+		return 0
+	end
 	local old, stones, count = d.stones or {}, {}, 0
 	for _, stone in ipairs(old) do
 		stone.id = stone.id or format("local-%d-%04d", stone.t or 0, math.random(0, 9999))
@@ -402,6 +511,7 @@ local function migrate(d)
 	end
 	d.stones = stones
 	d.schema = Store.SCHEMA
+	seedPending(d)
 	return count
 end
 

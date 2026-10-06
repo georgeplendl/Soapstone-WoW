@@ -408,6 +408,7 @@ function Stones:CheckProximity()
 					anyInRange = true
 					if not stone.heard then
 						stone.heard = true
+						ns.Store:Unlocked(stone)
 						ns.Store:Touch()
 						self:OnUnlock(stone)
 					end

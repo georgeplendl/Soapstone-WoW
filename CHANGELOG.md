@@ -25,6 +25,11 @@ for players: what changed in game, not how.
   pin and in-world marker. The waypoint clears itself
   once you're close enough to read the stone, and a map pin you set
   yourself is never touched. `/soap guide off` stops guiding.
+- **Getting ready for the companion app.** Soapstone now keeps a list of
+  your drops, edits, deletes, appraisals and the stones you've opened, so
+  the coming companion app can share them, including stones you left before
+  this update. Nothing leaves your computer yet. `/soap stats` shows how
+  many changes are waiting.
 
 ## [0.4.1] - 2026-09-25
 

@@ -32,6 +32,17 @@ function Identity.Flavor()
 	return flavor
 end
 
+-- The WoW region ("us", "eu", ...), which keeps the companion's stones apart
+-- by region, plus the raw id. nil if the client doesn't say (or says
+-- something unknown, as a test portal might); the raw id is still returned
+-- so it can be checked.
+local REGIONS = { "us", "kr", "eu", "tw", "cn" }
+
+function Identity.Region()
+	local id = GetCurrentRegion and GetCurrentRegion()
+	return id and REGIONS[id], id
+end
+
 local function realmPart(realm)
 	return (realm or ""):gsub("[%s%-]", "")
 end
