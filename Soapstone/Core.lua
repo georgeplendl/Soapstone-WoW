@@ -107,7 +107,7 @@ local HELP = {
 	"/soap version — show the installed version",
 	"/soap net — network test tools (selftest, pacetest, status, ping, burst, log)",
 	"/soap stats — how many stones are stored, by zone",
-	"/soap sync [now] — zone sync status, or ask other players for this zone's stones now",
+	"/soap sync — sync with the companion app (reloads the UI); shift-click the minimap button does the same",
 	"/soap clear — delete every stone",
 }
 
@@ -196,7 +196,7 @@ SlashCmdList.SOAPSTONE = function(input)
 	elseif cmd == "stats" then
 		printStats()
 	elseif cmd == "sync" then
-		ns.Sync:Command(rest)
+		ns.Companion:Sync()
 	elseif cmd == "clear" then
 		ns.Store:Clear()
 		ns.MinimapPins:Update()

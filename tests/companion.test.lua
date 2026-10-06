@@ -158,11 +158,21 @@ check(select(2, Companion:LoadSketches(sketches({
 check(Companion:LoadSketches({ format = 1, writtenAt = NOW, scope = Codec.Base64Encode("classic~us"), records = { good } }, NOW) == 0,
 	"another game's drawings are ignored")
 
+-- Sync: a reload, when there's a companion to sync with.
+local reloads = 0
+function ReloadUI() reloads = reloads + 1 end
+check(Companion:Sync() and reloads == 1, "Sync reloads the UI so the companion's latest files load")
+
 -- Files that aren't for us, or aren't right.
 local function load(data)
 	Companion:Load(data)
 	return Companion.state
 end
+Companion:Load(false) -- no SoapstoneData at all
+Companion.state = "none"
+local before = #printed
+check(Companion:Sync() == false and reloads == 1, "without a companion, Sync doesn't reload")
+check(#printed == before + 1 and printed[#printed]:find("companion app") ~= nil, "it says what the companion is instead")
 check(load({ format = 2, records = {} }) == "outdated", "an unknown format: update the companion")
 check(Companion:Status() == "Companion: update the Soapstone companion", "and says so")
 check(load({ format = 1, scope = Codec.Base64Encode("classic~us"), records = {} }) == "elsewhere", "another game's stones are ignored")

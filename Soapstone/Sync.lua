@@ -36,7 +36,7 @@ local job              -- the sync in progress (requester side)
 local lastSync = {}    -- zone -> { at, digest }
 local pendingOffers = {} -- zone .. "/" .. digest -> timer (responder side)
 local serving = {}     -- requester key -> { zone, at }
-local history = {}     -- recent results for /soap sync
+local history = {}     -- recent results for /soap net sync
 
 local function Store() return ns.Store end
 local function Net() return ns.Net end
@@ -66,7 +66,7 @@ function Sync:Deadline(seconds, reason)
 	end)
 end
 
--- The sync in progress, if any (read-only; for /soap sync and tests).
+-- The sync in progress, if any (read-only; for /soap net sync and tests).
 function Sync:Current()
 	return job
 end
@@ -329,7 +329,7 @@ function Sync:Init()
 	net:OnPeerGone(function(name) self:OnPeerGone(name) end)
 end
 
--- /soap sync ----------------------------------------------------------------------
+-- /soap net sync ------------------------------------------------------------------
 
 function Sync:Command(input)
 	input = (input or ""):lower()
@@ -348,6 +348,6 @@ function Sync:Command(input)
 	if job then
 		ns.Print(format("Syncing now: %s%s.", job.stage, job.peer and (" with " .. job.peer) or ""))
 	end
-	ns.Print(format("Serving %d player%s. /soap sync now to ask again.", servingCount(), servingCount() == 1 and "" or "s"))
+	ns.Print(format("Serving %d player%s. /soap net sync now to ask again.", servingCount(), servingCount() == 1 and "" or "s"))
 	for _, line in ipairs(history) do ns.Print("  " .. line) end
 end

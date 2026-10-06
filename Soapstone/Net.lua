@@ -491,6 +491,9 @@ function Net:Command(input)
 
 	if cmd == "status" then
 		self:Status()
+	elseif cmd == "sync" then
+		-- Zone sync between players (before the companion; off by default).
+		ns.Sync:Command(table.concat(words, " ", 2))
 	elseif cmd == "selftest" then
 		self:SelfTest(math.min(tonumber(words[2]) or 30, 100))
 	elseif cmd == "pacetest" then
