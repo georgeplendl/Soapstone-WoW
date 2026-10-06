@@ -30,6 +30,15 @@ for players: what changed in game, not how.
   the coming companion app can share them, including stones you left before
   this update. Nothing leaves your computer yet. `/soap stats` shows how
   many changes are waiting.
+- **Stones from the companion app.** Once the companion is running,
+  Soapstone loads everyone's stones from it when you log in or `/reload`.
+  It also tells you if a stone of yours couldn't be shared, and why. The
+  minimap button's tooltip and `/soap stats` say when the companion last
+  synced. Other players' drawings show while the companion is running.
+- **Sync.** Shift-click the minimap button, or type `/soap sync`, to share
+  your latest changes and pick up new stones from the companion right away
+  (it reloads your UI). The old player-to-player zone sync moved to
+  `/soap net sync`.
 
 ### Fixed
 - **Stones missing since the October 5 beta patch are back.** The patch

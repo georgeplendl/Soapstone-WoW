@@ -4,7 +4,7 @@
 ## Author: George Plendl
 ## Version: 0.4.1
 ## SavedVariables: SoapstoneDB
-## OptionalDeps: TomTom
+## OptionalDeps: TomTom, SoapstoneData
 ## IconTexture: Interface\AddOns\Soapstone\Media\Soapstone
 
 BuildInfo.lua
@@ -17,6 +17,7 @@ Stones.lua
 Cues.lua
 Net.lua
 Sync.lua
+Companion.lua
 SketchCanvas.lua
 WritePanel.lua
 DrawPanel.lua

@@ -107,7 +107,7 @@ local HELP = {
 	"/soap version — show the installed version",
 	"/soap net — network test tools (selftest, pacetest, status, ping, burst, log)",
 	"/soap stats — how many stones are stored, by zone",
-	"/soap sync [now] — zone sync status, or ask other players for this zone's stones now",
+	"/soap sync — sync with the companion app (reloads the UI); shift-click the minimap button does the same",
 	"/soap clear — delete every stone",
 }
 
@@ -126,6 +126,7 @@ local function printStats()
 	local region, regionId = ns.Identity.Region()
 	ns.Print(format("%d changes waiting for the companion app. Game: %s, region: %s.",
 		ns.Store:PendingCount(), ns.Identity.Flavor(), region or ("unknown (" .. tostring(regionId) .. ")")))
+	ns.Print(ns.Companion:Status() .. ".")
 	if zone then
 		ns.Print(format("Here: %s (zone %d), %d stones. Zones visited: %d.", mapName(zone), zone, s.inZone, s.zones))
 	end
@@ -195,7 +196,7 @@ SlashCmdList.SOAPSTONE = function(input)
 	elseif cmd == "stats" then
 		printStats()
 	elseif cmd == "sync" then
-		ns.Sync:Command(rest)
+		ns.Companion:Sync()
 	elseif cmd == "clear" then
 		ns.Store:Clear()
 		ns.MinimapPins:Update()
@@ -226,6 +227,9 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		if upgraded > 0 then
 			ns.Print(format("Upgraded %d stones to the new storage format.", upgraded))
 		end
+		ns.Companion:Load()
+		ns.Companion:LoadSketches()
+		ns.Companion:AnnounceRefusals()
 		ns.MinimapButton:Init()
 		ns.MinimapPins:Init()
 		ns.WorldMapPins:Init()

@@ -212,7 +212,8 @@ function ReadWindow:Show(stone)
 	local refreshing = self:Current() == stone
 	self.stone = stone
 
-	local grid = stone.sketch and Sketch.Unpack(stone.sketch)
+	local sketch = ns.Stones.SketchOf(stone)
+	local grid = sketch and Sketch.Unpack(sketch)
 	local width, height
 	if grid then
 		self.text:Hide()
@@ -225,8 +226,10 @@ function ReadWindow:Show(stone)
 		self.canvas.frame:Hide()
 		-- A written stone is quoted, as in tooltips and chat; the fallback for an
 		-- unreadable sketch is Soapstone talking, so it isn't.
-		self.text:SetText(stone.text and format("\"%s\"", stone.text)
-			or (stone.sketch and "The carving is too worn to make out.") or "")
+		local text = ns.Stones.TextOf(stone)
+		self.text:SetText(text and format("\"%s\"", text)
+			or (stone.sketch and "The carving is too worn to make out.")
+			or (stone.sketchId and "Start the Soapstone companion to see this drawing.") or "")
 		self.text:Show()
 		width, height = TEXT_WIDTH, self.text:GetStringHeight() -- the text's real height, so both gaps match
 	end

@@ -1,26 +1,33 @@
-//! The Soapstone companion: a tray app that sits next to WoW, finds the
-//! Soapstone addon's files and (in later steps) syncs them with the server.
-//! Design: `docs/Ideas/Idea - Companion App (WoW).md`.
+//! The Soapstone companion: a tray app that sits next to WoW, uploads what
+//! the Soapstone addon has waiting, and writes everyone's stones back into
+//! the game (`SoapstoneData`). Design: `docs/Ideas/Idea - Companion App (WoW).md`.
 //!
-//! One background thread does all the work: every couple of minutes, or when
-//! asked, it scans for WoW folders, reads each account's SavedVariables and
-//! checks in with the server. The tray menu and the window only show what it
-//! found.
+//! One background thread does all the work. Every couple of minutes, when a
+//! SavedVariables file changes (a /reload or logout), or when asked, it scans
+//! for WoW folders, reads each account, checks in with the server and syncs
+//! (engine.rs). The tray menu and the window only show what it found.
 
+pub mod account;
+pub mod addon;
 pub mod api;
 pub mod config;
+pub mod datafiles;
+pub mod engine;
 pub mod files;
 pub mod installs;
 pub mod lua;
 pub mod savedvars;
+pub mod soapdata;
+pub mod sync;
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use serde::Serialize;
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent, Wry};
 
@@ -28,14 +35,20 @@ use crate::installs::{AddonFolder, GameFolder};
 use crate::savedvars::{Read, Summary};
 
 const SCAN_EVERY: Duration = Duration::from_secs(120);
+/// How often SavedVariables files are checked for a /reload or logout.
+const WATCH_EVERY: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Status {
     pub server: String,
     pub connected: bool,
-    /// One line about the server: connected, or why not.
+    /// One plain line about the server, for the tray and the window.
     pub connection: String,
+    /// What actually happened (errors included), for troubleshooting.
+    pub connection_detail: String,
+    /// This install's id on the server (not the secret token).
+    pub install_id: Option<String>,
     pub folders: Vec<FolderStatus>,
     pub scanned_at: u64,
     pub config_path: PathBuf,
@@ -47,7 +60,10 @@ pub struct FolderStatus {
     pub name: String,
     pub path: PathBuf,
     pub addon: Option<AddonFolder>,
+    /// The game version from `.build.info`, if known.
+    pub build: Option<String>,
     pub accounts: Vec<AccountStatus>,
+    pub sync: Option<engine::FolderSync>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -68,16 +84,13 @@ impl Status {
 
     /// The first line of the tray menu.
     fn headline(&self) -> String {
-        match self.folders.len() {
-            0 => "No WoW folders found".into(),
-            n => {
-                let folders = if n == 1 { "1 WoW folder".to_string() } else { format!("{n} WoW folders") };
-                match self.waiting() {
-                    0 => folders,
-                    1 => format!("{folders} · 1 change waiting"),
-                    w => format!("{folders} · {w} changes waiting"),
-                }
-            }
+        if self.folders.is_empty() {
+            return "Couldn't find World of Warcraft".into();
+        }
+        match self.waiting() {
+            0 => "Everything's shared".into(),
+            1 => "1 change waiting to upload".into(),
+            n => format!("{n} changes waiting to upload"),
         }
     }
 }
@@ -101,7 +114,7 @@ fn unix_now() -> u64 {
     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
-fn folder_status(folder: GameFolder) -> FolderStatus {
+pub(crate) fn folder_status(folder: GameFolder) -> FolderStatus {
     let accounts = folder
         .accounts
         .into_iter()
@@ -115,7 +128,7 @@ fn folder_status(folder: GameFolder) -> FolderStatus {
             AccountStatus { name: a.name, saved_variables: a.saved_variables, state, summary, error }
         })
         .collect();
-    FolderStatus { name: folder.name, path: folder.path, addon: folder.addon, accounts }
+    FolderStatus { name: folder.name, path: folder.path, addon: folder.addon, build: folder.build, accounts, sync: None }
 }
 
 /// Makes sure this install is registered with the server and its token
@@ -147,38 +160,115 @@ fn check_in(config: &mut config::Config) -> (bool, String) {
     }
 }
 
+/// When each SavedVariables file last changed, to notice a /reload or logout.
+fn stamps(folders: &[FolderStatus]) -> BTreeMap<PathBuf, SystemTime> {
+    folders
+        .iter()
+        .flat_map(|f| &f.accounts)
+        .filter_map(|a| Some((a.saved_variables.clone(), std::fs::metadata(&a.saved_variables).ok()?.modified().ok()?)))
+        .collect()
+}
+
+/// A file changed since `known` and has finished being written.
+fn saved_since(known: &BTreeMap<PathBuf, SystemTime>) -> bool {
+    known.keys().any(|path| {
+        let Ok(modified) = std::fs::metadata(path).and_then(|m| m.modified()) else { return false };
+        let settled = SystemTime::now().duration_since(modified).unwrap_or_default() >= savedvars::SETTLE;
+        settled && known.get(path) != Some(&modified)
+    })
+}
+
+/// One scan and sync, without any UI. `SOAPSTONE_WOW_ONLY` limits the scan
+/// to one WoW folder (for testing against a copy).
+pub fn gather(config: &mut config::Config) -> Status {
+    let found = match std::env::var_os("SOAPSTONE_WOW_ONLY") {
+        Some(root) => installs::scan_root(std::path::Path::new(&root)),
+        None => installs::find(&config.wow_folders),
+    };
+    let mut folders: Vec<FolderStatus> = found.into_iter().map(folder_status).collect();
+    let (connected, detail) = check_in(config);
+    let line = if connected { "Connected to the Soapstone server" } else { "Can't reach the Soapstone server" }.to_string();
+    let client = config.registration().map(|r| api::Client::new(&config.server, Some(r)));
+    let server: Option<&dyn sync::Server> = if connected { client.as_ref().map(|c| c as &dyn sync::Server) } else { None };
+    engine::sync_all(server, &mut folders, &config::dir(), unix_now(), config.manage_addon);
+    Status {
+        server: config.server.clone(),
+        connected,
+        connection: line,
+        connection_detail: detail,
+        install_id: config.registration().map(|r| r.install_id.clone()),
+        folders,
+        scanned_at: unix_now(),
+        config_path: config::path(),
+    }
+}
+
+/// `soapstone-companion --sync-once`: one cycle, the result printed as JSON.
+pub fn sync_once() {
+    let mut config = config::load();
+    let status = gather(&mut config);
+    println!("{}", serde_json::to_string_pretty(&status).unwrap_or_default());
+}
+
+fn cycle(app: &AppHandle, config: &mut config::Config, headline: &MenuItem<Wry>, connection: &MenuItem<Wry>) -> Status {
+    let status = gather(config);
+    let _ = headline.set_text(status.headline());
+    let _ = connection.set_text(&status.connection);
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_tooltip(Some(format!("Soapstone
+{}
+{}", status.headline(), status.connection)));
+    }
+    let _ = app.emit("status", &status);
+    *app.state::<Shared>().status.lock().unwrap() = status.clone();
+    status
+}
+
 fn work(app: AppHandle, wake: mpsc::Receiver<()>, headline: MenuItem<Wry>, connection: MenuItem<Wry>) {
     let mut config = config::load();
+    let mut status = cycle(&app, &mut config, &headline, &connection);
+    let mut known = stamps(&status.folders);
+    let mut last = Instant::now();
     loop {
-        let folders: Vec<FolderStatus> = installs::find(&config.wow_folders).into_iter().map(folder_status).collect();
-        let (connected, line) = check_in(&mut config);
-        let status = Status {
-            server: config.server.clone(),
-            connected,
-            connection: line,
-            folders,
-            scanned_at: unix_now(),
-            config_path: config::path(),
-        };
-        let _ = headline.set_text(status.headline());
-        let _ = connection.set_text(&status.connection);
-        if let Some(tray) = app.tray_by_id("main") {
-            let _ = tray.set_tooltip(Some(format!("Soapstone\n{}\n{}", status.headline(), status.connection)));
-        }
-        let _ = app.emit("status", &status);
-        *app.state::<Shared>().status.lock().unwrap() = status;
-
-        // A settling file is read again soon, not in two minutes.
-        let settling = app.state::<Shared>().status.lock().unwrap().folders.iter().flat_map(|f| &f.accounts).any(|a| a.state == "settling");
-        let wait = if settling { savedvars::SETTLE * 2 } else { SCAN_EVERY };
-        match wake.recv_timeout(wait) {
-            Ok(()) | Err(RecvTimeoutError::Timeout) => {
-                // Drain repeated requests so one scan answers them all.
+        let asked = match wake.recv_timeout(WATCH_EVERY) {
+            Ok(()) => {
+                // Drain repeated requests so one cycle answers them all.
                 while wake.try_recv().is_ok() {}
+                true
             }
+            Err(RecvTimeoutError::Timeout) => false,
             Err(RecvTimeoutError::Disconnected) => return,
+        };
+        let settling = status.folders.iter().flat_map(|f| &f.accounts).any(|a| a.state == "settling");
+        if asked || last.elapsed() >= SCAN_EVERY || saved_since(&known) || (settling && last.elapsed() >= savedvars::SETTLE * 2) {
+            status = cycle(&app, &mut config, &headline, &connection);
+            known = stamps(&status.folders);
+            last = Instant::now();
         }
     }
+}
+
+/// Start with Windows: on by default, as the design says, but only for real
+/// (release) builds: a development build turning itself on would put a
+/// `target\debug` program in the player's startup list. The default is
+/// applied once; after that it's whatever the player chose in the tray.
+fn start_with_windows_default(app: &AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    let launcher = app.autolaunch();
+    let offered = config::dir().join("autostart-offered");
+    if cfg!(not(debug_assertions)) && !offered.exists() {
+        let _ = launcher.enable();
+        let _ = files::write_atomic(&offered, b"Start with Windows was turned on once, by default.\n");
+    }
+    launcher.is_enabled().unwrap_or(false)
+}
+
+fn toggle_start_with_windows(app: &AppHandle, item: &CheckMenuItem<Wry>) {
+    use tauri_plugin_autostart::ManagerExt;
+    let launcher = app.autolaunch();
+    let on = launcher.is_enabled().unwrap_or(false);
+    let _ = if on { launcher.disable() } else { launcher.enable() };
+    let _ = item.set_checked(launcher.is_enabled().unwrap_or(!on));
 }
 
 fn show_window(app: &AppHandle) {
@@ -192,6 +282,9 @@ fn show_window(app: &AppHandle) {
 pub fn run() {
     let (wake_tx, wake_rx) = mpsc::channel();
     let app = tauri::Builder::default()
+        // Opening the companion again shows the running one instead of a second copy.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_window(app)))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .manage(Shared { status: Mutex::new(Status::default()), wake: Mutex::new(wake_tx) })
         .invoke_handler(tauri::generate_handler![status, rescan])
         .setup(move |app| {
@@ -199,17 +292,28 @@ pub fn run() {
             let connection = MenuItem::with_id(app, "connection", "Connecting…", false, None::<&str>)?;
             let open = MenuItem::with_id(app, "open", "Open Soapstone", true, None::<&str>)?;
             let rescan = MenuItem::with_id(app, "rescan", "Check now", true, None::<&str>)?;
+            let autostart = CheckMenuItem::with_id(app, "autostart", "Start with Windows", true, start_with_windows_default(app.handle()), None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(
                 app,
-                &[&headline, &connection, &PredefinedMenuItem::separator(app)?, &open, &rescan, &PredefinedMenuItem::separator(app)?, &quit],
+                &[
+                    &headline,
+                    &connection,
+                    &PredefinedMenuItem::separator(app)?,
+                    &open,
+                    &rescan,
+                    &autostart,
+                    &PredefinedMenuItem::separator(app)?,
+                    &quit,
+                ],
             )?;
             let mut tray = TrayIconBuilder::with_id("main")
                 .tooltip("Soapstone")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
+                .on_menu_event(move |app, event| match event.id.as_ref() {
                     "open" => show_window(app),
+                    "autostart" => toggle_start_with_windows(app, &autostart),
                     "rescan" => {
                         let _ = app.state::<Shared>().wake.lock().unwrap().send(());
                     }
@@ -240,10 +344,16 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while starting the Soapstone companion");
 
-    app.run(|_app, event| {
+    app.run(|app, event| match event {
         // Only Quit (an explicit exit code) ends the app, not closing its window.
-        if let RunEvent::ExitRequested { api, code: None, .. } = event {
-            api.prevent_exit();
+        RunEvent::ExitRequested { api, code: None, .. } => api.prevent_exit(),
+        // Drawings are only shown while the companion runs.
+        RunEvent::Exit => {
+            let status = app.state::<Shared>().status.lock().unwrap().clone();
+            for folder in status.folders.iter().filter(|f| f.sync.as_ref().is_some_and(|s| s.wrote)) {
+                let _ = datafiles::clear_sketches(&folder.path);
+            }
         }
+        _ => {}
     });
 }

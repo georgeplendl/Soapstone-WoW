@@ -74,18 +74,28 @@ read is still sealed for your alts.
 | `/soap list` | Stones nearby, nearest first |
 | `/soap read` | Open the nearest stone you're close enough to read |
 | `/soap guide` | Point the way to the nearest sealed stone (`/soap guide off` stops) |
+| `/soap sync` | Sync with the companion app (also: shift-click the minimap button) |
 | `/soap sound` | Turn the sound cues on or off |
 | `/soap button` | Show or hide the minimap button |
 | `/soap help` | Every command |
 
 ## Sharing with other players
 
-For now, your stones live in your own game. A free **Soapstone companion
-app** is on the way: a small program that sits in your system tray next to
-WoW and shares stones with everyone through a shared database. Stones other
-players left will show up when you log in, and yours will reach them the
-same way. The companion only reads and writes Soapstone's own files, like
-the WeakAuras Companion does. It never touches the game itself.
+The **Soapstone companion** is a small app that sits in your system tray
+next to WoW and shares stones with everyone through a shared database:
+stones other players left show up when you log in, along with their
+drawings, and yours reach them the same way. It also installs and updates
+the addon for you, so you only install one thing.
+
+It only reads and writes Soapstone's own files, the way the WeakAuras
+Companion does, and never touches the game itself. Because WoW only loads
+files when you log in or reload, new stones arrive at your next login or
+`/reload`. Shift-click the minimap button (or type `/soap sync`) to sync
+right away.
+
+> **Early preview.** The companion in the latest release is for testing:
+> it talks to a test server on your own PC, not a shared one yet, so it
+> doesn't share stones with other players. A public server comes next.
 
 ## Credits
 
