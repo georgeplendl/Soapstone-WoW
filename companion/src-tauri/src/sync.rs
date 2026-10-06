@@ -37,6 +37,10 @@ const RETRY_AFTER: u64 = 6 * 3600;
 pub trait Server {
     fn push(&self, body: &Json) -> Result<PushResponse, ApiError>;
     fn pull(&self, query: &str) -> Result<PullResponse, ApiError>;
+    /// Drawings by sketch id (up to 100 ids).
+    fn sketches(&self, _ids: &[String]) -> Result<Vec<soapdata::Sketch>, ApiError> {
+        Ok(Vec::new())
+    }
 }
 
 impl Server for Client {
@@ -45,6 +49,9 @@ impl Server for Client {
     }
     fn pull(&self, query: &str) -> Result<PullResponse, ApiError> {
         self.get(&format!("/v1/pull?{query}"))
+    }
+    fn sketches(&self, ids: &[String]) -> Result<Vec<soapdata::Sketch>, ApiError> {
+        Client::sketches(self, ids)
     }
 }
 
@@ -175,6 +182,9 @@ pub struct Cache {
     pub outcomes: BTreeMap<String, Kept<Outcome>>,
     /// When a sync last finished without errors.
     pub synced_at: u64,
+    /// Drawings for the cached sketch stones, by sketch id. A drawing is
+    /// never changed in place (an edit makes a new id), so each is fetched once.
+    pub sketches: BTreeMap<String, soapdata::Sketch>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -460,11 +470,28 @@ pub fn run(server: &dyn Server, flavor: &str, region: &str, accounts: &[Account]
             }
         }
     }
-    match pull_all(server, flavor, region, &zones, cache, now, &mut report) {
+    let result = pull_all(server, flavor, region, &zones, cache, now, &mut report).and_then(|()| fetch_sketches(server, cache));
+    match result {
         Ok(()) => cache.synced_at = now,
         Err(e) => report.error = Some(e.to_string()),
     }
     report
+}
+
+/// Fetches drawings the cache doesn't have yet, and forgets ones no cached
+/// stone uses any more.
+fn fetch_sketches(server: &dyn Server, cache: &mut Cache) -> Result<(), ApiError> {
+    let used: BTreeSet<String> = cache.stones.values().filter_map(|s| s.sketch_id.clone()).collect();
+    cache.sketches.retain(|id, _| used.contains(id));
+    let missing: Vec<String> = used.iter().filter(|id| !cache.sketches.contains_key(*id)).cloned().collect();
+    for chunk in missing.chunks(100) {
+        for sketch in server.sketches(chunk)? {
+            if sketch.is_valid() && chunk.contains(&sketch.id) {
+                cache.sketches.insert(sketch.id.clone(), sketch);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The `Stones.lua` for these accounts: the cache's stones (capped like the
@@ -751,6 +778,34 @@ SoapstoneDB = {
         assert_eq!(waiting(&accounts[0], &cache), (6, 0), "3 stones, 2 votes and an unlock all wait before a sync");
         run(&Fake::default(), "forever", "test", &accounts, &mut cache, 1000);
         assert_eq!(waiting(&accounts[0], &cache), (2, 4), "after it, only Zug's stone and the stranger's vote (not ours to send) still wait");
+    }
+
+    #[test]
+    fn drawings_are_fetched_once_and_forgotten_when_unused() {
+        struct Drawings(RefCell<Vec<Vec<String>>>);
+        impl Server for Drawings {
+            fn push(&self, _: &Json) -> Result<PushResponse, ApiError> {
+                Ok(PushResponse::default())
+            }
+            fn pull(&self, _: &str) -> Result<PullResponse, ApiError> {
+                Ok(PullResponse::default())
+            }
+            fn sketches(&self, ids: &[String]) -> Result<Vec<soapdata::Sketch>, ApiError> {
+                self.0.borrow_mut().push(ids.to_vec());
+                Ok(ids.iter().map(|id| soapdata::Sketch { id: id.clone(), w: 160, h: 60, data: "k0DD".into() }).collect())
+            }
+        }
+        let server = Drawings(RefCell::new(Vec::new()));
+        let mut cache = Cache::default();
+        let sketch = PulledStone { text: None, sketch_id: Some("sk_9f2c41e07ab35d18".into()), ..pulled("Zug-Zug-8-1", "Zug-Zug", 1, 0, 1411) };
+        cache.stones.insert(sketch.id.clone(), sketch);
+        run(&server, "forever", "test", &[], &mut cache, 1000);
+        run(&server, "forever", "test", &[], &mut cache, 1100);
+        assert_eq!(server.0.borrow().len(), 1, "fetched once");
+        assert!(cache.sketches.contains_key("sk_9f2c41e07ab35d18"));
+        cache.stones.clear();
+        run(&server, "forever", "test", &[], &mut cache, 1200);
+        assert!(cache.sketches.is_empty(), "dropped once no stone uses it");
     }
 
     #[test]

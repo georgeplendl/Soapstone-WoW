@@ -212,7 +212,8 @@ function ReadWindow:Show(stone)
 	local refreshing = self:Current() == stone
 	self.stone = stone
 
-	local grid = stone.sketch and Sketch.Unpack(stone.sketch)
+	local sketch = ns.Stones.SketchOf(stone)
+	local grid = sketch and Sketch.Unpack(sketch)
 	local width, height
 	if grid then
 		self.text:Hide()
