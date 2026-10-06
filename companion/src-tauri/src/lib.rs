@@ -8,6 +8,7 @@
 //! (engine.rs). The tray menu and the window only show what it found.
 
 pub mod account;
+pub mod addon;
 pub mod api;
 pub mod config;
 pub mod datafiles;
@@ -26,7 +27,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime};
 
 use serde::Serialize;
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent, Wry};
 
@@ -59,6 +60,8 @@ pub struct FolderStatus {
     pub name: String,
     pub path: PathBuf,
     pub addon: Option<AddonFolder>,
+    /// The game version from `.build.info`, if known.
+    pub build: Option<String>,
     pub accounts: Vec<AccountStatus>,
     pub sync: Option<engine::FolderSync>,
 }
@@ -125,7 +128,7 @@ pub(crate) fn folder_status(folder: GameFolder) -> FolderStatus {
             AccountStatus { name: a.name, saved_variables: a.saved_variables, state, summary, error }
         })
         .collect();
-    FolderStatus { name: folder.name, path: folder.path, addon: folder.addon, accounts, sync: None }
+    FolderStatus { name: folder.name, path: folder.path, addon: folder.addon, build: folder.build, accounts, sync: None }
 }
 
 /// Makes sure this install is registered with the server and its token
@@ -187,7 +190,7 @@ pub fn gather(config: &mut config::Config) -> Status {
     let line = if connected { "Connected to the Soapstone server" } else { "Can't reach the Soapstone server" }.to_string();
     let client = config.registration().map(|r| api::Client::new(&config.server, Some(r)));
     let server: Option<&dyn sync::Server> = if connected { client.as_ref().map(|c| c as &dyn sync::Server) } else { None };
-    engine::sync_all(server, &mut folders, &config::dir(), unix_now());
+    engine::sync_all(server, &mut folders, &config::dir(), unix_now(), config.manage_addon);
     Status {
         server: config.server.clone(),
         connected,
@@ -245,6 +248,29 @@ fn work(app: AppHandle, wake: mpsc::Receiver<()>, headline: MenuItem<Wry>, conne
     }
 }
 
+/// Start with Windows: on by default, as the design says, but only for real
+/// (release) builds: a development build turning itself on would put a
+/// `target\debug` program in the player's startup list. The default is
+/// applied once; after that it's whatever the player chose in the tray.
+fn start_with_windows_default(app: &AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    let launcher = app.autolaunch();
+    let offered = config::dir().join("autostart-offered");
+    if cfg!(not(debug_assertions)) && !offered.exists() {
+        let _ = launcher.enable();
+        let _ = files::write_atomic(&offered, b"Start with Windows was turned on once, by default.\n");
+    }
+    launcher.is_enabled().unwrap_or(false)
+}
+
+fn toggle_start_with_windows(app: &AppHandle, item: &CheckMenuItem<Wry>) {
+    use tauri_plugin_autostart::ManagerExt;
+    let launcher = app.autolaunch();
+    let on = launcher.is_enabled().unwrap_or(false);
+    let _ = if on { launcher.disable() } else { launcher.enable() };
+    let _ = item.set_checked(launcher.is_enabled().unwrap_or(!on));
+}
+
 fn show_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
@@ -256,6 +282,9 @@ fn show_window(app: &AppHandle) {
 pub fn run() {
     let (wake_tx, wake_rx) = mpsc::channel();
     let app = tauri::Builder::default()
+        // Opening the companion again shows the running one instead of a second copy.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_window(app)))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .manage(Shared { status: Mutex::new(Status::default()), wake: Mutex::new(wake_tx) })
         .invoke_handler(tauri::generate_handler![status, rescan])
         .setup(move |app| {
@@ -263,17 +292,28 @@ pub fn run() {
             let connection = MenuItem::with_id(app, "connection", "Connecting…", false, None::<&str>)?;
             let open = MenuItem::with_id(app, "open", "Open Soapstone", true, None::<&str>)?;
             let rescan = MenuItem::with_id(app, "rescan", "Check now", true, None::<&str>)?;
+            let autostart = CheckMenuItem::with_id(app, "autostart", "Start with Windows", true, start_with_windows_default(app.handle()), None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(
                 app,
-                &[&headline, &connection, &PredefinedMenuItem::separator(app)?, &open, &rescan, &PredefinedMenuItem::separator(app)?, &quit],
+                &[
+                    &headline,
+                    &connection,
+                    &PredefinedMenuItem::separator(app)?,
+                    &open,
+                    &rescan,
+                    &autostart,
+                    &PredefinedMenuItem::separator(app)?,
+                    &quit,
+                ],
             )?;
             let mut tray = TrayIconBuilder::with_id("main")
                 .tooltip("Soapstone")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
+                .on_menu_event(move |app, event| match event.id.as_ref() {
                     "open" => show_window(app),
+                    "autostart" => toggle_start_with_windows(app, &autostart),
                     "rescan" => {
                         let _ = app.state::<Shared>().wake.lock().unwrap().send(());
                     }

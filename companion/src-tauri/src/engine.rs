@@ -30,6 +30,10 @@ pub struct FolderSync {
     pub wrote: bool,
     /// Anything the player should know: why nothing synced, or what failed.
     pub note: Option<String>,
+    /// What happened to the addon itself this cycle, in plain words, if anything.
+    pub addon: Option<String>,
+    /// Whether the companion looks after this folder's addon, for the details.
+    pub addon_managed: Option<String>,
 }
 
 type Scope = (String, String);
@@ -51,7 +55,13 @@ fn save_cache(dir: &Path, scope: &Scope, cache: &Cache) -> std::io::Result<()> {
     files::write_atomic(&cache_path(dir, scope), &json)
 }
 
-pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_dir: &Path, now: u64) {
+/// Installs or updates the addon in each folder first (`install_addon`), then syncs.
+pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_dir: &Path, now: u64, install_addon: bool) {
+    let mut addon_notes: Vec<(Option<String>, Option<String>)> = Vec::new();
+    for folder in folders.iter_mut() {
+        addon_notes.push(if install_addon { look_after_addon(folder) } else { (None, None) });
+    }
+
     // Read every account; pick each folder's game type and region.
     let mut folder_scope: Vec<Option<Scope>> = Vec::new();
     let mut by_scope: BTreeMap<Scope, Vec<Account>> = BTreeMap::new();
@@ -77,7 +87,10 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
             }
         }
         let scope = newest.map(|(_, s)| s);
+        let (addon_note, addon_managed) = addon_notes.get(fi).cloned().unwrap_or_default();
         folder.sync = Some(FolderSync {
+            addon: addon_note,
+            addon_managed,
             scope: scope.as_ref().map(|(f, r)| format!("{f} · {r}")),
             note: match (&scope, without_meta) {
                 (None, true) => Some("Log in once with the latest Soapstone addon so the companion knows which game this is.".into()),
@@ -157,6 +170,34 @@ pub fn sync_all(server: Option<&dyn Server>, folders: &mut [FolderStatus], data_
     }
 }
 
+/// Runs `addon::ensure` for one folder. Returns a note for the player (only
+/// when something changed or went wrong) and a line for the details.
+fn look_after_addon(folder: &mut FolderStatus) -> (Option<String>, Option<String>) {
+    use crate::addon::{Action, Keep};
+    let linked = folder.addon.as_ref().is_some_and(|a| a.linked);
+    let version = crate::addon::bundled_version().unwrap_or_default();
+    match crate::addon::ensure(&folder.path, folder.build.as_deref(), linked) {
+        Ok(action) => {
+            if matches!(action, Action::Installed | Action::Updated { .. }) {
+                folder.addon = Some(crate::installs::AddonFolder { path: folder.path.join("Interface").join("AddOns").join("Soapstone"), linked: false });
+            }
+            match action {
+                Action::Installed => (Some(format!("Soapstone {version} was installed. Restart WoW to start using it.")), Some("Yes (installed by the companion)".into())),
+                Action::Updated { from } => (
+                    Some(format!("Soapstone was updated{} to {version}. Restart WoW to load the new version.", from.map(|f| format!(" from {f}")).unwrap_or_default())),
+                    Some("Yes (updated by the companion)".into()),
+                ),
+                Action::UpToDate => (None, Some(format!("Yes, up to date ({version})"))),
+                Action::Kept(Keep::Linked) => (None, Some("No: it's a link to a developer's copy".into())),
+                Action::Kept(Keep::ChangedByHand) => (None, Some("No: its files were changed by hand".into())),
+                Action::Kept(Keep::InstalledByHand) => (None, Some(format!("No: installed by hand, and not older than the companion's {version}"))),
+                Action::NotForever => (None, Some("No: not a WoW Forever folder".into())),
+            }
+        }
+        Err(e) => (Some(format!("Couldn't install the Soapstone addon ({e}).")), None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,7 +262,7 @@ mod tests {
     fn a_cycle_uploads_downloads_and_writes_soapstone_data() {
         let (tmp, mut folders) = setup(SV);
         let data = tmp.path().join("appdata");
-        sync_all(Some(&Fake), &mut folders, &data, 1791234567);
+        sync_all(Some(&Fake), &mut folders, &data, 1791234567, false);
         let sync = folders[0].sync.clone().unwrap();
         assert_eq!(sync.scope.as_deref(), Some("forever · test"));
         assert_eq!(sync.report.as_ref().map(|r| (r.uploaded, r.downloaded)), Some((1, 1)));
@@ -238,7 +279,7 @@ mod tests {
         assert_eq!((summary.waiting, summary.confirmed), (0, 1), "the uploaded drop counts as confirmed, not waiting");
 
         // Offline next time: the file is still written, from the cache.
-        sync_all(None, &mut folders, &data, 1791234667);
+        sync_all(None, &mut folders, &data, 1791234667, false);
         let sync = folders[0].sync.clone().unwrap();
         assert!(sync.wrote && !sync.installed);
         assert_eq!(sync.note.as_deref(), Some("Showing the stones from the last sync until the server is back."));
@@ -250,7 +291,7 @@ mod tests {
     #[test]
     fn an_old_addon_gets_a_hint_and_no_files() {
         let (tmp, mut folders) = setup("SoapstoneDB = { [\"stones\"] = {}, }");
-        sync_all(Some(&Fake), &mut folders, &tmp.path().join("appdata"), 1);
+        sync_all(Some(&Fake), &mut folders, &tmp.path().join("appdata"), 1, false);
         let sync = folders[0].sync.clone().unwrap();
         assert!(sync.note.unwrap().contains("latest Soapstone addon"));
         assert!(!datafiles::folder(&folders[0].path).exists());

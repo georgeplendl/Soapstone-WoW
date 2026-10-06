@@ -119,6 +119,7 @@ function gameCard(f) {
   } else if (!(r && r.error)) lastSync.push(el('span', { className: 'muted', textContent: 'Not yet' }))
   body.push(el('dl', {}, el('dt', { textContent: 'Last sync' }), el('dd', {}, ...lastSync)))
 
+  if (sync.addon) body.push(el('div', { className: 'note', textContent: sync.addon }))
   if (sync.installed) body.push(el('div', { className: 'note', textContent: 'Soapstone just added its data to your game. Restart WoW once so it can load it; after that a /reload is enough.' }))
   if (sync.note) body.push(el('div', { className: 'note', textContent: sync.note }))
 
@@ -127,6 +128,8 @@ function gameCard(f) {
   fact(facts, 'Game folder', f.path, true)
   if (meta) fact(facts, 'Game code', `${meta.flavor} · region ${meta.region ?? 'unknown'}`, true)
   if (f.addon) fact(facts, 'Addon folder', f.addon.path, true)
+  if (sync.addonManaged) fact(facts, 'Kept up to date by the companion', sync.addonManaged)
+  if (f.build) fact(facts, 'Game version', f.build)
   f.accounts.forEach((a, i) => {
     const label = (name) => (many ? `Account ${i + 1} · ${name.toLowerCase()}` : name)
     fact(facts, label('Account folder'), a.name, true)
