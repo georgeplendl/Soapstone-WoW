@@ -23,6 +23,9 @@ pub struct Meta {
     pub region: Option<String>,
     pub build: Option<String>,
     pub addon: Option<String>,
+    /// Characters seen logging in on this account (`Mad-Decent`): the only
+    /// names the companion may claim on the server.
+    pub characters: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -32,8 +35,9 @@ pub struct Summary {
     pub meta: Option<Meta>,
     /// Live stones (not tombstones) in the file, from every game type.
     pub stones: usize,
-    /// Changes the addon hasn't shared yet: `pending` once the addon has it,
-    /// the older `outbox` until then.
+    /// Changes waiting to upload: every entry in `pending` (stones, and each
+    /// character's votes and unlocks), or the older `outbox` before the
+    /// addon had `pending`.
     pub waiting: usize,
     pub modified: u64,
 }
@@ -78,6 +82,14 @@ pub fn summarize(source: &str, modified: u64) -> Result<Summary, String> {
         region: text(m, "region"),
         build: text(m, "build"),
         addon: text(m, "addon"),
+        characters: m
+            .get("characters")
+            .and_then(Value::as_table)
+            .map(|t| t.entries.iter().filter_map(|(k, _)| match k {
+                lua::Key::Str(s) => Some(s.clone()),
+                lua::Key::Int(_) => None,
+            }).collect())
+            .unwrap_or_default(),
     });
     let stones = db
         .get("stones")
@@ -89,8 +101,14 @@ pub fn summarize(source: &str, modified: u64) -> Result<Summary, String> {
                 .count()
         })
         .unwrap_or(0);
-    let count = |k: &str| db.get(k).and_then(Value::as_table).map(|t| t.entries.len());
-    let waiting = count("pending").or_else(|| count("outbox")).unwrap_or(0);
+    let waiting = match db.get("pending").and_then(Value::as_table) {
+        Some(p) => {
+            let list = |k: &str| p.get(k).and_then(Value::as_table).map(|t| t.entries.as_slice()).unwrap_or_default();
+            let per_character = |k: &str| list(k).iter().filter_map(|(_, v)| v.as_table()).map(|t| t.entries.len()).sum::<usize>();
+            list("stones").len() + per_character("votes") + per_character("unlocks")
+        }
+        None => db.get("outbox").and_then(Value::as_table).map(|t| t.entries.len()).unwrap_or(0),
+    };
     Ok(Summary { meta, stones, waiting, modified })
 }
 
@@ -112,8 +130,13 @@ mod tests {
     fn reads_meta_and_pending() {
         let src = r#"
 SoapstoneDB = {
-["meta"] = { ["flavor"] = "forever", ["region"] = "us", ["build"] = "1.60.1.70009", ["addon"] = "0.5.0", },
-["pending"] = { { ["kind"] = "stone", ["id"] = "Mad-Decent-1-1", }, },
+["meta"] = { ["flavor"] = "forever", ["region"] = "us", ["build"] = "1.60.1.70009", ["addon"] = "0.5.0",
+  ["characters"] = { ["Mad-Decent"] = { ["name"] = "Mad Decent", ["seen"] = 1791234567, }, }, },
+["pending"] = {
+  ["stones"] = { ["Mad-Decent-1-1"] = 2, },
+  ["votes"] = { ["Zug-Zug-1-1"] = { ["Mad-Decent"] = 1, ["Osha-Compliant"] = 0, }, },
+  ["unlocks"] = { ["Zug-Zug-1-1"] = { ["Mad-Decent"] = 1791234567, }, },
+},
 ["outbox"] = { ["old"] = true, ["older"] = true, },
 ["stones"] = { ["a"] = { ["v"] = 1, }, ["b"] = { ["deleted"] = true, }, },
 }
@@ -122,8 +145,9 @@ SoapstoneDB = {
         let meta = s.meta.unwrap();
         assert_eq!(meta.flavor.as_deref(), Some("forever"));
         assert_eq!(meta.region.as_deref(), Some("us"));
+        assert_eq!(meta.characters, ["Mad-Decent"]);
         assert_eq!(s.stones, 1);
-        assert_eq!(s.waiting, 1);
+        assert_eq!(s.waiting, 4, "1 stone, 2 votes, 1 unlock; the outbox is ignored once pending exists");
     }
 
     #[test]

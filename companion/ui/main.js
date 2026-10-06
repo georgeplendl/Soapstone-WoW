@@ -27,7 +27,8 @@ function account(a) {
   else if (a.state === 'unreadable') line = el('span', { className: 'warn', textContent: `Can't read Soapstone.lua: ${a.error}` })
   else {
     const s = a.summary
-    const game = s.meta ? `${s.meta.flavor ?? '?'} · ${(s.meta.region ?? '?').toUpperCase()}` : 'game type not recorded yet (needs addon 0.5)'
+    const chars = s.meta && s.meta.characters.length ? ` · ${s.meta.characters.map((c) => c.replace('-', ' ')).join(', ')}` : ''
+    const game = s.meta ? `${s.meta.flavor ?? '?'} · ${(s.meta.region ?? 'region unknown').toUpperCase()}${chars}` : 'game type not recorded yet (needs addon 0.5)'
     const waiting = s.waiting === 1 ? '1 change waiting' : `${s.waiting} changes waiting`
     line = el('span', {}, `${s.stones} stones · ${waiting} · `, el('span', { className: 'muted', textContent: game }))
   }
