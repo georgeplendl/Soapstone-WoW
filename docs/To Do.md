@@ -5,12 +5,18 @@
 Addon releases already upload to CurseForge
 ([project 1730855](https://www.curseforge.com/projects/1730855)) from the
 Release workflow, but the upload stays switched off until there's an API
-token. API access was requested on 2026-10-06. Details are under
-"Releasing" in [Development](Development.md).
+token. Details are under "Releasing" in [Development](Development.md).
 
-- [ ] **When API access is granted:** create a token at
-  authors.curseforge.com > Settings > API tokens and add it as the repo
-  secret `CF_API_TOKEN` (Settings > Secrets and variables > Actions).
+- [x] **Add the token** (done 2026-10-09; the check found `1.60.1` =
+  id 17053, WoW Forever): generate one on the
+  [API Tokens page](https://authors.curseforge.com/#/settings/api-tokens)
+  (it lists nothing until you make one) and add it as the repo secret
+  `CF_API_TOKEN` (Settings > Secrets and variables > Actions). The
+  **curseforge** job in Tests then checks it works and finds WoW Forever's
+  game version id. It must be an author token (it looks like
+  `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`), not a "CurseForge for Studios"
+  API key from console.curseforge.com (those start with `$2a$10$`), which
+  is for reading mod data, not uploading.
 - [ ] **On the next `v*` release:** check that the CurseForge job uploaded
   the file and that it shows up as a beta for WoW Forever (1.60.1). If it
   couldn't pick the game version, set the repo variable

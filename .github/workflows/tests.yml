@@ -1,5 +1,7 @@
-# Runs the addon's test suite (tests/run.js) and the companion's Rust tests
-# on every push and pull request.
+# Runs the addon's test suite (tests/run.js), the companion's Rust tests and
+# the CurseForge checks on every push and pull request. With the secret
+# CF_API_TOKEN set, the CurseForge job also checks that the token still
+# works and that CurseForge knows the .toc's game version (no upload).
 name: Tests
 
 on:
@@ -28,8 +30,21 @@ jobs:
         working-directory: tests
         run: npm test
 
+  # Its own job, so the token is never in the environment of npm installs.
+  curseforge:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_GAME_VERSION_IDS: ${{ vars.CF_GAME_VERSION_IDS }}
+    steps:
+      - uses: actions/checkout@v5
+
       - name: Check the CurseForge upload (dry run)
         run: python3 tools/curseforge.py upload --dry-run
+
+      - name: Check the CurseForge token and game version
+        if: env.CF_API_TOKEN != ''
+        run: python3 tools/curseforge.py check
 
   companion:
     runs-on: windows-latest

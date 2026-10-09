@@ -3,6 +3,7 @@
     py tools/release.py build --tag v0.6.0          # first: the zip, in dist/
     py tools/curseforge.py upload --tag v0.6.0      # then: upload it
     py tools/curseforge.py upload --dry-run         # show what would be sent
+    py tools/curseforge.py check                    # token + game version, no upload
 
 Reads, from Soapstone/Soapstone.toc at the chosen ref:
   ## Version:             the file's version (dist/Soapstone-v<version>.zip)
@@ -16,7 +17,9 @@ the name matches more than one game version.
 
 Needs CF_API_TOKEN (authors.curseforge.com > Settings > API tokens), except
 with --dry-run. The GitHub workflow (.github/workflows/release.yml) runs
-`upload --tag` after each GitHub Release when the CF_API_TOKEN secret is set.
+`upload --tag` after each GitHub Release when the CF_API_TOKEN secret is set,
+and the Tests workflow runs `check` on every push and pull request, so a
+token or game version that stops working shows up before release day.
 """
 
 import argparse
@@ -59,27 +62,66 @@ def request(path, token, data=None, headers=None):
         with urllib.request.urlopen(req, timeout=60) as resp:
             return json.load(resp)
     except urllib.error.HTTPError as e:
-        fail(f"CurseForge {path}: HTTP {e.code}: {e.read().decode(errors='replace')[:500]}")
+        # CurseForge echoes a malformed token back in its error; never print it.
+        body = e.read().decode(errors="replace")
+        try:  # the decoded message, so JSON escapes can't hide the token from replace()
+            body = json.loads(body).get("errorMessage") or body
+        except (ValueError, AttributeError):
+            pass
+        for form in (token, json.dumps(token)[1:-1]):
+            body = body.replace(form, "***")
+        body = body[:500]
+        hint = token_hint(token) if "malformed" in body.lower() else ""
+        fail(f"CurseForge {path}: HTTP {e.code}: {body}{hint}")
+
+
+def token_hint(token):
+    """Says what a token CurseForge calls malformed looks like, without showing it."""
+    if token.startswith("$2a$"):
+        shape = "a CurseForge for Studios API key (it starts with $2a$), which can't upload"
+    else:
+        shape = (f"{len(token)} characters, not the xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx "
+                 "(36 characters) of an author token")
+        if any(c in token for c in "\"' "):
+            shape += ", and it has quotes or spaces in it"
+    return (f"\nThe token is {shape}. Make an author token at "
+            "https://authors.curseforge.com/#/settings/api-tokens and save it as CF_API_TOKEN.")
+
+
+def api_token():
+    token = os.environ.get("CF_API_TOKEN", "").strip()
+    if not token:
+        fail("CF_API_TOKEN isn't set")
+    if not token.isascii():
+        fail("CF_API_TOKEN has characters no token has (curly quotes or invisible ones, "
+             "often picked up by copy and paste). Copy it again and save it as CF_API_TOKEN.")
+    return token
 
 
 def game_version_ids(name, token):
     override = os.environ.get("CF_GAME_VERSION_IDS", "").strip()
     if override:
         return [int(i) for i in override.split(",")]
-    matches = [v for v in request("/game/versions", token) if v.get("name") == name]
+    versions = request("/game/versions", token)
+    matches = [v for v in versions if v.get("name") == name]
     if len(matches) == 1:
         return [matches[0]["id"]]
+    types = {t["id"]: t for t in request("/game/version-types", token)}
+
+    def label(v):
+        return f"{v['name']} = {v['id']} ({types.get(v['gameVersionTypeID'], {}).get('name', '?')})"
+
     if matches:
-        types = {t["id"]: t for t in request("/game/version-types", token)}
         forever = [v for v in matches
                    if "forever" in (types.get(v["gameVersionTypeID"], {}).get("slug") or "").lower()]
         if len(forever) == 1:
             return [forever[0]["id"]]
-        found = ", ".join(f"{v['id']} ({types.get(v['gameVersionTypeID'], {}).get('name', '?')})"
-                          for v in matches)
-        fail(f"several CurseForge game versions are named {name}: {found}. "
-             "Set CF_GAME_VERSION_IDS to the right one.")
-    fail(f"CurseForge has no game version named {name}. Set CF_GAME_VERSION_IDS.")
+        fail(f"several CurseForge game versions are named {name}: "
+             f"{', '.join(map(label, matches))}. Set CF_GAME_VERSION_IDS to the right one.")
+    series = name.rsplit(".", 1)[0] + "."
+    near = [v for v in versions if (v.get("name") or "").startswith(series)]
+    hint = f" Close ones: {', '.join(map(label, near))}." if near else ""
+    fail(f"CurseForge has no game version named {name}.{hint} Set CF_GAME_VERSION_IDS.")
 
 
 def multipart(fields, file_field, file_name, file_bytes):
@@ -115,9 +157,7 @@ def upload(ref, tag, dry_run):
         print("dry run: nothing uploaded")
         print(json.dumps(metadata, indent=2))
         return
-    token = os.environ.get("CF_API_TOKEN")
-    if not token:
-        fail("CF_API_TOKEN isn't set")
+    token = api_token()
     if not zip_path.exists():
         fail(f"{zip_path} doesn't exist; run tools/release.py build first")
 
@@ -129,14 +169,35 @@ def upload(ref, tag, dry_run):
     print(f"uploaded: CurseForge file id {result.get('id')}")
 
 
+def verify(ref):
+    """Checks the token works and the game version resolves; uploads nothing."""
+    project = toc_field(ref, "X-Curse-Project-ID")
+    gv_name = game_version_name(toc_field(ref, "Interface"))
+    token = api_token()
+    versions = {v["id"]: v for v in request("/game/versions", token)}  # fails on a bad token
+    types = {t["id"]: t.get("name", "?") for t in request("/game/version-types", token)}
+    print(f"project       {project}")
+    print("token         accepted")
+    source = "CF_GAME_VERSION_IDS" if os.environ.get("CF_GAME_VERSION_IDS", "").strip() else "looked up"
+    for i in game_version_ids(gv_name, token):
+        v = versions.get(i)
+        if not v:
+            fail(f"CurseForge has no game version with id {i}; check CF_GAME_VERSION_IDS")
+        print(f"game version  {v['name']} = id {i}, {types.get(v['gameVersionTypeID'], '?')} ({source})")
+    print("ok: ready to upload (nothing was uploaded)")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["upload"])
+    parser.add_argument("command", choices=["upload", "check"])
     parser.add_argument("--ref", default="HEAD", help="tag or commit to release (default HEAD)")
     parser.add_argument("--tag", help="require this tag name to equal v<.toc version>")
     parser.add_argument("--dry-run", action="store_true", help="print what would be uploaded")
     args = parser.parse_args()
-    upload(args.ref, args.tag, args.dry_run)
+    if args.command == "check":
+        verify(args.ref)
+    else:
+        upload(args.ref, args.tag, args.dry_run)
 
 
 if __name__ == "__main__":
