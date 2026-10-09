@@ -31,7 +31,17 @@ new screenshots before pasting.
 
 ## Keeping it up to date
 
-It's the [README](../../README.md) rewritten for CurseForge: the companion
-comes first, and the GitHub-only parts (developer notes, code signing)
-are left out. When the README's player-facing parts change, change
-`description.md` the same way and paste it again.
+Don't edit `description.md` by hand: it's made from the
+[README](../../README.md), so the two always say the same. Change the
+README, then run `py tools/curseforge.py page` and commit both. The Tests
+workflow fails if they don't match.
+
+The README marks what's different on CurseForge with comments you only
+see in its source:
+
+- `<!-- github-only -->` ... `<!-- /github-only -->` around parts that stay
+  on GitHub (the CurseForge link, developer notes, code signing policy).
+- `<!-- curseforge-only ... -->` around parts only CurseForge shows (the
+  Links section).
+
+After a change, paste the new `description.md` into the CurseForge page.

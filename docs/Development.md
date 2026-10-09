@@ -191,12 +191,17 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
    **Re-run failed jobs** on the workflow run.
 5. The companion carries its own copy of the addon, so after an addon
    release, tag a companion release (`companion-vX.Y.Z`) to ship it there too.
+   Publish companion releases as **Latest**; addon releases never are
+   (`--latest=false`). The README, the CurseForge page and
+   `/soap companion` link to `releases/latest` for the companion's installer.
 
 ### CurseForge
 
 - Project id `1730855`, in the `.toc` as `## X-Curse-Project-ID`.
 - The project page's text lives in [`docs/CurseForge/`](CurseForge/) and is
   pasted in by hand: CurseForge's API has no endpoint for project pages.
+  It's made from the README (`py tools/curseforge.py page`), so edit the
+  README, not `description.md`; the Tests workflow checks they match.
 - The upload runs only once the repo secret `CF_API_TOKEN` is set (a token
   from authors.curseforge.com > Settings > API tokens). Until then the
   Release workflow just leaves a notice.

@@ -1,5 +1,9 @@
 # Soapstone for World of Warcraft
 
+<!-- This README is also Soapstone's CurseForge page: `py tools/curseforge.py page`
+     writes docs/CurseForge/description.md from it. Wrap GitHub-only parts in
+     github-only markers; put CurseForge-only parts in a curseforge-only comment. -->
+
 > Leave your mark, literally. Scribble doodles and drop secret messages wherever you go, visible only to players who wander into the area.
 
 Soapstone lets you leave short messages and little drawings at spots in the
@@ -13,7 +17,19 @@ a soft sound when one is close.
 
 Made for **WoW Forever** (currently in beta).
 
+<!-- github-only -->
+
 **[Get Soapstone on CurseForge](https://www.curseforge.com/wow/addons/soapstone)**
+
+<!-- /github-only -->
+
+> [!IMPORTANT]
+> **Soapstone needs the Soapstone companion app to share stones.** The
+> companion carries your stones to other players and brings theirs to you.
+> Without it, nobody else will ever see your stones, and you won't find
+> theirs.
+> **[Get the companion](https://github.com/georgeplendl/Soapstone-WoW/releases/latest)**
+> (Windows; macOS coming soon).
 
 ## Screenshots
 
@@ -37,7 +53,7 @@ it is. Open it to read, appraise or disparage it.
 
 ## Install
 
-Soapstone has two parts: the addon, and the
+Soapstone has two parts, and **you need both**: the addon, and the
 **[Soapstone companion](#sharing-with-other-players)**, a small app that
 sits in your system tray and connects you to everyone else. It brings
 other players' stones into your world and carries yours into theirs.
@@ -46,9 +62,9 @@ other players' stones into your world and carries yours into theirs.
    [CurseForge](https://www.curseforge.com/wow/addons/soapstone).** The
    CurseForge app is the best way: it puts Soapstone in the right folder
    and keeps it up to date along with the rest of your addons.
-2. **Get the companion.** Download the latest
-   `Soapstone-Companion-vX.Y.Z-setup.exe` from the
-   [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases)
+2. **Get the companion: without it, nobody sees your stones.** Download
+   `Soapstone-Companion-vX.Y.Z-setup.exe` from its
+   [download page](https://github.com/georgeplendl/Soapstone-WoW/releases/latest)
    and run it. It installs just for your Windows user (no admin prompt)
    and starts with Windows, so it's always ready to share. It leaves the
    CurseForge app's copy of the addon alone unless it carries a newer
@@ -56,8 +72,8 @@ other players' stones into your world and carries yours into theirs.
 3. **Restart the game** once so it picks up the new files. A soapstone
    button appears on your minimap.
 
-Keep the companion running while you play. It's what shares your stones
-with other players and brings theirs to you.
+**Keep the companion running while you play.** It's what shares your
+stones with other players and brings theirs to you.
 
 > **Coming soon:** the companion for macOS.
 
@@ -144,6 +160,8 @@ Soapstone is also a spin-off of
 [Soapstone](https://github.com/georgeplendl/Soapstone), a phone app for
 leaving voice messages at real-world places.
 
+<!-- github-only -->
+
 Want to build or change Soapstone? See the
 [developer notes](docs/Development.md).
 
@@ -168,6 +186,16 @@ the full [privacy policy](PRIVACY.md). The addon itself sends nothing; all
 sharing goes through the companion. (The one exception is an older,
 experimental player-to-player network, `/soap net join`, which is off by
 default.)
+
+<!-- /github-only -->
+
+<!-- curseforge-only
+## Links
+
+- [Source code, releases and the full changelog](https://github.com/georgeplendl/Soapstone-WoW) on GitHub
+- [Report a bug or suggest an idea](https://github.com/georgeplendl/Soapstone-WoW/issues)
+- [Privacy policy](PRIVACY.md)
+-->
 
 ## Support
 

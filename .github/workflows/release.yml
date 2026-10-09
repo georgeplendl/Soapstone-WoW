@@ -28,10 +28,13 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+        # Not marked "Latest": the README and the addon link to
+        # releases/latest for the companion's installer.
         run: |
           gh release create "$GITHUB_REF_NAME" dist/*.zip \
             --title "Soapstone $GITHUB_REF_NAME" \
             --notes-file dist/release-notes.md \
+            --latest=false \
             --verify-tag
 
   curseforge:
