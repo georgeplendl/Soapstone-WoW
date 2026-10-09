@@ -7,7 +7,8 @@ Addon releases already upload to CurseForge
 Release workflow, but the upload stays switched off until there's an API
 token. Details are under "Releasing" in [Development](Development.md).
 
-- [ ] **Add the token:** generate one on the
+- [x] **Add the token** (done 2026-10-09; the check found `1.60.1` =
+  id 17053, WoW Forever): generate one on the
   [API Tokens page](https://authors.curseforge.com/#/settings/api-tokens)
   (it lists nothing until you make one) and add it as the repo secret
   `CF_API_TOKEN` (Settings > Secrets and variables > Actions). The
