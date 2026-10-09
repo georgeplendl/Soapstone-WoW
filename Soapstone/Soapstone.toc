@@ -19,6 +19,7 @@ Cues.lua
 Net.lua
 Sync.lua
 Companion.lua
+CompanionWindow.lua
 SketchCanvas.lua
 WritePanel.lua
 DrawPanel.lua

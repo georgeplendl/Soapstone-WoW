@@ -116,6 +116,7 @@ read is still sealed for your alts.
 | `/soap list` | Stones nearby, nearest first |
 | `/soap read` | Open the nearest stone you're close enough to read |
 | `/soap guide` | Point the way to the nearest sealed stone (`/soap guide off` stops) |
+| `/soap companion` | Where to get the Soapstone companion, which shares your stones with other players |
 | `/soap sync` | Reload the UI so the companion syncs now (also: shift-click the minimap button) |
 | `/soap sound` | Turn the sound cues on or off |
 | `/soap button` | Show or hide the minimap button |

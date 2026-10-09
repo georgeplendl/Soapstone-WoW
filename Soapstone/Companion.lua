@@ -258,10 +258,11 @@ end
 -- Sync: the addon can't fetch anything itself, so syncing means reloading
 -- the UI. WoW saves SavedVariables (the companion uploads your changes
 -- within seconds) and the addon reads the companion's latest files.
--- Without a companion there's nothing to sync, so it says how to get one.
+-- Without a companion there's nothing to sync, so it shows where to get one.
 function Companion:Sync()
 	if self.state == "none" then
 		ns.Print("Syncing needs the Soapstone companion app, which shares your stones and brings back everyone else's.")
+		ns.CompanionWindow:Open()
 		return false
 	end
 	ReloadUI()
@@ -271,7 +272,7 @@ end
 -- "Companion: synced 2 mins ago", for /soap stats and the minimap button.
 function Companion:Status(now)
 	now = now or time()
-	if self.state == "none" then return "Companion: not installed" end
+	if self.state == "none" then return "Companion: not installed (type /soap companion to get it)" end
 	if self.state == "unreadable" then return "Companion: data unreadable" end
 	if self.state == "outdated" then return "Companion: update the Soapstone companion" end
 	if self.state == "elsewhere" then return "Companion: its stones are for another game" end

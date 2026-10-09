@@ -29,6 +29,8 @@ end
 ns.Print = function(msg) printed[#printed + 1] = msg end
 ns.Version = function() return "0.5.0" end
 ns.MinimapPins = { Update = function() end }
+local windowOpens = 0
+ns.CompanionWindow = { Open = function() windowOpens = windowOpens + 1 end }
 local Store, Stones, Companion, Codec = ns.Store, ns.Stones, ns.Companion, ns.Codec
 
 -- Codec pieces the format rests on.
@@ -70,7 +72,8 @@ ns.db = {
 	},
 }
 Store:Init()
-check(Companion:Status() == "Companion: not installed", "before loading: not installed")
+check(Companion:Status() == "Companion: not installed (type /soap companion to get it)",
+	"before loading: not installed, and how to get it")
 
 local file = readFile(FIXTURES .. "/companion/Stones.lua")
 check(file ~= nil, "the companion's fixture exists")
@@ -165,6 +168,7 @@ check(Companion:LoadSketches({ format = 1, writtenAt = NOW, scope = Codec.Base64
 local reloads = 0
 function ReloadUI() reloads = reloads + 1 end
 check(Companion:Sync() and reloads == 1, "Sync reloads the UI so the companion's latest files load")
+check(windowOpens == 0, "with a companion, Sync doesn't show where to get one")
 
 -- Files that aren't for us, or aren't right.
 local function load(data)
@@ -176,6 +180,7 @@ Companion.state = "none"
 local before = #printed
 check(Companion:Sync() == false and reloads == 1, "without a companion, Sync doesn't reload")
 check(#printed == before + 1 and printed[#printed]:find("companion app") ~= nil, "it says what the companion is instead")
+check(windowOpens == 1, "and opens the window with where to get it")
 check(load({ format = 2, records = {} }) == "outdated", "an unknown format: update the companion")
 check(Companion:Status() == "Companion: update the Soapstone companion", "and says so")
 check(load({ format = 1, scope = Codec.Base64Encode("classic~us"), records = {} }) == "elsewhere", "another game's stones are ignored")

@@ -11,6 +11,7 @@ ns.DEFAULTS = {
 	nearYards = 150, -- "somewhere close" sound cue for unread stones
 	sound = true,
 	network = false, -- sharing with other players is opt-in: /soap net join
+	companionDismissed = false, -- "Don't show this again": no "get the companion" window at login
 	minimap = { angle = 210, hide = false },
 }
 
@@ -107,6 +108,7 @@ local HELP = {
 	"/soap version — show the installed version",
 	"/soap net — network test tools (selftest, pacetest, status, ping, burst, log)",
 	"/soap stats — how many stones are stored, by zone",
+	"/soap companion — get the Soapstone companion app, which shares your stones with other players",
 	"/soap sync — sync with the companion app (reloads the UI); shift-click the minimap button does the same",
 	"/soap clear — delete every stone",
 }
@@ -197,6 +199,8 @@ SlashCmdList.SOAPSTONE = function(input)
 		printStats()
 	elseif cmd == "sync" then
 		ns.Companion:Sync()
+	elseif cmd == "companion" then
+		ns.CompanionWindow:Open()
 	elseif cmd == "clear" then
 		ns.Store:Clear()
 		ns.MinimapPins:Update()
@@ -213,6 +217,7 @@ end
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("ADDON_LOADED")
 boot:RegisterEvent("PLAYER_LOGIN")
+boot:RegisterEvent("PLAYER_ENTERING_WORLD")
 boot:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
 		SoapstoneDB = SoapstoneDB or {}
@@ -237,5 +242,10 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		ns.Net:Init()
 		ns.Sync:Init()
 		ns.Stones:StartProximity()
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		-- arg1 is isInitialLogin: a real login, not a /reload. Only the
+		-- first one after loading can be that; later ones are loading screens.
+		ns.CompanionWindow:OfferAtLogin(arg1)
+		self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 	end
 end)

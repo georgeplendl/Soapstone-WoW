@@ -85,6 +85,10 @@ Frame.__index = function(f, key)
 		CreateAnimation = function() return Frame.new("Animation") end,
 		LockHighlight = function(self) self.locked = true end,
 		UnlockHighlight = function(self) self.locked = false end,
+		HighlightText = function(self) self.highlighted = true end,
+		SetFocus = function(self) self.focused = true end,
+		SetChecked = function(self, on) self.checked = on and true or false end,
+		GetChecked = function(self) return self.checked end,
 	}
 	-- Template fields our code checks for and falls back from (e.g. a window's
 	-- TitleText) read as missing; any other unknown key is a method.
@@ -108,7 +112,8 @@ PanelTemplates_TabResize, PanelTemplates_SetNumTabs, PanelTemplates_SetTab = fun
 
 local ns = {}
 for _, file in ipairs({ "Core.lua", "Identity.lua", "Store.lua", "Sketch.lua", "Codec.lua", "Stones.lua",
-	"SketchCanvas.lua", "WritePanel.lua", "DrawPanel.lua", "DropWindow.lua", "ReadWindow.lua", "EditWindow.lua" }) do
+	"SketchCanvas.lua", "WritePanel.lua", "DrawPanel.lua", "DropWindow.lua", "ReadWindow.lua", "EditWindow.lua",
+	"CompanionWindow.lua" }) do
 	assert(loadfile(ROOT .. "/" .. file))("Soapstone", ns)
 end
 local printed = {}
@@ -279,5 +284,61 @@ check(edit.frame.shown and read.frame.shown and Stones:IsEditClockPaused(fresh),
 drop:Open()
 check(drop.frame.shown and not edit.frame.shown and not read.frame.shown, "it closes the edit dialog and the stone too")
 check(not Stones:IsEditClockPaused(fresh), "and the edit clock resumes, as if cancelled")
+
+-- Get the companion: where to download it, the link ready to copy.
+local cw = ns.CompanionWindow
+ns.Companion = { state = "none" }
+SlashCmdList.SOAPSTONE("companion")
+check(cw.frame and cw.frame.shown, "/soap companion opens the companion window")
+check(cw.box.text == cw.URL and cw.box.highlighted and cw.box.focused, "the link is in its box, selected, ready for Ctrl+C")
+check(cw.body.text:find("Without it, nobody else will see your stones", 1, true), "it says why the companion matters")
+cw.box.text = "oops"
+cw.box.scripts.OnTextChanged(cw.box, true)
+check(cw.box.text == cw.URL, "typing can't change the link")
+cw.box.scripts.OnEscapePressed(cw.box)
+check(not cw.frame.shown, "Escape closes it")
+cw:Open()
+click(cw.closeButton)
+check(not cw.frame.shown, "and so does Close")
+
+-- It opens by itself a few seconds into every login without a companion,
+-- until "Don't show this again".
+local timers = {}
+C_Timer.After = function(delay, fn) timers[#timers + 1] = { delay = delay, fn = fn } end
+ns.db.companionDismissed = false
+ns.Companion.state = "ok"
+check(not cw:OfferAtLogin(true) and #timers == 0, "with a companion, it isn't offered")
+ns.Companion.state = "none"
+check(not cw:OfferAtLogin(false) and #timers == 0, "nor after a /reload or a loading screen")
+check(cw:OfferAtLogin(true) and #timers == 1 and timers[1].delay > 0, "without one, a few seconds into a login")
+cw.box.focused, cw.box.highlighted = false, false
+timers[1].fn()
+check(cw.frame.shown and cw.box.text == cw.URL, "it opens")
+check(not cw.box.focused, "without taking the keyboard, so movement keys still move you")
+check(cw.dismissCheck.shown and cw.dismissLabel.shown and not cw.dismissCheck.checked,
+	"with \"Don't show this again\", unticked")
+cw:Close()
+check(cw:OfferAtLogin(true) and #timers == 2, "the next login offers it again")
+timers[2].fn()
+cw.dismissCheck:SetChecked(true)
+click(cw.dismissCheck)
+check(ns.db.companionDismissed == true, "ticking \"Don't show this again\" saves it")
+cw:Close()
+check(not cw:OfferAtLogin(true) and #timers == 2, "and then logins don't open it")
+SlashCmdList.SOAPSTONE("companion")
+check(cw.frame.shown and cw.dismissCheck.checked, "/soap companion still does, showing the box ticked")
+cw.dismissCheck:SetChecked(false)
+click(cw.dismissCheck)
+check(ns.db.companionDismissed == false, "unticking it brings the login reminder back")
+cw:Close()
+ns.Companion.state = "ok"
+cw:Open()
+check(not cw.dismissCheck.shown and not cw.dismissLabel.shown, "with a companion, the window has no checkbox")
+cw:Close()
+ns.Companion.state = "none"
+check(cw:OfferAtLogin(true) and #timers == 3, "a reminder already counting down...")
+ns.Companion.state = "ok"
+timers[3].fn()
+check(not cw.frame.shown, "...doesn't open if the companion turned up meanwhile")
 
 done()
