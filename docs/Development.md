@@ -157,8 +157,8 @@ runs each `tests/*.test.lua` under [fengari](https://github.com/fengari-lua/feng
 `tests/lib/wowsim.lua` simulates several WoW Forever players on one server
 (with the measured latency and send limits) for end-to-end sync tests. The
 **Tests** GitHub Action runs the suite on every push to `main` and every
-pull request, along with the companion's Rust tests and a dry run of the
-CurseForge upload.
+pull request, along with the companion's Rust tests and the
+[CurseForge checks](#curseforge).
 
 The other parts have their own tests: `cd companion && npm test` (Rust,
 `cargo test`) and `cd server && npm test` (Cloudflare's local runtime; needs
@@ -203,8 +203,13 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
   in `tools/curseforge.py` (or set `CF_RELEASE_TYPE`) at launch. At launch,
   also check whether the `Interface` number and CurseForge game version change.
 - TomTom is listed as an optional dependency.
-- `py tools/curseforge.py upload --dry-run` shows what would be sent; the
-  Tests workflow runs it on every pull request.
+- `py tools/curseforge.py upload --dry-run` shows what would be sent.
+  `py tools/curseforge.py check` (needs `CF_API_TOKEN`) checks that the
+  token works and the game version resolves, without uploading. The Tests
+  workflow runs both on every push and pull request (`check` only while the
+  secret is set), so a revoked token or a renamed game version shows up as a
+  failed **curseforge** job before release day. After replacing the token,
+  re-run any Tests run to check it.
 
 ## Next steps
 
