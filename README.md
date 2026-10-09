@@ -37,7 +37,7 @@ Made for **WoW Forever** (currently in beta).
 
 <p>
   <img src="docs/Screenshots/write.png" alt="The Leave a Soapstone window on Write: &quot;Be wary of GANK!&quot;, 16 of 140 letters" width="420">
-  <img src="docs/Screenshots/draw.png" alt="The Leave a Soapstone window on Draw: a sketch of a grinning man in front of a sunburst, captioned tfw using soapstone" width="420">
+  <img src="docs/Screenshots/draw.png" alt="The Leave a Soapstone window on Draw: a skeleton in a hooded robe holding a steaming mug among flames, captioned ANOTHER DAY. SAME BULLSHIT." width="420">
 </p>
 
 **Find it:** its pin on the minimap, and on the world map with how far away
