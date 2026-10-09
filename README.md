@@ -13,6 +13,8 @@ a soft sound when one is close.
 
 Made for **WoW Forever** (currently in beta).
 
+**[Get Soapstone on CurseForge](https://www.curseforge.com/wow/addons/soapstone)**
+
 ## Screenshots
 
 **Leave a stone:** write a message, or draw one.
@@ -35,18 +37,24 @@ it is. Open it to read, appraise or disparage it.
 
 ## Install
 
-Soapstone comes with the **[Soapstone companion](#sharing-with-other-players)**,
-a small app that sits in your system tray. It installs the addon, keeps it
-up to date, and connects you to everyone else: it brings other players'
-stones into your world and carries yours into theirs.
+Soapstone has two parts: the addon, and the
+**[Soapstone companion](#sharing-with-other-players)**, a small app that
+sits in your system tray and connects you to everyone else. It brings
+other players' stones into your world and carries yours into theirs.
 
-1. Download the latest `Soapstone-Companion-vX.Y.Z-setup.exe` from the
-   [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases).
-2. Run it. It installs just for your Windows user (no admin prompt), puts
-   Soapstone into your WoW Forever folder, and starts with Windows, so it's
-   always ready to share.
-3. Restart the game once so it picks up the new files. A soapstone button
-   appears on your minimap.
+1. **Get the addon from
+   [CurseForge](https://www.curseforge.com/wow/addons/soapstone).** The
+   CurseForge app is the best way: it puts Soapstone in the right folder
+   and keeps it up to date along with the rest of your addons.
+2. **Get the companion.** Download the latest
+   `Soapstone-Companion-vX.Y.Z-setup.exe` from the
+   [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases)
+   and run it. It installs just for your Windows user (no admin prompt)
+   and starts with Windows, so it's always ready to share. It leaves the
+   CurseForge app's copy of the addon alone unless it carries a newer
+   version, and if you skipped step 1, it installs the addon for you.
+3. **Restart the game** once so it picks up the new files. A soapstone
+   button appears on your minimap.
 
 Keep the companion running while you play. It's what shares your stones
 with other players and brings theirs to you.
@@ -102,8 +110,9 @@ read is still sealed for your alts.
 The **Soapstone companion** is a small app that sits in your system tray
 next to WoW and shares stones with everyone through a shared database:
 stones other players left show up when you log in, along with their
-drawings, and yours reach them the same way. It also installs and updates
-the addon for you, so you only install one thing (see [Install](#install)).
+drawings, and yours reach them the same way. If you don't use the
+CurseForge app, it also installs and updates the addon for you (see
+[Install](#install)).
 
 It only reads and writes Soapstone's own files, the way the WeakAuras
 Companion does, and never touches the game itself. Because WoW only loads
