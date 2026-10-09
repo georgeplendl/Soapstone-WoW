@@ -191,6 +191,9 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
    **Re-run failed jobs** on the workflow run.
 5. The companion carries its own copy of the addon, so after an addon
    release, tag a companion release (`companion-vX.Y.Z`) to ship it there too.
+   Publish companion releases as **Latest**; addon releases never are
+   (`--latest=false`). The README, the CurseForge page and
+   `/soap companion` link to `releases/latest` for the companion's installer.
 
 ### CurseForge
 

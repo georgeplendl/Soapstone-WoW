@@ -23,6 +23,14 @@ Made for **WoW Forever** (currently in beta).
 
 <!-- /github-only -->
 
+> [!IMPORTANT]
+> **Soapstone needs the Soapstone companion app to share stones.** The
+> companion carries your stones to other players and brings theirs to you.
+> Without it, nobody else will ever see your stones, and you won't find
+> theirs.
+> **[Get the companion](https://github.com/georgeplendl/Soapstone-WoW/releases/latest)**
+> (Windows; macOS coming soon).
+
 ## Screenshots
 
 **Leave a stone:** write a message, or draw one.
@@ -45,7 +53,7 @@ it is. Open it to read, appraise or disparage it.
 
 ## Install
 
-Soapstone has two parts: the addon, and the
+Soapstone has two parts, and **you need both**: the addon, and the
 **[Soapstone companion](#sharing-with-other-players)**, a small app that
 sits in your system tray and connects you to everyone else. It brings
 other players' stones into your world and carries yours into theirs.
@@ -54,9 +62,9 @@ other players' stones into your world and carries yours into theirs.
    [CurseForge](https://www.curseforge.com/wow/addons/soapstone).** The
    CurseForge app is the best way: it puts Soapstone in the right folder
    and keeps it up to date along with the rest of your addons.
-2. **Get the companion.** Download the latest
-   `Soapstone-Companion-vX.Y.Z-setup.exe` from the
-   [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases)
+2. **Get the companion: without it, nobody sees your stones.** Download
+   `Soapstone-Companion-vX.Y.Z-setup.exe` from its
+   [download page](https://github.com/georgeplendl/Soapstone-WoW/releases/latest)
    and run it. It installs just for your Windows user (no admin prompt)
    and starts with Windows, so it's always ready to share. It leaves the
    CurseForge app's copy of the addon alone unless it carries a newer
@@ -64,8 +72,8 @@ other players' stones into your world and carries yours into theirs.
 3. **Restart the game** once so it picks up the new files. A soapstone
    button appears on your minimap.
 
-Keep the companion running while you play. It's what shares your stones
-with other players and brings theirs to you.
+**Keep the companion running while you play.** It's what shares your
+stones with other players and brings theirs to you.
 
 > **Coming soon:** the companion for macOS.
 

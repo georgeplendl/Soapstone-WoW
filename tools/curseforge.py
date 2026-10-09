@@ -27,7 +27,8 @@ CurseForge's API has no way to change a project's page, so its text is
 pasted in by hand from docs/CurseForge/description.md. `page` writes that
 file from README.md, so the two always say the same: it drops the title,
 anything between <!-- github-only --> and <!-- /github-only -->, and other
-comments, uncomments <!-- curseforge-only ... --> blocks, turns in-page
+comments, uncomments <!-- curseforge-only ... --> blocks, turns GitHub
+alert boxes (> [!IMPORTANT]) into plain quotes, turns in-page
 links into plain text, and makes relative links and pictures point at
 GitHub (pictures from main). The Tests workflow runs `page --check`.
 """
@@ -208,6 +209,8 @@ def page_text(readme):
     text = re.sub(r"<!-- curseforge-only\n(.*?)-->", r"\1", text, flags=re.S)
     text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
     text = re.sub(r"\A\s*# .*\n", "", text)  # CurseForge shows the title itself
+    # GitHub's alert boxes ("> [!IMPORTANT]") stay plain quotes on CurseForge.
+    text = re.sub(r"^> \[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\n", "", text, flags=re.M)
     text = re.sub(r"\[([^\]]+)\]\(#[^)]*\)", r"\1", text)  # in-page links
     text = re.sub(r'(src=")(?!https?:)', lambda m: m[1] + RAW_URL, text)
     text = re.sub(r"(\]\()(?!https?:|#|mailto:)", lambda m: m[1] + f"{REPO_URL}/blob/main/", text)
