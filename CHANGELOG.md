@@ -10,6 +10,8 @@ for players: what changed in game, not how.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-09
+
 ### Added
 - **Scores count everyone.** With the companion, a stone's score now adds
   up every player's appraisals and disparagements (one per computer), not
@@ -226,7 +228,8 @@ for players: what changed in game, not how.
   (`/soap near`) and a chime when you can read one (`/soap sound`).
 - `/soap list`, `/soap test`, `/soap button` and `/soap clear`.
 
-[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/georgeplendl/Soapstone-WoW/compare/v0.4.0...v0.4.1
