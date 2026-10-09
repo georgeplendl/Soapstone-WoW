@@ -28,7 +28,10 @@ toward sealed ones, and sound cues as you close in.
 
 ## Download
 
-Players install through the companion (Windows) or the addon zip; both are
+Players get the addon from
+[CurseForge](https://www.curseforge.com/wow/addons/soapstone) (best through
+the CurseForge app, which keeps it updated) and the companion for sharing
+(which also installs the addon if it's missing). The companion and the zip are
 on the [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases),
 and the [README](../README.md#install) has the steps. Addon releases are
 tagged `vX.Y.Z`, companion releases `companion-vX.Y.Z`. `/soap version`

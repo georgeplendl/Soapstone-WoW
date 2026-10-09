@@ -1,7 +1,7 @@
 # CurseForge page
 
 The text for Soapstone's
-[CurseForge page](https://www.curseforge.com/projects/1730855). CurseForge
+[CurseForge page](https://www.curseforge.com/wow/addons/soapstone). CurseForge
 has no API for a project's page (its API only handles files), so this is
 pasted in by hand, on the project's **Description** in the
 [authors console](https://authors.curseforge.com/). Each release's
