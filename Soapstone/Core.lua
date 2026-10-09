@@ -11,7 +11,7 @@ ns.DEFAULTS = {
 	nearYards = 150, -- "somewhere close" sound cue for unread stones
 	sound = true,
 	network = false, -- sharing with other players is opt-in: /soap net join
-	companionOffered = false, -- the "get the companion" window has opened by itself once
+	companionDismissed = false, -- "Don't show this again": no "get the companion" window at login
 	minimap = { angle = 210, hide = false },
 }
 
@@ -217,6 +217,7 @@ end
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("ADDON_LOADED")
 boot:RegisterEvent("PLAYER_LOGIN")
+boot:RegisterEvent("PLAYER_ENTERING_WORLD")
 boot:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
 		SoapstoneDB = SoapstoneDB or {}
@@ -234,7 +235,6 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		ns.Companion:Load()
 		ns.Companion:LoadSketches()
 		ns.Companion:AnnounceRefusals()
-		ns.CompanionWindow:OfferOnce()
 		ns.MinimapButton:Init()
 		ns.MinimapPins:Init()
 		ns.WorldMapPins:Init()
@@ -242,5 +242,10 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		ns.Net:Init()
 		ns.Sync:Init()
 		ns.Stones:StartProximity()
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		-- arg1 is isInitialLogin: a real login, not a /reload. Only the
+		-- first one after loading can be that; later ones are loading screens.
+		ns.CompanionWindow:OfferAtLogin(arg1)
+		self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 	end
 end)

@@ -4,8 +4,10 @@ local _, ns = ...
 -- what shares stones between players. WoW can't open web pages, so the link
 -- sits selected in a box, ready for Ctrl+C.
 --
--- Opens with /soap companion, when you sync without a companion, and once
--- by itself the first time you log in without one (ns.db.companionOffered).
+-- Opens with /soap companion, when you sync without a companion, and by
+-- itself a few seconds into every login (not reloads or loading screens)
+-- until the companion turns up, unless you tick "Don't show this again"
+-- (ns.db.companionDismissed).
 
 local Window = {}
 ns.CompanionWindow = Window
@@ -54,33 +56,53 @@ function Window:Build()
 	hint:SetPoint("TOPLEFT", box, "BOTTOMLEFT", -6, -6)
 	hint:SetText("Press Ctrl+C to copy it, then paste it into your web browser.")
 
+	-- Only while there's no companion: it stops the login reminder, nothing else.
+	local dismiss = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+	dismiss:SetSize(24, 24)
+	dismiss:SetPoint("BOTTOMLEFT", 16, 12)
+	local label = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	label:SetPoint("LEFT", dismiss, "RIGHT", 2, 0)
+	label:SetText("Don't show this again")
+	dismiss:SetHitRectInsets(0, -label:GetStringWidth() - 4, 0, 0) -- the label is clickable too
+	dismiss:SetScript("OnClick", function(check) ns.db.companionDismissed = check:GetChecked() and true or false end)
+
 	local close = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	close:SetSize(100, 22)
-	close:SetPoint("BOTTOM", 0, 14)
+	close:SetPoint("BOTTOMRIGHT", -16, 14)
 	close:SetText("Close")
 	close:SetScript("OnClick", function() f:Hide() end)
 
 	self.frame, self.body, self.box, self.hint, self.closeButton = f, body, box, hint, close
+	self.dismissCheck, self.dismissLabel = dismiss, label
 end
 
-function Window:Open()
+-- `quietly`: opened by itself at login, so it leaves the keyboard alone
+-- (focus would turn your movement keys into typing in the link box).
+function Window:Open(quietly)
 	self:Build()
+	local noCompanion = ns.Companion.state == "none"
+	self.dismissCheck:SetShown(noCompanion)
+	self.dismissLabel:SetShown(noCompanion)
+	self.dismissCheck:SetChecked(ns.db.companionDismissed and true or false)
 	self.frame:Show()
 	self.box:SetText(self.URL)
-	self.box:SetFocus()
-	self.box:HighlightText()
+	if not quietly then
+		self.box:SetFocus()
+		self.box:HighlightText()
+	end
 end
 
 function Window:Close()
 	if self.frame then self.frame:Hide() end
 end
 
--- After the companion's data has loaded: the first time there's none, show
--- the window once, a few seconds in. Never again after that; the minimap
--- button's tooltip and /soap companion still point the way.
-function Window:OfferOnce()
-	if ns.Companion.state ~= "none" or ns.db.companionOffered then return false end
-	ns.db.companionOffered = true
-	C_Timer.After(self.OFFER_DELAY, function() Window:Open() end)
+-- From PLAYER_ENTERING_WORLD, after the companion's data has loaded: on a
+-- real login (not a reload or a loading screen) without a companion, opens
+-- a few seconds in, unless you've said not to.
+function Window:OfferAtLogin(isInitialLogin)
+	if not isInitialLogin or ns.Companion.state ~= "none" or ns.db.companionDismissed then return false end
+	C_Timer.After(self.OFFER_DELAY, function()
+		if ns.Companion.state == "none" then Window:Open(true) end
+	end)
 	return true
 end

@@ -20,9 +20,10 @@ for players: what changed in game, not how.
 - **Get the companion from inside the game.** Without the Soapstone
   companion, nobody else sees your stones and you don't find theirs. Type
   `/soap companion` for a window with its download link, ready to copy
-  into your browser. It also opens by itself once, the first time you play
-  without the companion, and shift-clicking the minimap button opens it
-  too. The minimap button's tooltip now says plainly when your stones
+  into your browser. Until the companion is set up, it also opens a few
+  seconds after you log in (not after a `/reload`); tick **Don't show this
+  again** if you'd rather it didn't. Shift-clicking the minimap button
+  opens it too, and the button's tooltip now says plainly when your stones
   aren't being shared.
 
 ## [0.5.1] - 2026-10-06
