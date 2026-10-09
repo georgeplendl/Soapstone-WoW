@@ -10,8 +10,10 @@ local _, ns = ...
 local Window = {}
 ns.CompanionWindow = Window
 
--- The README's install steps, which link the latest installer.
-Window.URL = "https://github.com/georgeplendl/Soapstone-WoW#install"
+-- The companion's download page. Only companion releases are marked Latest
+-- on GitHub (addon releases go out with --latest=false), so this is always
+-- its newest installer.
+Window.URL = "https://github.com/georgeplendl/Soapstone-WoW/releases/latest"
 Window.OFFER_DELAY = 5 -- seconds after login, so it isn't lost in the login messages
 
 local WIDTH, HEIGHT = 440, 250
