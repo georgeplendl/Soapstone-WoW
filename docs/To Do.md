@@ -15,10 +15,11 @@ token. API access was requested on 2026-10-06. Details are under
   the file and that it shows up as a beta for WoW Forever (1.60.1). If it
   couldn't pick the game version, set the repo variable
   `CF_GAME_VERSION_IDS` to the right id and use **Re-run failed jobs**.
-- [ ] **README:** once Soapstone is on CurseForge, add it to Install, and
-  say to update through either the CurseForge app or the companion, not
-  both (the companion updates the addon folder too, so the CurseForge app
-  may then show it as modified).
+- [ ] **Project page:** paste the summary and
+  [`CurseForge/description.md`](CurseForge/description.md) into the
+  project's page (steps in [CurseForge](CurseForge/README.md)), and check
+  the pictures show. The README stays companion-first, so it doesn't send
+  players to CurseForge.
 - [ ] **At WoW Forever's launch (2026-11-04):** switch uploads from `beta`
   to `release` (`RELEASE_TYPE` in `tools/curseforge.py`), and check whether
   the `## Interface:` number or CurseForge's game version changed.
