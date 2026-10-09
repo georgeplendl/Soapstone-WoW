@@ -110,11 +110,15 @@ jobs:
             signed="code-signed through the SignPath Foundation"
           fi
           files=("$installer")
-          if gh release download "v$ADDON_VERSION" -p "Soapstone-v$ADDON_VERSION.zip" -D out 2>/dev/null; then
-            files+=("out/Soapstone-v$ADDON_VERSION.zip")
-          fi
+          # The addon release's zip (named Soapstone-vX.Y.Z.zip up to 0.6.0).
+          for zip in "Soapstone-Addon-v$ADDON_VERSION.zip" "Soapstone-v$ADDON_VERSION.zip"; do
+            if gh release download "v$ADDON_VERSION" -p "$zip" -D out 2>/dev/null; then
+              files+=("out/$zip")
+              break
+            fi
+          done
           {
-            echo "Soapstone Companion $COMPANION_VERSION, carrying Soapstone $ADDON_VERSION. The installer is $signed."
+            echo "Soapstone Companion $COMPANION_VERSION, carrying Soapstone Addon $ADDON_VERSION. The installer is $signed."
             echo
             echo "**Check your download (SHA-256):**"
             for f in "${files[@]}"; do echo "- \`$(basename "$f")\`: \`$(sha256sum "$f" | cut -d' ' -f1)\`"; done
