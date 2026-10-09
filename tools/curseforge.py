@@ -62,13 +62,39 @@ def request(path, token, data=None, headers=None):
         with urllib.request.urlopen(req, timeout=60) as resp:
             return json.load(resp)
     except urllib.error.HTTPError as e:
-        fail(f"CurseForge {path}: HTTP {e.code}: {e.read().decode(errors='replace')[:500]}")
+        # CurseForge echoes a malformed token back in its error; never print it.
+        body = e.read().decode(errors="replace")
+        try:  # the decoded message, so JSON escapes can't hide the token from replace()
+            body = json.loads(body).get("errorMessage") or body
+        except (ValueError, AttributeError):
+            pass
+        for form in (token, json.dumps(token)[1:-1]):
+            body = body.replace(form, "***")
+        body = body[:500]
+        hint = token_hint(token) if "malformed" in body.lower() else ""
+        fail(f"CurseForge {path}: HTTP {e.code}: {body}{hint}")
+
+
+def token_hint(token):
+    """Says what a token CurseForge calls malformed looks like, without showing it."""
+    if token.startswith("$2a$"):
+        shape = "a CurseForge for Studios API key (it starts with $2a$), which can't upload"
+    else:
+        shape = (f"{len(token)} characters, not the xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx "
+                 "(36 characters) of an author token")
+        if any(c in token for c in "\"' "):
+            shape += ", and it has quotes or spaces in it"
+    return (f"\nThe token is {shape}. Make an author token at "
+            "https://authors.curseforge.com/#/settings/api-tokens and save it as CF_API_TOKEN.")
 
 
 def api_token():
-    token = os.environ.get("CF_API_TOKEN")
+    token = os.environ.get("CF_API_TOKEN", "").strip()
     if not token:
         fail("CF_API_TOKEN isn't set")
+    if not token.isascii():
+        fail("CF_API_TOKEN has characters no token has (curly quotes or invisible ones, "
+             "often picked up by copy and paste). Copy it again and save it as CF_API_TOKEN.")
     return token
 
 
