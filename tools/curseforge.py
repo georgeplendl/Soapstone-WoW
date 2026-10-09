@@ -1,9 +1,11 @@
-"""Uploads a Soapstone release zip to CurseForge.
+"""Uploads a Soapstone release zip to CurseForge, and writes its page text.
 
     py tools/release.py build --tag v0.6.0          # first: the zip, in dist/
     py tools/curseforge.py upload --tag v0.6.0      # then: upload it
     py tools/curseforge.py upload --dry-run         # show what would be sent
     py tools/curseforge.py check                    # token + game version, no upload
+    py tools/curseforge.py page                     # README.md -> the CurseForge page text
+    py tools/curseforge.py page --check             # fail if that text is out of date
 
 Reads, from Soapstone/Soapstone.toc at the chosen ref:
   ## Version:             the file's version (dist/Soapstone-v<version>.zip)
@@ -20,6 +22,14 @@ with --dry-run. The GitHub workflow (.github/workflows/release.yml) runs
 `upload --tag` after each GitHub Release when the CF_API_TOKEN secret is set,
 and the Tests workflow runs `check` on every push and pull request, so a
 token or game version that stops working shows up before release day.
+
+CurseForge's API has no way to change a project's page, so its text is
+pasted in by hand from docs/CurseForge/description.md. `page` writes that
+file from README.md, so the two always say the same: it drops the title,
+anything between <!-- github-only --> and <!-- /github-only -->, and other
+comments, uncomments <!-- curseforge-only ... --> blocks, turns in-page
+links into plain text, and makes relative links and pictures point at
+GitHub (pictures from main). The Tests workflow runs `page --check`.
 """
 
 import argparse
@@ -31,7 +41,12 @@ import urllib.error
 import urllib.request
 import uuid
 
-from release import DIST, ADDON, TOC, changelog_notes, check, fail, git
+from release import DIST, ADDON, ROOT, TOC, changelog_notes, check, fail, git
+
+README = ROOT / "README.md"
+PAGE = ROOT / "docs" / "CurseForge" / "description.md"
+REPO_URL = "https://github.com/georgeplendl/Soapstone-WoW"
+RAW_URL = "https://raw.githubusercontent.com/georgeplendl/Soapstone-WoW/main/"
 
 API = "https://wow.curseforge.com/api"
 USER_AGENT = "Soapstone-release (https://github.com/georgeplendl/Soapstone-WoW)"
@@ -187,15 +202,42 @@ def verify(ref):
     print("ok: ready to upload (nothing was uploaded)")
 
 
+def page_text(readme):
+    """The CurseForge page: the README without its GitHub-only parts."""
+    text = re.sub(r"<!-- github-only -->.*?<!-- /github-only -->", "", readme, flags=re.S)
+    text = re.sub(r"<!-- curseforge-only\n(.*?)-->", r"\1", text, flags=re.S)
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    text = re.sub(r"\A\s*# .*\n", "", text)  # CurseForge shows the title itself
+    text = re.sub(r"\[([^\]]+)\]\(#[^)]*\)", r"\1", text)  # in-page links
+    text = re.sub(r'(src=")(?!https?:)', lambda m: m[1] + RAW_URL, text)
+    text = re.sub(r"(\]\()(?!https?:|#|mailto:)", lambda m: m[1] + f"{REPO_URL}/blob/main/", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip() + "\n"
+
+
+def page(check_only):
+    text = page_text(README.read_text(encoding="utf-8"))
+    rel = PAGE.relative_to(ROOT).as_posix()
+    if check_only:
+        if not PAGE.exists() or PAGE.read_text(encoding="utf-8") != text:
+            fail(f"{rel} doesn't match README.md; run py tools/curseforge.py page and commit it")
+        print(f"ok: {rel} matches README.md")
+        return
+    PAGE.write_text(text, encoding="utf-8", newline="\n")
+    print(f"wrote {rel} from README.md")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["upload", "check"])
+    parser.add_argument("command", choices=["upload", "check", "page"])
     parser.add_argument("--ref", default="HEAD", help="tag or commit to release (default HEAD)")
     parser.add_argument("--tag", help="require this tag name to equal v<.toc version>")
     parser.add_argument("--dry-run", action="store_true", help="print what would be uploaded")
+    parser.add_argument("--check", action="store_true", help="page: only check the file is up to date")
     args = parser.parse_args()
     if args.command == "check":
         verify(args.ref)
+    elif args.command == "page":
+        page(args.check)
     else:
         upload(args.ref, args.tag, args.dry_run)
 

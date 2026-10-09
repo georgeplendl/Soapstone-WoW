@@ -197,6 +197,8 @@ The `## Version:` line in `Soapstone/Soapstone.toc` is the single source of trut
 - Project id `1730855`, in the `.toc` as `## X-Curse-Project-ID`.
 - The project page's text lives in [`docs/CurseForge/`](CurseForge/) and is
   pasted in by hand: CurseForge's API has no endpoint for project pages.
+  It's made from the README (`py tools/curseforge.py page`), so edit the
+  README, not `description.md`; the Tests workflow checks they match.
 - The upload runs only once the repo secret `CF_API_TOKEN` is set (a token
   from authors.curseforge.com > Settings > API tokens). Until then the
   Release workflow just leaves a notice.

@@ -1,5 +1,9 @@
 # Soapstone for World of Warcraft
 
+<!-- This README is also Soapstone's CurseForge page: `py tools/curseforge.py page`
+     writes docs/CurseForge/description.md from it. Wrap GitHub-only parts in
+     github-only markers; put CurseForge-only parts in a curseforge-only comment. -->
+
 > Leave your mark, literally. Scribble doodles and drop secret messages wherever you go, visible only to players who wander into the area.
 
 Soapstone lets you leave short messages and little drawings at spots in the
@@ -13,7 +17,11 @@ a soft sound when one is close.
 
 Made for **WoW Forever** (currently in beta).
 
+<!-- github-only -->
+
 **[Get Soapstone on CurseForge](https://www.curseforge.com/wow/addons/soapstone)**
+
+<!-- /github-only -->
 
 ## Screenshots
 
@@ -144,6 +152,8 @@ Soapstone is also a spin-off of
 [Soapstone](https://github.com/georgeplendl/Soapstone), a phone app for
 leaving voice messages at real-world places.
 
+<!-- github-only -->
+
 Want to build or change Soapstone? See the
 [developer notes](docs/Development.md).
 
@@ -168,6 +178,16 @@ the full [privacy policy](PRIVACY.md). The addon itself sends nothing; all
 sharing goes through the companion. (The one exception is an older,
 experimental player-to-player network, `/soap net join`, which is off by
 default.)
+
+<!-- /github-only -->
+
+<!-- curseforge-only
+## Links
+
+- [Source code, releases and the full changelog](https://github.com/georgeplendl/Soapstone-WoW) on GitHub
+- [Report a bug or suggest an idea](https://github.com/georgeplendl/Soapstone-WoW/issues)
+- [Privacy policy](PRIVACY.md)
+-->
 
 ## Support
 
