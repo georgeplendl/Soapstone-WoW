@@ -35,36 +35,28 @@ it is. Open it to read, appraise or disparage it.
 
 ## Install
 
-### With the companion (Windows, recommended)
-
-The [Soapstone companion](#sharing-with-other-players) installs the addon
-for you, keeps it up to date, and shares stones with other players.
+Soapstone comes with the **[Soapstone companion](#sharing-with-other-players)**,
+a small app that sits in your system tray. It installs the addon, keeps it
+up to date, and connects you to everyone else: it brings other players'
+stones into your world and carries yours into theirs.
 
 1. Download the latest `Soapstone-Companion-vX.Y.Z-setup.exe` from the
    [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases).
 2. Run it. It installs just for your Windows user (no admin prompt), puts
-   Soapstone into your WoW Forever folder, and starts with Windows; you can
-   turn that off in its tray menu.
+   Soapstone into your WoW Forever folder, and starts with Windows, so it's
+   always ready to share.
 3. Restart the game once so it picks up the new files. A soapstone button
    appears on your minimap.
+
+Keep the companion running while you play. It's what shares your stones
+with other players and brings theirs to you.
+
+> **Coming soon:** the companion for macOS.
 
 > **Beta.** The companion is new, so expect rough edges. Until its
 > installer is code-signed, Windows may say "Windows protected your PC":
 > choose **More info**, then **Run anyway**. Each release lists the
 > installer's SHA-256 checksum, so you can check your download.
-
-### Addon only (Windows or Mac)
-
-Without the companion the addon works on its own, but it's the companion
-that brings in other players' stones and shares yours. The companion is
-Windows-only for now.
-
-1. Download the latest `Soapstone-vX.Y.Z.zip` from the
-   [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases).
-2. Unzip it into your game's `Interface\AddOns` folder, so you end up with
-   `Interface\AddOns\Soapstone\Soapstone.toc`. For WoW Forever's beta that's
-   `World of Warcraft\_classic_beta_\Interface\AddOns`.
-3. Restart the game. A soapstone button appears on your minimap.
 
 What's new in each version is in the [changelog](CHANGELOG.md).
 
@@ -84,8 +76,8 @@ What's new in each version is in the [changelog](CHANGELOG.md).
   get its arrow; otherwise you get the game's own map pin.
 - **Appraise or disparage:** praise a stone you liked, or mark one you
   didn't. Appraised pins turn gold. Disparaged ones fade and stop calling
-  you over. With the companion, a stone's score adds up every player's
-  votes, and its pin shows how many players have found it.
+  you over. A stone's score adds up every player's votes, and its pin
+  shows how many players have found it.
 - **Change your mind:** for 5 minutes after dropping a stone, you can edit
   or delete it from its window.
 
@@ -112,7 +104,6 @@ next to WoW and shares stones with everyone through a shared database:
 stones other players left show up when you log in, along with their
 drawings, and yours reach them the same way. It also installs and updates
 the addon for you, so you only install one thing (see [Install](#install)).
-It runs on Windows only for now.
 
 It only reads and writes Soapstone's own files, the way the WeakAuras
 Companion does, and never touches the game itself. Because WoW only loads
@@ -126,9 +117,21 @@ What the companion sends, and who can see it, is in the
 [privacy policy](PRIVACY.md). To uninstall it, use Windows Settings >
 Apps > Soapstone; that also removes it from Windows startup.
 
-## Credits
+## Inspiration
 
-Inspired by the soapstone messages of *Dark Souls*, and spun off from
+Soapstone grew out of two games. In *Elden Ring* and *Dark Souls*, players
+leave messages on the ground for strangers to find and rate. In
+*Splatoon 3*, players' drawings pop up around the plaza. Soapstone brings
+both to Azeroth.
+
+<p>
+  <img src="docs/Inspiration/elden-ring-message.jpg" alt="Elden Ring: a player's message reads &quot;If only I had a giant... but hole...&quot;, rated Poor, with 7404 appraisals" width="385">
+  <img src="docs/Inspiration/splatoon-3-post.png" alt="Splatoon 3: a player's drawn post above the plaza stairs reads &quot;BIG. MAN.&quot; next to a sketch of a flexing muscleman" width="321">
+</p>
+
+*Left: a message in Elden Ring. Right: a drawn post in Splatoon 3.*
+
+Soapstone is also a spin-off of
 [Soapstone](https://github.com/georgeplendl/Soapstone), a phone app for
 leaving voice messages at real-world places.
 
@@ -152,9 +155,10 @@ still being set up, so installers up to v0.2.2 are not signed yet.
 characters' names, the stones you leave and change, your appraisals and
 reports, and which stones your characters have opened; the installer shows
 this before you install. See
-the full [privacy policy](PRIVACY.md). The addon on its own sends nothing,
-unless you turn on its older player-to-player network (`/soap net join`,
-off by default).
+the full [privacy policy](PRIVACY.md). The addon itself sends nothing; all
+sharing goes through the companion. (The one exception is an older,
+experimental player-to-player network, `/soap net join`, which is off by
+default.)
 
 ## Support
 
