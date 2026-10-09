@@ -77,8 +77,8 @@ stones with other players and brings theirs to you.
 
 > **Coming soon:** the companion for macOS.
 
-> **Beta.** The companion is new, so expect rough edges. Until its
-> installer is code-signed, Windows may say "Windows protected your PC":
+> **Beta.** The companion is new, so expect rough edges. Its installer
+> isn't code-signed, so Windows may say "Windows protected your PC":
 > choose **More info**, then **Run anyway**. Each release lists the
 > installer's SHA-256 checksum, so you can check your download.
 
@@ -165,19 +165,6 @@ leaving voice messages at real-world places.
 
 Want to build or change Soapstone? See the
 [developer notes](docs/Development.md).
-
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/),
-certificate by [SignPath Foundation](https://signpath.org/).
-
-- **Committers and reviewers:** [George Plendl](https://github.com/georgeplendl)
-- **Approvers:** [George Plendl](https://github.com/georgeplendl)
-
-The companion's Windows installer is built from this repository's source by
-GitHub Actions ([`companion-release.yml`](.github/workflows/companion-release.yml))
-and signed only after the maintainer approves each release. Signing is
-still being set up, so installers up to v0.2.2 are not signed yet.
 
 **Privacy policy:** the companion sends the Soapstone server your
 characters' names, the stones you leave and change, your appraisals and

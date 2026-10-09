@@ -40,7 +40,7 @@ The README marks what's different on CurseForge with comments you only
 see in its source:
 
 - `<!-- github-only -->` ... `<!-- /github-only -->` around parts that stay
-  on GitHub (the CurseForge link, developer notes, code signing policy).
+  on GitHub (the CurseForge link, developer notes).
 - `<!-- curseforge-only ... -->` around parts only CurseForge shows (the
   Links section).
 

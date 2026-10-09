@@ -64,8 +64,8 @@ stones with other players and brings theirs to you.
 
 > **Coming soon:** the companion for macOS.
 
-> **Beta.** The companion is new, so expect rough edges. Until its
-> installer is code-signed, Windows may say "Windows protected your PC":
+> **Beta.** The companion is new, so expect rough edges. Its installer
+> isn't code-signed, so Windows may say "Windows protected your PC":
 > choose **More info**, then **Run anyway**. Each release lists the
 > installer's SHA-256 checksum, so you can check your download.
 

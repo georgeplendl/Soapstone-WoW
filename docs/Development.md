@@ -236,8 +236,8 @@ Short-term chores (CurseForge, icons) are in [To Do](To%20Do.md).
 4. **Trim the player-to-player network to live drops.** Remove zone sync and
    the outbox now that the companion carries stones
    ([Sharing — Architecture](Sharing%20-%20Architecture.md)).
-5. **Code signing** for the companion installer (SignPath, being set up),
-   then a macOS companion.
+5. **A macOS companion.** (Code signing for the Windows installer is on
+   hold: the SignPath Foundation turned down the application.)
 6. **In-world presence.** A rune glow at your feet when on the spot. (The
    arrow and waypoint marker are in: "guide me there", through TomTom or
    the game's own waypoint.)
