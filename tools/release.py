@@ -93,10 +93,18 @@ def add_build_info(zip_path, ref, label):
         archive.writestr(f"{ADDON}/BuildInfo.lua", lua)
 
 
+def zip_name(version):
+    """"Soapstone-Addon-v0.7.0.zip": says it's the addon, not the companion.
+
+    Releases up to 0.6.0 were named Soapstone-v<version>.zip.
+    """
+    return f"{ADDON}-Addon-v{version}.zip"
+
+
 def build(ref, tag):
     version, notes = check(ref, tag)
     DIST.mkdir(exist_ok=True)
-    zip_path = DIST / f"{ADDON}-v{version}.zip"
+    zip_path = DIST / zip_name(version)
     git("archive", "--format=zip", "-o", str(zip_path), ref, f"{ADDON}/")
     add_build_info(zip_path, ref, tag or f"v{version}")
     notes_path = DIST / "release-notes.md"

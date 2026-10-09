@@ -8,7 +8,7 @@
     py tools/curseforge.py page --check             # fail if that text is out of date
 
 Reads, from Soapstone/Soapstone.toc at the chosen ref:
-  ## Version:             the file's version (dist/Soapstone-v<version>.zip)
+  ## Version:             the file's version (dist/Soapstone-Addon-v<version>.zip)
   ## Interface:           the game version, 16001 -> "1.60.1"
   ## X-Curse-Project-ID:  the CurseForge project
 
@@ -42,7 +42,7 @@ import urllib.error
 import urllib.request
 import uuid
 
-from release import DIST, ADDON, ROOT, TOC, changelog_notes, check, fail, git
+from release import DIST, ADDON, ROOT, TOC, changelog_notes, check, fail, git, zip_name
 
 README = ROOT / "README.md"
 PAGE = ROOT / "docs" / "CurseForge" / "description.md"
@@ -156,7 +156,7 @@ def upload(ref, tag, dry_run):
     version, _ = check(ref, tag)
     project = toc_field(ref, "X-Curse-Project-ID")
     gv_name = game_version_name(toc_field(ref, "Interface"))
-    zip_path = DIST / f"{ADDON}-v{version}.zip"
+    zip_path = DIST / zip_name(version)
     metadata = {
         "displayName": f"{ADDON} v{version}",
         "releaseType": os.environ.get("CF_RELEASE_TYPE", RELEASE_TYPE),
