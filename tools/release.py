@@ -102,7 +102,13 @@ def build(ref, tag):
     notes_path = DIST / "release-notes.md"
     install = (
         "\n\n---\n\n"
-        f"**Install:** download `{zip_path.name}` and unzip it into "
+        "**You need the Soapstone companion to share stones.** Without it, nobody "
+        "else sees your stones and you won't find theirs. "
+        "[Get the companion](https://github.com/georgeplendl/Soapstone-WoW/releases/latest) "
+        "(Windows; macOS coming soon).\n\n"
+        "**Install the addon:** get it on "
+        "[CurseForge](https://www.curseforge.com/wow/addons/soapstone) (the CurseForge "
+        f"app keeps it up to date), or download `{zip_path.name}` and unzip it into "
         "`World of Warcraft\\<client>\\Interface\\AddOns`, so you get "
         f"`AddOns\\{ADDON}\\{ADDON}.toc`. Then restart the game."
     )
