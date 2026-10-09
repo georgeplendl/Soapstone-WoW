@@ -85,6 +85,8 @@ Frame.__index = function(f, key)
 		CreateAnimation = function() return Frame.new("Animation") end,
 		LockHighlight = function(self) self.locked = true end,
 		UnlockHighlight = function(self) self.locked = false end,
+		HighlightText = function(self) self.highlighted = true end,
+		SetFocus = function(self) self.focused = true end,
 	}
 	-- Template fields our code checks for and falls back from (e.g. a window's
 	-- TitleText) read as missing; any other unknown key is a method.
@@ -108,7 +110,8 @@ PanelTemplates_TabResize, PanelTemplates_SetNumTabs, PanelTemplates_SetTab = fun
 
 local ns = {}
 for _, file in ipairs({ "Core.lua", "Identity.lua", "Store.lua", "Sketch.lua", "Codec.lua", "Stones.lua",
-	"SketchCanvas.lua", "WritePanel.lua", "DrawPanel.lua", "DropWindow.lua", "ReadWindow.lua", "EditWindow.lua" }) do
+	"SketchCanvas.lua", "WritePanel.lua", "DrawPanel.lua", "DropWindow.lua", "ReadWindow.lua", "EditWindow.lua",
+	"CompanionWindow.lua" }) do
 	assert(loadfile(ROOT .. "/" .. file))("Soapstone", ns)
 end
 local printed = {}
@@ -279,5 +282,35 @@ check(edit.frame.shown and read.frame.shown and Stones:IsEditClockPaused(fresh),
 drop:Open()
 check(drop.frame.shown and not edit.frame.shown and not read.frame.shown, "it closes the edit dialog and the stone too")
 check(not Stones:IsEditClockPaused(fresh), "and the edit clock resumes, as if cancelled")
+
+-- Get the companion: where to download it, the link ready to copy.
+local cw = ns.CompanionWindow
+ns.Companion = { state = "none" }
+SlashCmdList.SOAPSTONE("companion")
+check(cw.frame and cw.frame.shown, "/soap companion opens the companion window")
+check(cw.box.text == cw.URL and cw.box.highlighted and cw.box.focused, "the link is in its box, selected, ready for Ctrl+C")
+check(cw.body.text:find("Without it, nobody else will see your stones", 1, true), "it says why the companion matters")
+cw.box.text = "oops"
+cw.box.scripts.OnTextChanged(cw.box, true)
+check(cw.box.text == cw.URL, "typing can't change the link")
+cw.box.scripts.OnEscapePressed(cw.box)
+check(not cw.frame.shown, "Escape closes it")
+cw:Open()
+click(cw.closeButton)
+check(not cw.frame.shown, "and so does Close")
+
+-- It opens by itself once, a few seconds after the first login without a companion.
+local timers = {}
+C_Timer.After = function(delay, fn) timers[#timers + 1] = { delay = delay, fn = fn } end
+ns.db.companionOffered = nil
+ns.Companion.state = "ok"
+check(not cw:OfferOnce() and #timers == 0, "with a companion, it isn't offered")
+ns.Companion.state = "none"
+check(cw:OfferOnce() and #timers == 1 and timers[1].delay > 0 and ns.db.companionOffered,
+	"without one, it's offered a few seconds after login")
+timers[1].fn()
+check(cw.frame.shown, "and opens")
+cw:Close()
+check(not cw:OfferOnce() and #timers == 1, "but only ever once")
 
 done()

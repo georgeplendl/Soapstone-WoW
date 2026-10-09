@@ -17,6 +17,13 @@ for players: what changed in game, not how.
   the companion has shared it.
 - **Found counts.** Hovering a stone on the minimap or world map shows how
   many players have found it.
+- **Get the companion from inside the game.** Without the Soapstone
+  companion, nobody else sees your stones and you don't find theirs. Type
+  `/soap companion` for a window with its download link, ready to copy
+  into your browser. It also opens by itself once, the first time you play
+  without the companion, and shift-clicking the minimap button opens it
+  too. The minimap button's tooltip now says plainly when your stones
+  aren't being shared.
 
 ## [0.5.1] - 2026-10-06
 

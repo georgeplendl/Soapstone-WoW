@@ -11,6 +11,7 @@ ns.DEFAULTS = {
 	nearYards = 150, -- "somewhere close" sound cue for unread stones
 	sound = true,
 	network = false, -- sharing with other players is opt-in: /soap net join
+	companionOffered = false, -- the "get the companion" window has opened by itself once
 	minimap = { angle = 210, hide = false },
 }
 
@@ -107,6 +108,7 @@ local HELP = {
 	"/soap version — show the installed version",
 	"/soap net — network test tools (selftest, pacetest, status, ping, burst, log)",
 	"/soap stats — how many stones are stored, by zone",
+	"/soap companion — get the Soapstone companion app, which shares your stones with other players",
 	"/soap sync — sync with the companion app (reloads the UI); shift-click the minimap button does the same",
 	"/soap clear — delete every stone",
 }
@@ -197,6 +199,8 @@ SlashCmdList.SOAPSTONE = function(input)
 		printStats()
 	elseif cmd == "sync" then
 		ns.Companion:Sync()
+	elseif cmd == "companion" then
+		ns.CompanionWindow:Open()
 	elseif cmd == "clear" then
 		ns.Store:Clear()
 		ns.MinimapPins:Update()
@@ -230,6 +234,7 @@ boot:SetScript("OnEvent", function(self, event, arg1)
 		ns.Companion:Load()
 		ns.Companion:LoadSketches()
 		ns.Companion:AnnounceRefusals()
+		ns.CompanionWindow:OfferOnce()
 		ns.MinimapButton:Init()
 		ns.MinimapPins:Init()
 		ns.WorldMapPins:Init()

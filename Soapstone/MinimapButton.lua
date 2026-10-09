@@ -31,11 +31,20 @@ local function onEnter(btn)
 	else
 		GameTooltip:AddLine("No stones on this continent.", 1, 1, 1)
 	end
-	GameTooltip:AddLine(ns.Companion:Status(), 0.6, 0.6, 0.6)
+	local noCompanion = ns.Companion.state == "none"
+	if noCompanion then
+		GameTooltip:AddLine("No companion: your stones aren't shared", 1, 0.5, 0.25)
+	else
+		GameTooltip:AddLine(ns.Companion:Status(), 0.6, 0.6, 0.6)
+	end
 	GameTooltip:AddLine(" ")
 	GameTooltip:AddLine("|cffffd100Left-click|r  leave a stone here", 0.8, 0.8, 0.8)
 	GameTooltip:AddLine("|cffffd100Right-click|r  list nearby stones", 0.8, 0.8, 0.8)
-	GameTooltip:AddLine("|cffffd100Shift-click|r  sync with the companion (reloads)", 0.8, 0.8, 0.8)
+	if noCompanion then
+		GameTooltip:AddLine("|cffffd100Shift-click|r  get the Soapstone companion", 0.8, 0.8, 0.8)
+	else
+		GameTooltip:AddLine("|cffffd100Shift-click|r  sync with the companion (reloads)", 0.8, 0.8, 0.8)
+	end
 	GameTooltip:AddLine("|cffffd100Drag|r  move this button", 0.8, 0.8, 0.8)
 	GameTooltip:Show()
 end
