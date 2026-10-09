@@ -1,9 +1,9 @@
 > Leave your mark, literally. Scribble doodles and drop secret messages wherever you go, visible only to players who wander into the area.
 
 Soapstone lets you leave short messages and little drawings at spots in the
-world, like the orange soapstone messages in *Dark Souls* or the doodles in
-*Splatoon 3*. A stone stays sealed until someone walks right up to it. Then
-it opens, and they can read what you left there: a warning, a tip, a joke,
+world, like the orange soapstone messages in *Dark Souls* or doodles like in 
+*Splatoon 3*. A stone stays sealed until someone walks right up to it. Then 
+it opens, and they can read what you left there: a warning, a tip, a joke, 
 a view worth stopping for.
 
 Your minimap shows stones nearby and pulls you toward the sealed ones, with
@@ -11,34 +11,12 @@ a soft sound when one is close.
 
 Made for **WoW Forever** (currently in beta).
 
-## Install
-
-Soapstone has two parts: the addon, and the **Soapstone companion**, a
-small app that sits in your system tray and connects you to everyone else.
-It brings other players' stones into your world and carries yours into
-theirs.
-
-1. **Install Soapstone here,** with the CurseForge app. It keeps Soapstone
-   up to date along with the rest of your addons.
-2. **Get the companion.** Download the latest
-   `Soapstone-Companion-vX.Y.Z-setup.exe` from the
-   [Releases page](https://github.com/georgeplendl/Soapstone-WoW/releases)
-   on GitHub and run it. It installs just for your Windows user (no admin
-   prompt) and starts with Windows, so it's always ready to share. It
-   leaves the CurseForge app's copy of Soapstone alone unless it carries a
-   newer version.
-3. **Restart the game** once so it picks up the new files. A soapstone
-   button appears on your minimap.
-
-Keep the companion running while you play. It's what shares your stones
-with other players and brings theirs to you.
-
-**Coming soon:** the companion for macOS.
-
-**Beta.** The companion is new, so expect rough edges. Until its installer
-is code-signed, Windows may say "Windows protected your PC": choose
-**More info**, then **Run anyway**. Each release lists the installer's
-SHA-256 checksum, so you can check your download.
+> **Soapstone needs the Soapstone companion app to share stones.** The
+> companion carries your stones to other players and brings theirs to you.
+> Without it, nobody else will ever see your stones, and you won't find
+> theirs.
+> **[Get the companion](https://github.com/georgeplendl/Soapstone-WoW/releases/latest)**
+> (Windows; macOS coming soon).
 
 ## Screenshots
 
@@ -59,6 +37,39 @@ it is. Open it to read, appraise or disparage it.
 <p>
   <img src="https://raw.githubusercontent.com/georgeplendl/Soapstone-WoW/main/docs/Screenshots/read.png" alt="A stone opened: &quot;Be wary of GANK!&quot; by Mad Decent, with Edit, Appraised and Disparage buttons" width="480">
 </p>
+
+## Install
+
+Soapstone has two parts, and **you need both**: the addon, and the
+**Soapstone companion**, a small app that
+sits in your system tray and connects you to everyone else. It brings
+other players' stones into your world and carries yours into theirs.
+
+1. **Get the addon from
+   [CurseForge](https://www.curseforge.com/wow/addons/soapstone).** The
+   CurseForge app is the best way: it puts Soapstone in the right folder
+   and keeps it up to date along with the rest of your addons.
+2. **Get the companion: without it, nobody sees your stones.** Download
+   `Soapstone-Companion-vX.Y.Z-setup.exe` from its
+   [download page](https://github.com/georgeplendl/Soapstone-WoW/releases/latest)
+   and run it. It installs just for your Windows user (no admin prompt)
+   and starts with Windows, so it's always ready to share. It leaves the
+   CurseForge app's copy of the addon alone unless it carries a newer
+   version, and if you skipped step 1, it installs the addon for you.
+3. **Restart the game** once so it picks up the new files. A soapstone
+   button appears on your minimap.
+
+**Keep the companion running while you play.** It's what shares your
+stones with other players and brings theirs to you.
+
+> **Coming soon:** the companion for macOS.
+
+> **Beta.** The companion is new, so expect rough edges. Until its
+> installer is code-signed, Windows may say "Windows protected your PC":
+> choose **More info**, then **Run anyway**. Each release lists the
+> installer's SHA-256 checksum, so you can check your download.
+
+What's new in each version is in the [changelog](https://github.com/georgeplendl/Soapstone-WoW/blob/main/CHANGELOG.md).
 
 ## How to play
 
@@ -97,22 +108,26 @@ read is still sealed for your alts.
 | `/soap button` | Show or hide the minimap button |
 | `/soap help` | Every command |
 
-## How sharing works
+## Sharing with other players
 
-The companion shares stones with everyone through a shared database: stones
-other players left show up when you log in, along with their drawings, and
-yours reach them the same way. It only reads and writes Soapstone's own
-files, the way the WeakAuras Companion does, and never touches the game
-itself.
+The **Soapstone companion** is a small app that sits in your system tray
+next to WoW and shares stones with everyone through a shared database:
+stones other players left show up when you log in, along with their
+drawings, and yours reach them the same way. If you don't use the
+CurseForge app, it also installs and updates the addon for you (see
+Install).
 
-Because WoW only loads files when you log in or reload, new stones arrive
-at your next login or `/reload`. While WoW is running, the companion checks
-for new stones every 3 minutes. Shift-click the minimap button (or type
-`/soap sync`) to reload right away: the companion shares your new stones
-within seconds, and you get every stone it has fetched so far.
+It only reads and writes Soapstone's own files, the way the WeakAuras
+Companion does, and never touches the game itself. Because WoW only loads
+files when you log in or reload, new stones arrive at your next login or
+`/reload`. While WoW is running, the companion checks for new stones every
+3 minutes. Shift-click the minimap button (or type `/soap sync`) to reload
+right away: the companion shares your new stones within seconds, and you
+get every stone it has fetched so far.
 
 What the companion sends, and who can see it, is in the
-[privacy policy](https://github.com/georgeplendl/Soapstone-WoW/blob/main/PRIVACY.md).
+[privacy policy](https://github.com/georgeplendl/Soapstone-WoW/blob/main/PRIVACY.md). To uninstall it, use Windows Settings >
+Apps > Soapstone; that also removes it from Windows startup.
 
 ## Inspiration
 
@@ -128,11 +143,18 @@ both to Azeroth.
 
 *Left: a message in Elden Ring. Right: a drawn post in Splatoon 3.*
 
+Soapstone is also a spin-off of
+[Soapstone](https://github.com/georgeplendl/Soapstone), a phone app for
+leaving voice messages at real-world places.
+
 ## Links
 
 - [Source code, releases and the full changelog](https://github.com/georgeplendl/Soapstone-WoW) on GitHub
 - [Report a bug or suggest an idea](https://github.com/georgeplendl/Soapstone-WoW/issues)
 - [Privacy policy](https://github.com/georgeplendl/Soapstone-WoW/blob/main/PRIVACY.md)
 
-Soapstone is free. If you enjoy it, you can
-[buy me a coffee](https://www.buymeacoffee.com/georgeplendl).
+## Support
+
+Soapstone is free. If you enjoy it, you can buy me a coffee:
+
+<a href="https://www.buymeacoffee.com/georgeplendl"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=georgeplendl&button_colour=FFDD00&font_colour=000000&font_family=Inter&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="45"></a>
