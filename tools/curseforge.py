@@ -174,12 +174,16 @@ def verify(ref):
     project = toc_field(ref, "X-Curse-Project-ID")
     gv_name = game_version_name(toc_field(ref, "Interface"))
     token = api_token()
-    request("/game/versions", token)  # fails on a bad or revoked token
+    versions = {v["id"]: v for v in request("/game/versions", token)}  # fails on a bad token
+    types = {t["id"]: t.get("name", "?") for t in request("/game/version-types", token)}
     print(f"project       {project}")
     print("token         accepted")
-    ids = game_version_ids(gv_name, token)
     source = "CF_GAME_VERSION_IDS" if os.environ.get("CF_GAME_VERSION_IDS", "").strip() else "looked up"
-    print(f"game version  {gv_name} -> ids {ids} ({source})")
+    for i in game_version_ids(gv_name, token):
+        v = versions.get(i)
+        if not v:
+            fail(f"CurseForge has no game version with id {i}; check CF_GAME_VERSION_IDS")
+        print(f"game version  {v['name']} = id {i}, {types.get(v['gameVersionTypeID'], '?')} ({source})")
     print("ok: ready to upload (nothing was uploaded)")
 
 
