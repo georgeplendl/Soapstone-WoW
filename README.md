@@ -1,11 +1,12 @@
 # Soapstone for World of Warcraft
 
-> Leave a message somewhere in Azeroth. Only someone standing where you stood can read it.
+> Leave your mark, literally. Scribble doodles and drop secret messages wherever you go, visible only to players who wander into the area.
 
 Soapstone lets you leave short messages and little drawings at spots in the
-world, like the orange soapstone messages in *Dark Souls*. A stone stays
-sealed until someone walks right up to it. Then it opens, and they can read
-what you left there: a warning, a tip, a joke, a view worth stopping for.
+world, like the orange soapstone messages in *Dark Souls* or doodles like in 
+*Splatoon 3*. A stone stays sealed until someone walks right up to it. Then 
+it opens, and they can read what you left there: a warning, a tip, a joke, 
+a view worth stopping for.
 
 Your minimap shows stones nearby and pulls you toward the sealed ones, with
 a soft sound when one is close.
